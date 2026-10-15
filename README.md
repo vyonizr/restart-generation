@@ -31,11 +31,10 @@ The server hosts battles with a level template captured from the game engine, st
 1. Build the capture tool with the Visual Studio x86 tools: `cl /O1 tools\rgtrace\rgtrace.c`.
 2. Start the game, then run `rgtrace <java.exe pid> <outdir> > trace.log`.
 3. In the game, start an Arcade Mode battle with one opponent.
-4. Run `node tools/rgtrace/lengths.js trace.log <outdir>\lengths.txt` to list the captures.
-5. Import the `Game::write` capture taken at `ServerBattleLogic init` and the snapshot right after it:
-   `node tools/rgtrace/import-template.js <outdir>\NN_game.bin <outdir>\MM_snapshot.bin <name>`.
+4. Quit the battle and repeat; each Arcade battle uses a random map, and the opponent count sets the player count.
+5. Run `node tools/rgtrace/import-all.js trace.log <outdir>`. It imports every new level into `data/templates/` and skips ones already there. Restart the server to use them.
 
-Each Arcade battle uses a random level, so repeat to collect more levels.
+The game has 6 maps, each in a 2-, 3- and 4-player version (18 levels).
 
 ## Point the game at the server
 
