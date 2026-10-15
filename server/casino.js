@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { T, createReader, encode, u32 } = require('./mt');
+const battle = require('./battle');
 
 const CAPTURE = path.join(__dirname, '..', 'data', 'capture.log');
 const RANKED_CASINO = 0x12; // MT type of ranked-casino messages (friendly casinos use 0x13)
@@ -14,7 +15,7 @@ const A = {
   LOGIN: 0, LOGOUT: 1, F_CASINO: 3, RANKINGS: 4, STATISTICS: 5, ACHIEVEMENTS: 6, FRIENDLY_LIST: 7,
   ENTER: 8, MATCHMAKING: 9, CANCEL_MATCHMAKING: 0x0a, EXIT: 0x0b,
   SEAT_RESERVE: 0x0c, SEAT_TAKE: 0x0d, SEAT_LEAVE: 0x0e,
-  REGISTER_FRIENDS: 0x21, FRIEND_REMOVE: 0x23, FRIEND_ADD: 0x24, MATCHED_UP: 0x1f,
+  REGISTER_FRIENDS: 0x21, FRIEND_REMOVE: 0x23, FRIEND_ADD: 0x24, MATCHED_UP: 0x1f, LOCK_PLAYER: 0x1d,
 };
 const REQUEST = 0, RESPONSE = 1, EVENT = 2;
 
@@ -50,7 +51,7 @@ function stats(acc) {
 function statsRecord(acc, rank) {
   const st = stats(acc);
   return Buffer.concat([str(acc.name), i32(fameLevel(acc)), i32(st.fame), i32(0), i32(rank),
-    i32(st.matches), i32(st.wins), i32(st.rescues), i32(st.favouriteHero), i32(0), list([], i32), list([], i32)]);
+    i32(st.matches), i32(st.wins), i32(st.rescues), i32(st.favouriteHero), i32(st.highestFame ?? st.fame), list([], i32), list([], i32)]); // last i32 shows as Highest Fame (inferred)
 }
 function ranking(api) {
   return Object.values(api.accounts).sort((a, b) => stats(b).fame - stats(a).fame);
@@ -59,6 +60,23 @@ function ranking(api) {
 const ranked = new Set();    // sessions inside the ranked casino
 const queue = [];            // sessions waiting for a ranked match
 let nextTable = 1;
+const tables = new Set();    // SNAP rooms hosting a battle
+
+// Clients compute the result locally and upload nothing, so the server scores what it can see
+// (battle.result): +10 fame for a win.
+function finishMatch(host, api) {
+  if (host.finished) return;
+  host.finished = true;
+  const { winner, players } = battle.result(host);
+  for (const p of players) {
+    const st = stats(p.s.account);
+    st.matches++;
+    if (p === winner) { st.wins++; st.fame += 10; }
+    st.highestFame = Math.max(st.highestFame ?? 0, st.fame);
+  }
+  api.saveAccounts();
+  api.log(`battle over: ${winner ? winner.s.name + ' won' : 'no winner'}`);
+}
 
 const fameLevel = acc => 1 + Math.floor(stats(acc).fame / 100);
 // The matchmaking screen reads fameLevel, heroType and random from every listed profile (FUN_100eb6d0);
@@ -86,20 +104,28 @@ function leaveCasino(s) {
 
 function matchmake(api) {
   while (queue.length >= TABLE_SIZE) {
+    const host = battle.createTable(TABLE_SIZE, api);
+    if (!host) return; // no battle template: keep players waiting
     const players = queue.splice(0, TABLE_SIZE);
     const n = nextTable++;
     const table = { id: String(n), name: `table_${n}`, max: TABLE_SIZE, url: `naf://rg.com:80/table_${n}` };
     // The client leaves CasinoSystem and joins this SNAP room by name (FUN_100cdd00, FUN_1010fd80).
-    api.createRoom(table.name, TABLE_SIZE).table = table;
+    const room = api.createRoom(table.name, TABLE_SIZE);
+    room.battle = host;
+    tables.add(room);
     api.log(`matched ${players.map(p => p.name).join(', ')} into ${table.name}`);
     for (const p of players) {
       ranked.delete(p);
+      // Shows GAME_STARTING and stops the player backing out (FUN_100469c0). Must precede
+      // MATCHED_UP, which closes the client's CasinoSystem connection.
+      send(p, api, T.CASINO, Buffer.concat([header(REQUEST, A.LOCK_PLAYER), u32(0)]));
       send(p, api, RANKED_CASINO, event(A.MATCHED_UP, p.userId, tableDescriptor(table)));
     }
   }
 }
 
 function onCasino(s, type, kind, action, body, api) {
+  if (kind === RESPONSE && action === A.LOCK_PLAYER) return; // client's lock ack
   if (kind !== REQUEST) return false;
   api.log(`casino 0x${type.toString(16)} ${Object.keys(A).find(k => A[k] === action) ?? action} from ${s.name}`);
   const reply = (...parts) => send(s, api, type, response(action, ...parts));
@@ -156,9 +182,14 @@ function onCasino(s, type, kind, action, body, api) {
       return reply();
     case A.SEAT_RESERVE:
     case A.SEAT_TAKE:
-    case A.SEAT_LEAVE:
       reply();
       for (const m of s.room?.members || []) if (m !== s) send(m, api, type, event(action, s.userId));
+      // The SEAT_TAKE response starts the client's battle handshake (FUN_100ead20).
+      if (action === A.SEAT_TAKE && s.room?.battle) battle.seat(s.room.battle, s, api);
+      return;
+    case A.SEAT_LEAVE: // every client sends it when its battle ends normally (FUN_100ec8b0)
+      reply();
+      if (s.room?.battle) finishMatch(s.room.battle, api);
       return;
   }
   return false;
@@ -172,6 +203,11 @@ function onMessage(s, msg, api) {
     case T.PONG:
     case T.GAMESERVER: // Hello key/value block; the client expects no reply.
       return;
+    case T.GAME: {
+      const host = s.room?.battle, p = host?.players.find(o => o.s === s);
+      if (p) return battle.onGame(host, p, body, api);
+      break;
+    }
     case T.CASINO: case RANKED_CASINO: case 0x13: case T.TABLE:
       if (onCasino(s, type, body[0], body[1], body.subarray(2), api) !== false) return;
   }
@@ -194,5 +230,9 @@ module.exports = {
   onLeave(s, room, api) {
     record(`${s.name} left ${room.id} "${room.name}"`);
     if (room.name === 'CasinoSystem') leaveCasino(s);
+    const p = room.battle?.players.find(o => o.s === s);
+    if (p) battle.leave(room.battle, p, api);
+    if (room.members.size === 0) tables.delete(room);
   },
+  start(api) { setInterval(() => { for (const room of tables) battle.tick(room.battle, api); }, 1000); },
 };

@@ -6,7 +6,7 @@ Reset Generation (web/standalone build, 2009) talks to three layers:
 2. **RedLynx MT / NAF framework**: a message layer inside the native DLL (`MT_PING`, `MT_PONG`, `MT_GAMESERVER`, `MT_GAMEROOM`, `MT_USER`, `MT_HOSTMIGRATION`, `MT_SERVICE_DISCOVERY`, `MT_STATS_AUTH`). Its payloads travel inside SNAP game packets.
 3. **CasinoSystem game server**: RedLynx's matchmaking, rankings, and friends service (`CASINOSYSTEM_LOGIN`, `CASINO_MATCHMAKING`, `CASINO_MATCHED_UP`, `GET_RANKINGS`, and so on). The Java side never sees these messages.
 
-Layers 1 and 2 are recovered and verified against the live client. Layer 3 works from login through seating at a match table; match start and in-match traffic are still being reversed from `ResetGeneration-Win32-Web.dll`.
+All three layers are recovered and verified against the live client: two clients can log in, matchmake, play a ranked battle hosted by the server, and see the result in their stats. Friendly arenas and the friends list are not implemented yet.
 
 ## Client configuration
 
@@ -172,4 +172,48 @@ Verified flows:
 
 `RB` = `00 00000000`.
 
-After seating, both clients show "Players in Match … Waiting for Players…". The message that starts the match is still being reversed.
+Matching also sends `LOCK_PLAYER_IN_GAME` (`0x11 00 1d u32 0`) before `MATCHED_UP`, so the lobby shows "Game starting" and the player can't back out.
+
+## Battle
+
+In the ranked arena the server is the battle host (the original ran the engine's `ServerBattleLogic` as player 0). Clients only run `ClientBattleLogic`. All battle traffic is MT type `0x16` in the table room: one zlib stream (any level) per message, holding one GameMessage.
+
+### GameMessage
+
+Header, all `s32` little-endian: `seq, reliable, type, sender, n, n x recipient, team, turn, phase, hash, unknown`. The server is sender 0 with recipients `[0]`. `hash` can be 0 (no state check). The body depends on the type:
+
+| Type | Name | Body |
+| --- | --- | --- |
+| 0 | InitGameData | `u32 len`, `len` bytes |
+| 1 | BattleBegin | none |
+| 3-6, 8, 13, 16 | Orders (move, cannon, tile, attack, point, ignored, special skill) | opaque to the server |
+| 7 | EndTurn | none |
+| 9 | EndTurnRequest | none (uses header turn and phase) |
+| 10 | EndGame | `s32 reason`: 0 quit, 1 surrender, 2 disconnect, 3 sync error |
+| 12 | PlayerJoined | `s32 index, s32 team, u8 1, String name, s32 heroId, s32 -1, u8 random, Hero, s32 3` |
+| 14 | MessageAccepted | `s32 ackSeq, s32 ackSender` |
+| 15 | Chat | text, not reliable |
+
+### Joining a table
+
+After the `SEAT_TAKE` response, per player:
+
+1. Server sends InitGameData: Game blob plus `s32 1`. The Game holds the level, rules, heroes, and RNG seed (`server/gameblob.js`). It must have no join infos.
+2. Client sends InitGameData: its JoinInfo (`s32 type, s32 slot, s32, s32, String name, u8 random, Hero`).
+3. Server sends InitGameData: `s32 index, s32 team`. Joiner k gets index k and team k.
+4. Server sends InitGameData: the pre-join snapshot (starts `0xDEADBEEF`), `u32 n`, then the `n` reliable messages sent so far.
+5. Server sends PlayerJoined for the new player to everyone.
+
+When every seat is filled, or 40 s have passed with at least 2 players, the server sends BattleBegin. The battle starts in turn 1, phase 2.
+
+### During the battle
+
+- The server acks every reliable client message with MessageAccepted to the sender and forwards the message unchanged to the other players, in one global order. EndGame reason 3 is forwarded as 2.
+- EndTurnRequest is never forwarded. Interactive phases are 2 (place tiles, all players at once), 4 (hero turns, ascending team), and 5 (cannons, all at once). Phases 1, 3, 6, and 7 advance by themselves. The server sends EndTurn with the current turn and phase to everyone once every living player has finished phase 2 or 5, or when the current player ends their phase 4 turn. EndTurn for any other turn or phase is dropped by the clients and stalls the battle.
+- Each interactive phase has a time limit in the Game blob (20 s in the captured levels). The server forces EndTurn 30 s after it.
+- A player who drops out is reported to the others as EndGame reason 2 with the leaver as sender. EndGame with sender 0 would make every client believe it won.
+- Clients decide the winner themselves and upload nothing. When the battle ends, each client sends `SEAT_LEAVE` on `0x15` and logs in to CasinoSystem again. The server scores the last player standing, else the player who made the final move.
+
+### Level templates
+
+The server can't build a Game or snapshot from the level files yet, so it uses captures from the engine. `tools/rgtrace` attaches to a running client, makes `ServerBattleLogic` serialize its Game during an Arcade battle, and dumps the Game and the snapshot. `tools/rgtrace/import-template.js` turns a capture into `data/templates/<name>.game` and `.snap`. A table uses a random template with one castle per seat.

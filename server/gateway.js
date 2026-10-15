@@ -187,3 +187,4 @@ net.createServer(sock => {
   sock.on('error', e => log(addr, e.message));
   sock.on('close', () => log('disconnect', addr));
 }).listen(PORT, () => log(`SNAP gateway on tcp/${PORT}`));
+gameServer.start?.(api);
