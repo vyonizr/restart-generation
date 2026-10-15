@@ -1,13 +1,10 @@
 // Boots the game, runs N ticks, and when the given original address (0x10xxxxxx) executes,
 // prints the registers and a few dwords at [ecx]. Usage: node web/tools/probe.mjs <hexva> [ticks]
-import fs from 'fs';
-import path from 'path';
+import { loadGame } from './game.mjs';
 import { GameHost } from '../emu/host.js';
 
-const dir = 'tmp/ResetGeneration-Standalone/ResetGeneration';
 const target = parseInt(process.argv[2], 16), ticks = +(process.argv[3] || 60);
-const files = {};
-for (const f of fs.readdirSync(dir)) files[f] = new Uint8Array(fs.readFileSync(path.join(dir, f)));
+const files = await loadGame();
 const g = new GameHost(files);
 g.boot();
 const cpu = g.m.cpu, addr = g.m.addr(target), hex = v => (v >>> 0).toString(16);

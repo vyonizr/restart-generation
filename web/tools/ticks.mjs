@@ -1,10 +1,7 @@
 // Prints instructions and the return value of each of the first N ticks.
-import fs from 'fs';
-import path from 'path';
+import { loadGame } from './game.mjs';
 import { GameHost } from '../emu/host.js';
-const dir = 'tmp/ResetGeneration-Standalone/ResetGeneration';
-const files = {};
-for (const f of fs.readdirSync(dir)) files[f] = new Uint8Array(fs.readFileSync(path.join(dir, f)));
+const files = await loadGame();
 const g = new GameHost(files, { log: s => console.log('  log:', s) });
 g.boot();
 for (let i = 1; i <= +(process.argv[2] || 30); i++) {

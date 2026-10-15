@@ -1,13 +1,10 @@
 // Boots the game, runs N ticks, then prints the address of every instruction in one more tick
 // (as original DLL addresses, 0x10xxxxxx) and the JS-handled calls it makes.
-import fs from 'fs';
-import path from 'path';
+import { loadGame } from './game.mjs';
 import { GameHost } from '../emu/host.js';
 
-const dir = 'tmp/ResetGeneration-Standalone/ResetGeneration';
 const warm = +(process.argv[2] || 60);
-const files = {};
-for (const f of fs.readdirSync(dir)) files[f] = new Uint8Array(fs.readFileSync(path.join(dir, f)));
+const files = await loadGame();
 const g = new GameHost(files, { log: s => console.log('  log:', s) });
 g.boot();
 for (let i = 1; i <= warm; i++) g.tick(i * 33);

@@ -2,6 +2,7 @@
 // canvas, forwards the keyboard and plays the engine's 8 kHz PCM through WebAudio.
 import { GameHost, WIDTH, HEIGHT, VK } from './emu/host.js';
 import { SnapClient } from './snap.js';
+import { gameFromZip } from './zip.js';
 
 const GAME_URL = 'game/';   // served by server/gateway.js from the user's own copy of the game
 const FILES = ['ResetGeneration-Win32-Web.dll', 'settings.cfg', 'achievements.dat', 'base.pak', 'fonts.pak', 'story.pak',
@@ -32,7 +33,7 @@ function gameStore(mode, op) {
   });
 }
 
-// Files served next to the page, as server/gateway.js does from RG_GAME_DIR. Null if the host has none.
+// Files served next to the page, as server/gateway.js does from RG_GAME. Null if the host has none.
 async function fetchFiles() {
   const files = {};
   let done = 0;
@@ -45,23 +46,38 @@ async function fetchFiles() {
   return files;
 }
 
-// Asks the player for their game folder. Either the ResetGeneration folder or the folder above it works.
+// Asks the player for the standalone build's .zip or its game folder (the ResetGeneration folder or the one above it).
 function pickFiles() {
-  const input = document.getElementById('pick-input'), button = document.getElementById('pick');
-  status.textContent = 'Choose your Reset Generation game folder. The files stay in this browser.';
-  button.hidden = false;
-  button.onclick = () => input.click();
+  const pick = document.getElementById('pick'), zipInput = document.getElementById('pick-zip-input'), dirInput = document.getElementById('pick-input');
+  status.textContent = 'Choose your copy of Reset Generation Standalone: the .zip, or the extracted folder. The files stay in this browser.';
+  pick.hidden = false;
+  document.getElementById('pick-zip').onclick = () => zipInput.click();
+  document.getElementById('pick-folder').onclick = () => dirInput.click();
   return new Promise(resolve => {
-    input.onchange = async () => {
-      const byName = new Map([...input.files].map(f => [f.name.toLowerCase(), f]));
-      input.value = '';
-      const missing = FILES.filter(n => !SAVED.has(n) && !byName.has(n.toLowerCase()));
-      if (missing.length) { status.textContent = `That folder is missing ${missing.join(', ')}. Choose the folder that contains base.pak.`; return; }
-      button.hidden = true;
+    // found: { lowercase name: Uint8Array or File }
+    const use = async (found, what) => {
+      const missing = FILES.filter(n => !SAVED.has(n) && !found[n.toLowerCase()]);
+      if (missing.length) { status.textContent = `That ${what} is missing ${missing.join(', ')}. Choose the Reset Generation Standalone .zip or folder.`; return; }
+      pick.hidden = true;
       status.textContent = 'Reading game files…';
       const files = {};
-      for (const n of FILES) { const f = byName.get(n.toLowerCase()); if (f) files[n] = new Uint8Array(await f.arrayBuffer()); }
+      for (const n of FILES) { const f = found[n.toLowerCase()]; if (f) files[n] = f instanceof Uint8Array ? f : new Uint8Array(await f.arrayBuffer()); }
       resolve(files);
+    };
+    dirInput.onchange = () => {
+      const found = Object.fromEntries([...dirInput.files].map(f => [f.name.toLowerCase(), f]));
+      dirInput.value = '';
+      use(found, 'folder');
+    };
+    zipInput.onchange = async () => {
+      const file = zipInput.files[0];
+      zipInput.value = '';
+      if (!file) return;
+      status.textContent = 'Unpacking…';
+      try {
+        const entries = await gameFromZip(new Uint8Array(await file.arrayBuffer()));
+        use(Object.fromEntries(Object.entries(entries).map(([n, d]) => [n.toLowerCase(), d])), '.zip');
+      } catch (e) { status.textContent = `Could not read ${file.name}: ${e.message}`; }
     };
   });
 }

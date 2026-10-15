@@ -1,13 +1,10 @@
 // Logs every function called (as original 0x10xxxxxx addresses, indented by stack depth) during
 // tick N. Usage: node web/tools/calls.mjs <tick> [maxLines]
-import fs from 'fs';
-import path from 'path';
+import { loadGame } from './game.mjs';
 import { GameHost } from '../emu/host.js';
 
-const dir = 'tmp/ResetGeneration-Standalone/ResetGeneration';
 const which = +(process.argv[2] || 5), maxLines = +(process.argv[3] || 400);
-const files = {};
-for (const f of fs.readdirSync(dir)) files[f] = new Uint8Array(fs.readFileSync(path.join(dir, f)));
+const files = await loadGame();
 const g = new GameHost(files, { log: s => console.log('  log:', s) });
 g.boot();
 for (let i = 1; i < which; i++) g.tick(i * 33);

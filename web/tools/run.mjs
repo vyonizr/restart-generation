@@ -3,9 +3,9 @@
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import { loadGame } from './game.mjs';
 import { GameHost, WIDTH, HEIGHT, VK } from '../emu/host.js';
 
-const dir = 'tmp/ResetGeneration-Standalone/ResetGeneration';
 const ticks = +(process.argv[2] || 200), out = process.argv[3] || 'tmp/frames';
 const script = new Map((process.argv[4] || '').split(',').filter(Boolean).map(s => { const [t, k] = s.split(':'); return [+t, k]; }));
 fs.mkdirSync(out, { recursive: true });
@@ -23,8 +23,7 @@ function png(file, px) {
   fs.writeFileSync(file, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
 }
 
-const files = {};
-for (const f of fs.readdirSync(dir)) files[f] = new Uint8Array(fs.readFileSync(path.join(dir, f)));
+const files = await loadGame();
 const g = new GameHost(files, { log: s => console.log('  ', s) });
 const t0 = performance.now();
 try {

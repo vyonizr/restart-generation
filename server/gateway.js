@@ -266,7 +266,10 @@ gameServer.start?.(api);
 const http = require('http');
 const HTTP_PORT = Number(process.env.HTTP_PORT || 8080);
 const WEB_DIR = path.join(__dirname, '..', 'web');
-const GAME_DIR = process.env.RG_GAME_DIR || path.join(__dirname, '..', 'tmp', 'ResetGeneration-Standalone', 'ResetGeneration');
+// RG_GAME: the ResetGeneration folder or the standalone .zip. Without it the page asks players for their own files.
+let gameFiles = {};
+if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => { gameFiles = f; log(`game files from ${process.env.RG_GAME}`); },
+  e => log(`RG_GAME: ${e.message}`));
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
 
 http.createServer((req, res) => {
@@ -279,9 +282,14 @@ http.createServer((req, res) => {
     }));
     return;
   }
+  if (url.startsWith('/game/')) {
+    const data = Object.hasOwn(gameFiles, url.slice(6)) && gameFiles[url.slice(6)];
+    if (!data) { res.writeHead(404); return res.end('not found'); }
+    res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-cache' });
+    return res.end(data);
+  }
   let file;
   if (url === '/') file = path.join(WEB_DIR, 'index.html');
-  else if (/^\/game\/[\w.-]+$/.test(url)) file = path.join(GAME_DIR, url.slice(6));
   else if (/^\/(emu\/)?[\w-]+\.(js|html)$/.test(url)) file = path.join(WEB_DIR, url);
   if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });

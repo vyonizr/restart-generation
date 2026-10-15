@@ -26,6 +26,9 @@
   .login input { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--muted); background: var(--bg); color: var(--text); }
   .login .row { display: flex; gap: 8px; justify-content: flex-end; }
   .login .secondary { background: transparent; color: var(--text); border: 1px solid var(--muted); }
+  #pick { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  #pick[hidden] { display: none; }
+  #pick .secondary { background: transparent; color: #fff; border: 1px solid #fff; }
   .login p { margin: 0; font-size: 13px; color: var(--muted); }
   .keys { max-width: min(480px, 92vw); width: 100%; background: var(--panel); border-radius: 8px; padding: 12px 16px; color: var(--muted); }
   .keys b { color: var(--text); }
@@ -37,7 +40,11 @@
     <canvas id="screen" width="240" height="320" tabindex="0" aria-label="Game screen"></canvas>
     <div class="overlay" id="overlay">
       <p id="status">Loading game files…</p>
-      <button id="pick" hidden>Choose game folder</button>
+      <div id="pick" hidden>
+        <button id="pick-zip">Choose .zip file</button>
+        <button id="pick-folder" class="secondary">Choose folder</button>
+      </div>
+      <input id="pick-zip-input" type="file" accept=".zip" hidden>
       <input id="pick-input" type="file" webkitdirectory multiple hidden>
       <button id="start" hidden>Start</button>
     </div>

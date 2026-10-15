@@ -1,12 +1,9 @@
 // Counts which opcodes the block compiler sends to the interpreter, weighted by execution count.
-import fs from 'fs';
-import path from 'path';
+import { loadGame } from './game.mjs';
 import { GameHost } from '../emu/host.js';
 import * as jit from '../emu/jit.js';
 
-const dir = 'tmp/ResetGeneration-Standalone/ResetGeneration';
-const files = {};
-for (const f of fs.readdirSync(dir)) files[f] = new Uint8Array(fs.readFileSync(path.join(dir, f)));
+const files = await loadGame();
 const g = new GameHost(files);
 g.boot();
 const cpu = g.m.cpu, counts = new Map();

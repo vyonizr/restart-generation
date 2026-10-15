@@ -1,7 +1,7 @@
 // Drives headless Edge/Chrome over the DevTools protocol against the running server: opens the page,
 // presses Start, sends keys, saves screenshots and prints console errors.
 // Usage: node web/tools/browser-test.mjs [url] [script]   script: "wait:8,shot:a,key:Control,wait:2,shot:b,reload"
-// If the page asks for the game folder, set RG_PICK to the folder to give it.
+// If the page asks for the game files, set RG_PICK to the .zip or folder to give it.
 import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -38,7 +38,7 @@ try {
   await send('Page.enable');
   await send('Page.navigate', { url });
   const evaluate = async expr => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.value;
-  // Wait for the Start button, then press it. If the page asks for the game folder, give it the RG_PICK folder.
+  // Wait for the Start button, then press it. If the page asks for the game files, give it RG_PICK (a .zip or a folder).
   const start = async () => {
     let picked = false;
     for (let i = 0; i < 300; i++) {
@@ -46,7 +46,8 @@ try {
       if (s && s.endsWith('|true')) break;
       if (process.env.RG_PICK && !picked && await evaluate(`!document.getElementById('pick').hidden`)) {
         const { root } = await send('DOM.getDocument');
-        const { nodeId } = await send('DOM.querySelector', { nodeId: root.nodeId, selector: '#pick-input' });
+        const selector = fs.statSync(process.env.RG_PICK).isFile() ? '#pick-zip-input' : '#pick-input';
+        const { nodeId } = await send('DOM.querySelector', { nodeId: root.nodeId, selector });
         await send('DOM.setFileInputFiles', { nodeId, files: [path.resolve(process.env.RG_PICK)] }); // a directory input takes the folder itself
         console.log('picked', process.env.RG_PICK);
         picked = true;
@@ -74,6 +75,7 @@ try {
     else if (cmd === 'key') { await keyEvent('rawKeyDown', arg); await sleep(150); await keyEvent('keyUp', arg); await sleep(400); }
     else if (cmd === 'shot') {
       const { data } = await send('Page.captureScreenshot', { format: 'png' });
+      fs.mkdirSync('tmp', { recursive: true });
       fs.writeFileSync(`tmp/browser_${arg}.png`, Buffer.from(data, 'base64'));
       const fps = await evaluate(`window.rgStats ? JSON.stringify(window.rgStats) : ''`);
       console.log(`shot ${arg}`, fps);

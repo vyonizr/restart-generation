@@ -1,14 +1,11 @@
 // Runs the game on the interpreter and on the block compiler in lockstep and reports the first tick
 // where registers, flags, pixels or memory differ. Usage: node web/tools/difftest.mjs [ticks]
-import fs from 'fs';
-import path from 'path';
+import { loadGame } from './game.mjs';
 import crypto from 'crypto';
 import { GameHost } from '../emu/host.js';
 
-const dir = 'tmp/ResetGeneration-Standalone/ResetGeneration';
 const ticks = +(process.argv[2] || 300);
-const files = {};
-for (const f of fs.readdirSync(dir)) files[f] = new Uint8Array(fs.readFileSync(path.join(dir, f)));
+const files = await loadGame();
 const a = new GameHost(files, { jit: false }), b = new GameHost(files, { jit: true });
 a.boot(); b.boot();
 const state = g => {
