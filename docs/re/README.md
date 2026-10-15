@@ -54,7 +54,7 @@ You need:
    "$JAVA_HOME/bin/java" -jar "$CFR" $G/lib/rg-signed.jar --outputdir analysis/src_sm2 --renamedupmembers true
    ```
 
-3. Import and analyze the engine DLL, then decompile every function. `VtableFunctions.java` first creates the functions that are reachable only through vtables, which Ghidra's analysis misses. This takes several minutes.
+3. Import and analyze the engine DLL, then decompile every function. `VtableFunctions.java` first creates the functions that are reachable only through vtables, which Ghidra's analysis misses. This takes several minutes. Ghidra refuses a project path that has a folder starting with a dot, such as `.cache`; on Windows, `analyzeHeadless.bat` then waits for a keypress.
 
    ```sh
    mkdir -p analysis/ghproj
