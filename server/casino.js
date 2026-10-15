@@ -8,7 +8,8 @@ const battle = require('./battle');
 
 const CAPTURE = path.join(__dirname, '..', 'data', 'capture.log');
 const RANKED_CASINO = 0x12; // MT type of ranked-casino messages (friendly casinos use 0x13)
-const TABLE_SIZE = 2;        // ponytail: ranked tables seat 2; gather up to 4 if real players want bigger games
+const MAX_SEATS = 4;         // SM_GROOM_MAX_NUM_USERS
+const GATHER_MS = 15000;     // how long a smaller table waits for more players
 
 // Casino action ids (FUN_100994e0).
 const A = {
@@ -102,15 +103,23 @@ function leaveCasino(s) {
   if (i >= 0) queue.splice(i, 1);
 }
 
+// Seat up to 4 players at once; after GATHER_MS, seat as many as a level template exists for.
+function tableSize() {
+  const sizes = [...battle.seatCounts()].filter(n => n >= 2 && n <= Math.min(MAX_SEATS, queue.length));
+  if (!sizes.length) return 0;
+  const best = Math.max(...sizes);
+  return best === MAX_SEATS || Date.now() - queue[0].queuedAt >= GATHER_MS ? best : 0;
+}
+
 function matchmake(api) {
-  while (queue.length >= TABLE_SIZE) {
-    const host = battle.createTable(TABLE_SIZE, api);
-    if (!host) return; // no battle template: keep players waiting
-    const players = queue.splice(0, TABLE_SIZE);
+  for (let size; (size = tableSize());) {
+    const host = battle.createTable(size, api);
+    if (!host) return;
+    const players = queue.splice(0, size);
     const n = nextTable++;
-    const table = { id: String(n), name: `table_${n}`, max: TABLE_SIZE, url: `naf://rg.com:80/table_${n}` };
+    const table = { id: String(n), name: `table_${n}`, max: size, url: `naf://rg.com:80/table_${n}` };
     // The client leaves CasinoSystem and joins this SNAP room by name (FUN_100cdd00, FUN_1010fd80).
-    const room = api.createRoom(table.name, TABLE_SIZE);
+    const room = api.createRoom(table.name, size);
     room.battle = host;
     tables.add(room);
     api.log(`matched ${players.map(p => p.name).join(', ')} into ${table.name}`);
@@ -169,7 +178,7 @@ function onCasino(s, type, kind, action, body, api) {
       const others = queue.filter(q => q !== s);
       reply(u8(others.length), ...others.map(o => profile(myProfile(o))));
       for (const o of others) send(o, api, type, event(A.MATCHMAKING, s.userId, profile(myProfile(s))));
-      if (!queue.includes(s)) queue.push(s);
+      if (!queue.includes(s)) { s.queuedAt = Date.now(); queue.push(s); }
       return matchmake(api);
     }
     case A.CANCEL_MATCHMAKING: {
@@ -234,5 +243,7 @@ module.exports = {
     if (p) battle.leave(room.battle, p, api);
     if (room.members.size === 0) tables.delete(room);
   },
-  start(api) { setInterval(() => { for (const room of tables) battle.tick(room.battle, api); }, 1000); },
+  start(api) {
+    setInterval(() => { matchmake(api); for (const room of tables) battle.tick(room.battle, api); }, 1000);
+  },
 };

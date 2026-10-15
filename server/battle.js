@@ -34,11 +34,15 @@ function tableGame(t) {
   const seed = crypto.randomBytes(4).readInt32LE();
   const rng = g.seedRng(seed);
   g.rngNext(rng); // captures hold the seeded state plus one draw
-  return g.writeGame({ ...t.game, randomSeed: seed, rng, playerSlots: 3, players: [], slotHeroes: [] });
+  return g.writeGame({ ...t.game, randomSeed: seed, rng, playerSlots: t.seats + 1, players: [], slotHeroes: [] });
 }
 
+// ponytail: templates load once; restart the server after importing new ones.
+let templates;
+const seatCounts = () => new Set((templates ??= loadTemplates()).map(t => t.seats));
+
 function createTable(seats, api) {
-  const fit = loadTemplates().filter(t => t.seats === seats);
+  const fit = (templates ??= loadTemplates()).filter(t => t.seats === seats);
   if (!fit.length) { api.log(`no battle template for ${seats} players in data/templates`); return null; }
   const t = fit[crypto.randomInt(fit.length)];
   api.log(`table uses template ${t.name}`);
@@ -197,4 +201,4 @@ function tick(table, api) {
   }
 }
 
-module.exports = { createTable, seat, onGame, leave, result, tick };
+module.exports = { seatCounts, createTable, seat, onGame, leave, result, tick };

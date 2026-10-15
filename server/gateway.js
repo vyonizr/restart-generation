@@ -45,7 +45,23 @@ function login(name, password) {
   return s;
 }
 
+// Buddy list (SNAP IMPS). acc.friends maps a lowercased name to 'to' (we asked), 'from' (they asked)
+// or 'both'. The client turns 302 rows and 307 presence events into its friend list (FriendListCache).
+const accountOf = name => accounts[String(name).toLowerCase()];
+const online = acc => [...sessions.values()].find(o => o.account === acc);
+function setLink(a, b, v) { (a.friends ??= {})[b.name.toLowerCase()] = v; if (v === undefined) delete a.friends[b.name.toLowerCase()]; }
+function presenceTo(target, s, avail) {
+  pushEvent(target, `307|${s.userId}|${s.name}|${avail}|42713|${s.userId}|${LOBBY.id}||0|0|0|0|${b64(s.presence || ' ')}`);
+}
+function announce(s, avail) {
+  for (const [name, v] of Object.entries(s.account.friends || {})) {
+    const o = v === 'both' && online(accountOf(name));
+    if (o) presenceTo(o, s, avail);
+  }
+}
+
 function dropSession(s) {
+  announce(s, 'unavailable');
   leaveRoom(s);
   flushPoll(s);
   sessions.delete(s.sid);
@@ -154,7 +170,54 @@ function handle(req, s, send) {
     case 133: // sendGamePacketToGameServer
       gameServer.onPacket(s, p[1] || Buffer.alloc(0), api);
       return send(ok());
-    case 302: return send(ok()); // getBuddyList: empty for now
+    case 302: { // getBuddyList: rows id|name|status, then presence for friends online
+      const rows = Object.entries(s.account.friends || {}).map(([name, v]) => {
+        const acc = accountOf(name);
+        return [acc.id, acc.name, v];
+      });
+      send(ok(rows));
+      for (const [name, v] of Object.entries(s.account.friends || {})) {
+        const o = v === 'both' && online(accountOf(name));
+        if (o) presenceTo(s, o, 'available');
+      }
+      return;
+    }
+    case 305: // setPresence: P1 availability, P2 "SM2.0.1,<presence>"
+      s.presence = String(p[2] || '').replace(/^SM2.0.1,/, '');
+      announce(s, 'available');
+      return send(ok());
+    case 306: { // requestBuddy: P1 name, P2 message
+      const acc = accountOf(p[1]);
+      if (!acc || acc === s.account) return send(ok()); // an error code would log the client out (processServerError)
+      const mine = s.account.friends?.[acc.name.toLowerCase()];
+      if (mine === 'from') return handle({ ...req, cmd: 307 }, s, send); // they already asked: accept
+      if (!mine) { setLink(s.account, acc, 'to'); setLink(acc, s.account, 'from'); saveAccounts(); }
+      const o = online(acc);
+      if (o) pushEvent(o, `308|${s.userId}|${s.name}|${b64(String(p[2] || ' '))}`);
+      return send(ok());
+    }
+    case 307: case 308: { // accept / decline a request: P1 name
+      const acc = accountOf(p[1]);
+      if (!acc || s.account.friends?.[acc.name.toLowerCase()] !== 'from') return send(ok());
+      const accept = req.cmd === 307;
+      setLink(s.account, acc, accept ? 'both' : undefined); setLink(acc, s.account, accept ? 'both' : undefined);
+      saveAccounts();
+      const o = online(acc);
+      if (o) {
+        pushEvent(o, `309|${s.userId}|${s.name}|${accept ? 1 : 0}|${b64(' ')}`);
+        if (accept) { presenceTo(o, s, 'available'); presenceTo(s, o, 'available'); }
+      }
+      return send(ok());
+    }
+    case 309: { // removeBuddy: P1 name
+      const acc = accountOf(p[1]);
+      if (acc) {
+        setLink(s.account, acc, undefined); setLink(acc, s.account, undefined); saveAccounts();
+        const o = online(acc);
+        if (o) pushEvent(o, `311|${s.userId}|${s.name}`);
+      }
+      return send(ok());
+    }
   }
   log(`unhandled C=${req.cmd}`, JSON.stringify(req.params));
   return send(ok());

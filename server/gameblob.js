@@ -147,9 +147,9 @@ function game(s, o) {
   s.ints(o, 'itemsOnMatchStart'); s.ints(o, 'itemsOnMatchStartPerPlayers'); // +0xd8, +0xf0 (FUN_1003aa80)
   s.ints(o, 'itemGeneration'); s.ints(o, 'itemGenerationPerPlayers');       // +0xcc, +0xe4 (FUN_1003acc0)
   s.i32(o, 'environment');                                 // +0x120 "Environment" 0..4
-  // +0x188: 4 arrays sized w, h, w, h by FUN_1003f7c0, but both writer and reader use mapWidth for all 4.
+  // +0x188: 4 arrays sized w, h, w, h (FUN_1003f7c0); verified on a 12x10 map.
   if (s.R) o.f188 = [];
-  for (let i = 0; i < 4; i++) s.ints(o.f188, i, o.mapWidth);
+  for (let i = 0; i < 4; i++) s.ints(o.f188, i, i % 2 ? o.mapHeight : o.mapWidth);
   s.bytes(o, 'triggers', s.u32({ n: s.R ? 0 : o.triggers.length }, 'n')); // +0x1c0 "Triggers" data, < 50000
   // RNG FUN_100f31a0 (read FUN_100f3230 requires the 11): i, j, 11, 11 x u32 lagged-Fibonacci state.
   s.obj(o, 'rng', r => {
