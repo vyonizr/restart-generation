@@ -8,7 +8,6 @@ const GAME_URL = 'game/';   // served by server/gateway.js from the user's own c
 const FILES = ['ResetGeneration-Win32-Web.dll', 'settings.cfg', 'achievements.dat', 'base.pak', 'fonts.pak', 'story.pak',
   'intro.pak', 'fight.pak', 'gameplay.pak', 'gameplay2.pak', 'levels.pak', 'menus.pak'];
 const SAVED = new Set(['settings.cfg', 'achievements.dat']);
-const MAX_TICKS_PER_FRAME = 4;   // catch-up limit after a stall
 
 const canvas = document.getElementById('screen'), ctx = canvas.getContext('2d');
 const overlay = document.getElementById('overlay'), status = document.getElementById('status'), startButton = document.getElementById('start');
@@ -335,16 +334,18 @@ async function main() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
   addEventListener('pagehide', saveNow);
 
-  // Slowness: a second is slow if the loop gave up catching up in it; ten slow seconds in a row show the notice once.
-  let slow = false, slowRun = 0;
+  // Slowness: a second is slow if the game advanced less than half a second in it; ten slow seconds in a
+  // row show the notice once.
+  let slowRun = 0, lastTime = game.time;
   const slowTimer = touch && setInterval(() => {
+    const advanced = game.time - lastTime;
+    lastTime = game.time;
     if (document.hidden) return;
-    slowRun = slow ? slowRun + 1 : 0;
-    slow = false;
+    slowRun = advanced < 500 ? slowRun + 1 : 0;
     if (slowRun >= 10) { clearInterval(slowTimer); slowNotice(); }
   }, 1000);
 
-  const t0 = performance.now();
+  let t0 = performance.now();
   let lastSave = 0, frames = 0, statT = t0, statI = 0;
   const frame = now => {
     try {
@@ -354,14 +355,14 @@ async function main() {
           lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20) };
         statT = now; statI = ic;
       }
-      // Tick until the engine's clock reaches real time; each tick sleeps the engine to its next frame.
-      let ticks = 0;
-      for (; ticks < MAX_TICKS_PER_FRAME && game.time < now - t0; ticks++) {
+      // At most one tick per frame, when the engine's clock is behind real time; each tick sleeps the
+      // engine to its next frame. A late frame slows the game instead of bursting catch-up ticks.
+      if (game.time < now - t0) {
         while (input.length) input.shift()();
         game.tick(); snap.pump();
+        if (game.time < now - t0) t0 = now - game.time; // drop the backlog
+        draw(game); // the framebuffer only changes inside a tick
       }
-      if (game.time < now - t0 - 500) { game.m.win.now = game.clock0 + (now - t0); slow = true; } // give up catching up
-      if (ticks) draw(game); // the framebuffer only changes inside a tick
       audio.pump();
       if (now - lastSave > 5000) { lastSave = now; saveNow(); }
       requestAnimationFrame(frame);
