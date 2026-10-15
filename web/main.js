@@ -18,19 +18,63 @@ const store = {
   set(name, data) { try { localStorage.setItem(`rg:${name}`, btoa(String.fromCharCode(...data))); } catch { /* storage full or blocked */ } },
 };
 
-async function loadFiles() {
+// The player's own game files, kept in IndexedDB after they choose their game folder once.
+function gameStore(mode, op) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('rg', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('files');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const tx = open.result.transaction('files', mode), req = op(tx.objectStore('files'));
+      tx.oncomplete = () => resolve(req.result);
+      tx.onerror = () => reject(tx.error);
+    };
+  });
+}
+
+// Files served next to the page, as server/gateway.js does from RG_GAME_DIR. Null if the host has none.
+async function fetchFiles() {
   const files = {};
   let done = 0;
-  await Promise.all(FILES.map(async name => {
-    const saved = SAVED.has(name) && store.get(name);
-    if (saved) files[name] = saved;
-    else {
-      const res = await fetch(GAME_URL + name);
-      if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
-      files[name] = new Uint8Array(await res.arrayBuffer());
-    }
+  for (const name of FILES) {
+    const res = await fetch(GAME_URL + name);
+    if (!res.ok) { if (SAVED.has(name)) continue; return null; }
+    files[name] = new Uint8Array(await res.arrayBuffer());
     status.textContent = `Loading game files… ${++done}/${FILES.length}`;
-  }));
+  }
+  return files;
+}
+
+// Asks the player for their game folder. Either the ResetGeneration folder or the folder above it works.
+function pickFiles() {
+  const input = document.getElementById('pick-input'), button = document.getElementById('pick');
+  status.textContent = 'Choose your Reset Generation game folder. The files stay in this browser.';
+  button.hidden = false;
+  button.onclick = () => input.click();
+  return new Promise(resolve => {
+    input.onchange = async () => {
+      const byName = new Map([...input.files].map(f => [f.name.toLowerCase(), f]));
+      input.value = '';
+      const missing = FILES.filter(n => !SAVED.has(n) && !byName.has(n.toLowerCase()));
+      if (missing.length) { status.textContent = `That folder is missing ${missing.join(', ')}. Choose the folder that contains base.pak.`; return; }
+      button.hidden = true;
+      status.textContent = 'Reading game files…';
+      const files = {};
+      for (const n of FILES) { const f = byName.get(n.toLowerCase()); if (f) files[n] = new Uint8Array(await f.arrayBuffer()); }
+      resolve(files);
+    };
+  });
+}
+
+async function loadFiles() {
+  let files = null;
+  try { files = await gameStore('readonly', s => s.get('game')); } catch { /* storage blocked */ }
+  files ||= await fetchFiles().catch(() => null);
+  if (!files) {
+    files = await pickFiles();
+    try { await gameStore('readwrite', s => s.put(files, 'game')); } catch { /* not kept: the player picks again next visit */ }
+  }
+  for (const name of SAVED) { const saved = store.get(name); if (saved) files[name] = saved; }
   return files;
 }
 
@@ -74,11 +118,25 @@ function draw(game) {
   ctx.putImageData(image, 0, 0);
 }
 
-// The Arena login dialog.
+// A guest identity kept in this browser, so online play starts without a login dialog.
+// The server registers the name on its first login.
+function guestIdentity() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('rg:guest'));
+    if (saved) return saved;
+  } catch {}
+  const rand = new Uint32Array(5);
+  crypto.getRandomValues(rand);
+  const guest = { username: `Guest${rand[0] % 1e6}`, password: [...rand.slice(1)].map(n => n.toString(36)).join('') };
+  try { localStorage.setItem('rg:guest', JSON.stringify(guest)); } catch {}
+  return guest;
+}
+
+// The Arena login dialog. It appears only if the guest login is rejected.
 function loginUI() {
   const form = document.getElementById('login'), user = document.getElementById('username'), pass = document.getElementById('password');
   const note = document.getElementById('login-note'), cancel = document.getElementById('login-cancel');
-  let handlers = null;
+  let handlers = null, guest = guestIdentity();
   form.addEventListener('submit', e => {
     e.preventDefault();
     try { localStorage.setItem('rg:username', user.value); } catch {}
@@ -91,6 +149,7 @@ function loginUI() {
   const ui = {
     startLogin(ready, cancelled) {
       handlers = { ready, cancel: cancelled };
+      if (guest) { user.value = guest.username; pass.value = guest.password; ready(); return; }
       try { user.value ||= localStorage.getItem('rg:username') || ''; } catch {}
       note.textContent = 'New names are registered on first login.';
       form.hidden = false;
@@ -99,6 +158,7 @@ function loginUI() {
     stopLogin() { form.hidden = true; handlers = null; canvas.focus(); },
     visible: () => !form.hidden,
     attempting() { note.textContent = 'Logging in…'; },
+    rejected() { if (guest) { guest = null; user.value = pass.value = ''; } },
     credentials: () => ({ username: user.value.trim(), password: pass.value }),
   };
   return ui;

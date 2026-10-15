@@ -10,9 +10,15 @@ Status: the game runs in the browser. The original engine (a 32-bit Windows DLL)
 2. Run `node server/gateway.js`.
 3. Open `http://localhost:8080/` and press **Start**.
 
-Controls: arrow keys move, **Ctrl** or **Enter** selects (hold to drop a block), **Shift** goes back, **Esc** opens the menu. To play online, choose **Online** in the main menu and log in; a new player name is registered on first login. Settings and achievements are kept in the browser's local storage.
+Controls: arrow keys move, **Ctrl** or **Enter** selects (hold to drop a block), **Shift** goes back, **Esc** opens the menu. To play online, choose **Online** in the main menu. The page logs in with a guest name (such as `Guest123456`) that it creates once and keeps in the browser's local storage, so your stats carry over between visits. If the server rejects the guest login, the page shows a login dialog instead; a new player name is registered on first login. Settings and achievements are also kept in local storage.
 
 The server sends the game files to the browser, so serve only a copy you own. To let other people play, host the server where they can reach port 8080 (HTTP); the Java client still uses port 8976.
+
+### Host the page without the game files
+
+If the page's host has no game files at `game/` (for example, `web/` deployed to a static host), the page asks each player to choose their own game folder. Either the `ResetGeneration` folder or the folder above it works. The page keeps the files in the browser's IndexedDB, so a player chooses the folder once per browser. The files never leave the player's computer.
+
+Players need the files of the Windows standalone build. The emulator runs `ResetGeneration-Win32-Web.dll` and can't run the Mac library `libResetGenerationMacApplet.dylib`, but it runs in any desktop browser on any operating system.
 
 ## Run the server
 
