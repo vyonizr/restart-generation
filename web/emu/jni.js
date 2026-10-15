@@ -141,6 +141,14 @@ export class JNI {
     t[211] = [5, (env, a, start, n, buf) => {                              // SetIntArrayRegion
       const items = self.obj(a).items; for (let i = 0; i < n; i++) items[start + i] = dv.getInt32((buf >>> 0) + i * 4, true);
     }];
+    t[187] = [3, (env, a, isCopy) => {                                     // GetIntArrayElements
+      const items = self.obj(a).items, p = heap.alloc(items.length * 4 + 4);
+      items.forEach((v, i) => dv.setInt32(p + i * 4, v, true)); if (isCopy) cpu.m8[isCopy >>> 0] = 1; return p;
+    }];
+    t[195] = [4, (env, a, p) => { heap.free(p >>> 0); }];                 // ReleaseIntArrayElements
+    t[203] = [5, (env, a, start, n, buf) => {                              // GetIntArrayRegion
+      const items = self.obj(a).items; for (let i = 0; i < n; i++) dv.setInt32((buf >>> 0) + i * 4, items[start + i], true);
+    }];
     t[217] = [2, () => 0]; t[218] = [2, () => 0];                         // MonitorEnter/Exit
     t[228] = [1, () => 0];                                                 // ExceptionCheck
     t[230] = [2, (env, b) => self.obj(b).address];                         // GetDirectBufferAddress

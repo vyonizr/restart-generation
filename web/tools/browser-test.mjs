@@ -53,6 +53,11 @@ try {
   };
   for (const [cmd, arg] of steps) {
     if (cmd === 'wait') await sleep(+arg * 1000);
+    else if (cmd === 'login') { // login:name:password fills and submits the Arena login dialog
+      const [name, pw] = arg.split(';');
+      for (let i = 0; i < 50 && !(await evaluate(`!document.getElementById('login').hidden`)); i++) await sleep(200);
+      await evaluate(`document.getElementById('username').value=${JSON.stringify(name)};document.getElementById('password').value=${JSON.stringify(pw)};document.getElementById('login').requestSubmit()`);
+    }
     else if (cmd === 'key') { await keyEvent('rawKeyDown', arg); await sleep(150); await keyEvent('keyUp', arg); await sleep(400); }
     else if (cmd === 'shot') {
       const { data } = await send('Page.captureScreenshot', { format: 'png' });

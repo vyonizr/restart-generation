@@ -1,6 +1,7 @@
 // Browser host: downloads the game files, runs the engine in the emulator, draws frames to the
 // canvas, forwards the keyboard and plays the engine's 8 kHz PCM through WebAudio.
 import { GameHost, WIDTH, HEIGHT, VK } from './emu/host.js';
+import { SnapClient } from './snap.js';
 
 const GAME_URL = 'game/';   // served by server/gateway.js from the user's own copy of the game
 const FILES = ['ResetGeneration-Win32-Web.dll', 'settings.cfg', 'achievements.dat', 'base.pak', 'fonts.pak', 'story.pak',
@@ -73,11 +74,43 @@ function draw(game) {
   ctx.putImageData(image, 0, 0);
 }
 
+// The Arena login dialog.
+function loginUI() {
+  const form = document.getElementById('login'), user = document.getElementById('username'), pass = document.getElementById('password');
+  const note = document.getElementById('login-note'), cancel = document.getElementById('login-cancel');
+  let handlers = null;
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    try { localStorage.setItem('rg:username', user.value); } catch {}
+    const h = handlers;
+    form.hidden = true; canvas.focus();
+    h?.ready();
+  });
+  cancel.addEventListener('click', () => { const h = handlers; ui.stopLogin(); h?.cancel(); });
+  form.addEventListener('keydown', e => { if (e.key === 'Escape') cancel.click(); e.stopPropagation(); });
+  const ui = {
+    startLogin(ready, cancelled) {
+      handlers = { ready, cancel: cancelled };
+      try { user.value ||= localStorage.getItem('rg:username') || ''; } catch {}
+      note.textContent = 'New names are registered on first login.';
+      form.hidden = false;
+      (user.value ? pass : user).focus();
+    },
+    stopLogin() { form.hidden = true; handlers = null; canvas.focus(); },
+    visible: () => !form.hidden,
+    attempting() { note.textContent = 'Logging in…'; },
+    credentials: () => ({ username: user.value.trim(), password: pass.value }),
+  };
+  return ui;
+}
+
 async function main() {
   const files = await loadFiles();
   status.textContent = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
-  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2) });
+  const snap = new SnapClient({ url: 'snap', ui: loginUI(), log: s => console.warn('[snap]', s) });
+  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods() });
+  snap.attach(game);
   game.boot();
   status.textContent = 'Ready';
   startButton.hidden = false;
@@ -88,23 +121,25 @@ async function main() {
 
   const audio = new Audio(game);
   const held = new Set();
+  const input = []; // applied at the start of each tick
   canvas.addEventListener('keydown', e => {
     const k = javaKey(e);
     if (!k) return;
     e.preventDefault();
     if (held.has(e.code)) return;      // the Java listener ignored auto-repeat too
     held.add(e.code);
-    game.key(true, k.code, k.ch, e.location === 2 ? 3 : e.location === 1 ? 2 : 1);
-    if (k.ch !== 0xffff) game.typed(k.ch);
+    const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
+    input.push(() => { game.key(true, k.code, k.ch, loc); if (k.ch !== 0xffff) game.typed(k.ch); });
   });
   canvas.addEventListener('keyup', e => {
     const k = javaKey(e);
     if (!k) return;
     e.preventDefault();
     held.delete(e.code);
-    game.key(false, k.code, k.ch, e.location === 2 ? 3 : e.location === 1 ? 2 : 1);
+    const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
+    input.push(() => game.key(false, k.code, k.ch, loc));
   });
-  canvas.addEventListener('blur', () => { held.clear(); game.releaseAll(); });
+  canvas.addEventListener('blur', () => { held.clear(); input.push(() => game.releaseAll()); });
   canvas.addEventListener('pointerdown', () => canvas.focus());
 
   const t0 = performance.now();
@@ -118,7 +153,10 @@ async function main() {
         statT = now; statI = ic;
       }
       // Tick until the engine's clock reaches real time; each tick sleeps the engine to its next frame.
-      for (let i = 0; i < MAX_TICKS_PER_FRAME && game.time < now - t0; i++) game.tick();
+      for (let i = 0; i < MAX_TICKS_PER_FRAME && game.time < now - t0; i++) {
+        while (input.length) input.shift()();
+        game.tick(); snap.pump();
+      }
       if (game.time < now - t0 - 500) game.m.win.now = game.clock0 + (now - t0); // give up catching up
       draw(game);
       audio.pump();

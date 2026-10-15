@@ -18,6 +18,15 @@
   .overlay[hidden] { display: none; }
   button { font: inherit; font-weight: 600; padding: 10px 22px; border-radius: 6px; border: 0; background: var(--accent); color: #111; cursor: pointer; }
   button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .login { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(300px, 80%);
+    background: var(--panel); color: var(--text); border-radius: 8px; padding: 16px; display: grid; gap: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / 50%); }
+  .login[hidden] { display: none; }
+  .login h2 { margin: 0; font-size: 17px; }
+  .login label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .login input { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--muted); background: var(--bg); color: var(--text); }
+  .login .row { display: flex; gap: 8px; justify-content: flex-end; }
+  .login .secondary { background: transparent; color: var(--text); border: 1px solid var(--muted); }
+  .login p { margin: 0; font-size: 13px; color: var(--muted); }
   .keys { max-width: min(480px, 92vw); width: 100%; background: var(--panel); border-radius: 8px; padding: 12px 16px; color: var(--muted); }
   .keys b { color: var(--text); }
   kbd { font: 13px ui-monospace, monospace; background: var(--bg); border-radius: 4px; padding: 1px 6px; color: var(--text); }
@@ -30,6 +39,13 @@
       <p id="status">Loading game files…</p>
       <button id="start" hidden>Start</button>
     </div>
+    <form class="login" id="login" hidden>
+      <h2>Log in to Arena</h2>
+      <label>Player name <input id="username" name="username" autocomplete="username" maxlength="15" pattern="[A-Za-z0-9_]{1,15}" required></label>
+      <label>Password <input id="password" name="password" type="password" autocomplete="current-password" required></label>
+      <p id="login-note">New names are registered on first login.</p>
+      <div class="row"><button type="button" class="secondary" id="login-cancel">Cancel</button><button type="submit" id="login-ok">Log in</button></div>
+    </form>
   </div>
   <div class="keys">
     <b>Controls:</b> <kbd>Arrows</kbd> move · <kbd>Ctrl</kbd> or <kbd>Enter</kbd> select (hold to drop a block) ·

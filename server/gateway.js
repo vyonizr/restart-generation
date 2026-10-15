@@ -228,6 +228,21 @@ function handle(req, s, send) {
   return send(ok());
 }
 
+// One SNAP request (TCP frame payload or HTTP body) -> reply(Buffer). Retransmits get the cached reply.
+function processRequest(text, addr, reply) {
+  const req = parseRequest(text);
+  const s = sessions.get(req.session);
+  const cacheKey = `${req.session || addr}:${req.rid}`;
+  if (replies.has(cacheKey)) return reply(replies.get(cacheKey));
+  if (req.cmd !== 3) log(`<- ${s?.name || addr} C=${req.cmd}`, req.cmd === 1 ? `user=${req.params[1]}` : '');
+  handle(req, s, body => {
+    const payload = Buffer.from(body, 'utf8');
+    replies.set(cacheKey, payload);
+    if (replies.size > 5000) replies.delete(replies.keys().next().value);
+    reply(payload);
+  });
+}
+
 net.createServer(sock => {
   const addr = `${sock.remoteAddress}:${sock.remotePort}`;
   log('connect', addr);
@@ -239,17 +254,7 @@ net.createServer(sock => {
       if (f.type === FRAME.HELLO) { sock.write(frame(FRAME.HELLO_ACK, f.seq)); continue; }
       if (f.type === FRAME.STAT) { sock.write(frame(FRAME.STAT_ACK, f.seq)); continue; }
       if (f.type !== FRAME.REQUEST) { log(addr, 'frame type', f.type); continue; }
-      const req = parseRequest(f.payload.toString('utf8'));
-      const s = sessions.get(req.session);
-      const cacheKey = `${req.session || addr}:${req.rid}`;
-      if (replies.has(cacheKey)) { sock.write(frame(FRAME.RESPONSE, f.seq, replies.get(cacheKey))); continue; }
-      if (req.cmd !== 3) log(`<- ${s?.name || addr} C=${req.cmd}`, req.cmd === 1 ? `user=${req.params[1]}` : '');
-      handle(req, s, body => {
-        const payload = Buffer.from(body, 'utf8');
-        replies.set(cacheKey, payload);
-        if (replies.size > 5000) replies.delete(replies.keys().next().value);
-        if (!sock.destroyed) sock.write(frame(FRAME.RESPONSE, f.seq, payload));
-      });
+      processRequest(f.payload.toString('utf8'), addr, payload => { if (!sock.destroyed) sock.write(frame(FRAME.RESPONSE, f.seq, payload)); });
     }
   });
   sock.on('error', e => log(addr, e.message));
@@ -266,6 +271,14 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'applic
 
 http.createServer((req, res) => {
   const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (url === '/snap' && req.method === 'POST') { // the browser's SNAP connection: one request per POST
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => processRequest(Buffer.concat(chunks).toString('utf8'), req.socket.remoteAddress, payload => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(payload);
+    }));
+    return;
+  }
   let file;
   if (url === '/') file = path.join(WEB_DIR, 'index.html');
   else if (/^\/game\/[\w.-]+$/.test(url)) file = path.join(GAME_DIR, url.slice(6));

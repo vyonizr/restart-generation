@@ -199,7 +199,9 @@ export class CPU {
   }
   // Calls fn at address with stdcall/cdecl args and runs until it returns to a sentinel.
   call(addr, args = [], limit = 2e9) {
-    const SENTINEL = this.sentinel, savedEip = this.eip, savedEsp = this.r[ESP];
+    // Each nesting level returns to its own sentinel, so JS called from the guest can call back in.
+    this.depth = (this.depth || 0) + 1;
+    const SENTINEL = this.sentinel + this.depth * 4, savedEip = this.eip, savedEsp = this.r[ESP];
     for (let i = args.length - 1; i >= 0; i--) this.push(args[i]);
     this.push(SENTINEL);
     const savedStop = this.stop;
@@ -213,6 +215,7 @@ export class CPU {
       if (!done && this.stop) throw new CpuFault('stopped inside call', this.eip);
     }
     this.stop = savedStop;
+    this.depth--;
     this.r[ESP] = savedEsp; // works for both stdcall and cdecl callees
     this.eip = savedEip;
     return this.r[EAX];

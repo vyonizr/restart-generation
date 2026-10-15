@@ -69,6 +69,16 @@ export class GameHost {
     return new Int16Array(this.m.cpu.mem.slice(this.soundBuf.address, this.soundBuf.address + 1024));
   }
 
+  // Engine callbacks of NativeSNAPMobileEventListener, e.g. snapEvent('onConnected@8').
+  snapEvent(name, ...args) {
+    this.call(`_Java_com_redlynx_mt_snapmobile_NativeSNAPMobileEventListener_${name}`, this.jni.ref(this.events), ...args);
+  }
+  // The 2048-byte direct buffer shared by send and onDataReceived.
+  readNet(len) { return this.m.cpu.m8.slice(this.netBuf.address, this.netBuf.address + len); }
+  writeNet(bytes) { this.m.cpu.m8.set(bytes.subarray(0, 2048), this.netBuf.address); }
+  javaArray(strings) { return new JObject('[Ljava/lang/String;', { items: strings.map(s => new JObject('java/lang/String', { value: s })) }); }
+  javaIntArray(ints) { return new JObject('[I', { items: ints }); }
+
   // Files the game wrote (settings, achievements), for saving.
   dirtyFiles() {
     const out = [];
