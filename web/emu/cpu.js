@@ -23,6 +23,7 @@ export class CPU {
   constructor(memSize) {
     this.mem = new ArrayBuffer(memSize);
     this.m8 = new Uint8Array(this.mem);
+    this.m32 = new Int32Array(this.mem);
     this.dv = new DataView(this.mem);
     this.r = new Int32Array(8);
     this.eip = 0;
@@ -561,7 +562,7 @@ export class CPU {
           const si = r[ESI] >>> 0;
           if (di <= si || di >= si + bytes) { m8.copyWithin(di, si, si + bytes); r[ESI] = (si + bytes) | 0; r[EDI] = (di + bytes) | 0; r[ECX] = 0; return; }
         } else if (kind === 0xaa && n === 1) { m8.fill(r[EAX] & 0xff, di, di + bytes); r[EDI] = (di + bytes) | 0; r[ECX] = 0; return; }
-        else if (kind === 0xaa && n === 4 && (di & 3) === 0) { new Int32Array(c.mem, di, count).fill(r[EAX]); r[EDI] = (di + bytes) | 0; r[ECX] = 0; return; }
+        else if (kind === 0xaa && n === 4 && (di & 3) === 0) { c.m32.fill(r[EAX], di >> 2, (di >> 2) + count); r[EDI] = (di + bytes) | 0; r[ECX] = 0; return; }
       }
       while (r[ECX] !== 0) {
         once(); r[ECX] = (r[ECX] - 1) | 0;

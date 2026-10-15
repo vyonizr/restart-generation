@@ -43,9 +43,8 @@ export function compileBlock(cpu, start) {
     }
     if (n >= MAX_BLOCK || cpu.traps.has(pc)) { src += `c.eip=${pc};return ${n};\n`; break; }
   }
-  const fn = new Function('c', 'r', 'dv', 'm8', 'F', src);
-  const r = cpu.r;
-  return () => fn(cpu, r, dv, m8, fallbacks);
+  // The outer function binds the block's context once, so each run is a single call.
+  return new Function('c', 'r', 'dv', 'm8', 'F', `return()=>{${src}}`)(cpu, cpu.r, dv, m8, fallbacks);
 
   // ---- per-instruction code generation; returns null to fall back to the interpreter ----
   function gen(start) {
@@ -195,7 +194,17 @@ export function compileBlock(cpu, start) {
         const mr = modrm();
         if (mr.reg === 2 || mr.reg === 3) return null;
         const cnt = op === 0xc1 ? String(m8[p++] & 31) : op === 0xd1 ? '1' : '(r[1]&31)';
-        if (mr.ea) return done(`{const a=${mr.ea};dv.setInt32(a,c.shift(${mr.reg},dv.getInt32(a,true),${cnt},32)|0,true);}`, null);
+        if (mr.reg >= 4) { // shl/shr/sar inline, with the same lazy flags as cpu.shift
+          const k = op === 0xd3 ? 'k' : cnt;
+          if (k === '0') return done('');
+          const x = mr.reg === 5 ? `v>>>${k}` : mr.reg === 7 ? `v>>${k}` : `v<<${k}`;
+          const cf = mr.reg === 5 ? `(v>>>(${k}-1))&1` : mr.reg === 7 ? `(v>>(${k}-1))&1` : `(v>>>(32-${k}))&1`;
+          const of = mr.reg === 5 ? 'v>>>31' : mr.reg === 7 ? '0' : '(x>>>31)^cf';
+          const at = mr.ea ? { ...mr, ea: 'a' } : mr; // memory operand: compute the address once
+          const body = `{const v=${rm32(at)},x=${x},cf=${cf};c.lop=6;c.lres=x>>>0;c.lsz=32;c.lcf=cf;c.lof=${of};${setRm32(at, 'x')}}`;
+          return done(`{${mr.ea ? `const a=${mr.ea};` : ''}${op === 0xd3 ? `const k=${cnt};if(k!==0)` : ''}${body}}`, null);
+        }
+        if (mr.ea)return done(`{const a=${mr.ea};dv.setInt32(a,c.shift(${mr.reg},dv.getInt32(a,true),${cnt},32)|0,true);}`, null);
         return done(`r[${mr.rm}]=c.shift(${mr.reg},r[${mr.rm}],${cnt},32)|0;`, null);
       }
       case 0xe8: { const d = s32(), next = p >>> 0, t = (next + d) >>> 0; return end(`${push(next)}c.eip=${t};return ${n};`); }
