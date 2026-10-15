@@ -32,6 +32,14 @@ _Avoid_: applet, launcher
 The web page that runs the original engine in an emulator and connects it to Arena.
 _Avoid_: web version, port
 
+**Touch device**:
+A phone or tablet whose main input is a finger; it plays the browser client with the touch pad.
+_Avoid_: mobile, handheld
+
+**Touch pad**:
+The on-screen controls under the game screen on a touch device: a D-pad, Select, Back, Menu and Keyboard.
+_Avoid_: virtual gamepad, on-screen keyboard
+
 **Battle**:
 One match between two to four players on one level.
 _Avoid_: game, round

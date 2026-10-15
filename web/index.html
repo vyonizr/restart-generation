@@ -76,7 +76,10 @@
     font: 500 13px/1 var(--mono); color: #fff; }
   kbd svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
 
-  .nokb { display: none; }
+  .pad, .touch-only { display: none; }
+  .typing, .wake { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .typing { font-size: 16px; } /* iOS zooms into smaller fields */
+  :fullscreen { background: var(--ink-1); }
 
   footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: center; padding: 16px 48px; background: var(--ink-2); }
   footer p { font: 12px/1.7 var(--mono); color: var(--light-3); }
@@ -88,13 +91,6 @@
     footer { grid-template-columns: 1fr; gap: 8px; }
     .notes { text-align: left; }
   }
-  /* Touch-only devices can't play: no keyboard */
-  @media (hover: none) and (pointer: coarse) {
-    .screen, .keys, .ghost, .sub { display: none; }
-    .nokb { display: grid; gap: 16px; max-width: 420px; padding: 32px 24px; background: var(--ink-0); }
-    .nokb h2 { font-size: 40px; }
-    .nokb span { font: 15px/1.7 var(--body); color: var(--light-2); }
-  }
   @media (max-width: 759px) {
     header { height: 64px; padding: 0 16px; }
     .tag { display: none; }
@@ -102,6 +98,49 @@
     main { padding: 24px 16px 48px; }
     footer { grid-template-columns: 1fr; gap: 12px; padding: 32px 16px; }
     .notes { text-align: left; }
+  }
+
+  /* Touch devices: the touch pad under the game screen, both as wide as fits the height */
+  @media (hover: none) and (pointer: coarse) {
+    :root { --pad: clamp(120px, 38dvh, 330px); --chrome: 120px; --w: min(100%, (100dvh - var(--chrome) - var(--pad)) * 3 / 4); }
+    .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
+    .touch-only { display: inline; }
+    html, body { overscroll-behavior: none; }
+    main { grid-template-columns: 100%; align-content: start; gap: 12px; padding: 0 16px 16px; }
+    .screen { height: auto; width: var(--w); }
+    .screen, .pad { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+
+    .pad { display: grid; justify-self: center; width: var(--w); height: var(--pad);
+      grid-template: "dpad acts" minmax(0, 1fr) "util util" auto / 1fr 1fr; gap: 10px 8px; align-items: center; }
+    /* Tapped buttons keep :hover on touch screens, so hover looks the same as rest */
+    .pad button, .pad button:hover { display: grid; place-content: center; justify-items: center; gap: 6px; padding: 0; font-size: 20px;
+      color: var(--light-2); background: var(--ink-2); border-color: var(--ink-3); transition: none; }
+    .pad .select, .pad .select:hover { font-size: min(24px, 16cqi); color: #fff; background: var(--red); border-color: var(--red); }
+    .pad .small, .pad .small:hover { height: 40px; padding: 0 14px; font-size: 16px; background: none; }
+    .pad button.held, .pad button.held:hover { background: #fff; color: var(--red); border-color: #fff; }
+    .pad small { font: 500 11px/1 var(--body); text-transform: none; letter-spacing: 0; color: rgb(255 255 255 / 75%); }
+    .pad .held small { color: var(--red); }
+    .pad svg { width: 40%; max-width: 30px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: square; }
+    .cross, .acts { width: min(100%, 240px, var(--pad) - 60px); aspect-ratio: 1; }
+    .cross { grid-area: dpad; justify-self: start; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); }
+    .cross [data-key=up] { grid-area: 1 / 2; } .cross [data-key=left] { grid-area: 2 / 1; }
+    .cross [data-key=right] { grid-area: 2 / 3; } .cross [data-key=down] { grid-area: 3 / 2; }
+    .acts { grid-area: acts; justify-self: end; position: relative; container-type: size; } /* labels scale with it in landscape */
+    .acts .select { position: absolute; right: 0; top: 10%; width: 62%; aspect-ratio: 1; }
+    .acts .back, .acts .back:hover { position: absolute; left: 0; bottom: 4%; width: 42%; aspect-ratio: 1; font-size: min(20px, 14cqi); }
+    @container (width < 120px) { .acts small { display: none; } }
+    .util { grid-area: util; display: flex; justify-content: center; gap: 10px; }
+
+    .slow { display: flex; align-items: center; justify-content: center; gap: 12px; width: var(--w); justify-self: center;
+      font: 13px/1.6 var(--body); color: var(--light-2); }
+    .slow button { flex: none; font-size: 16px; padding: 6px 12px; }
+  }
+  /* Landscape: no header, so the column gets the height */
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+    :root { --chrome: 16px; }
+    header { display: none; }
+    .page { grid-template-rows: 1fr auto; }
+    main { padding-bottom: 4px; }
   }
 </style>
 </head>
@@ -118,9 +157,9 @@
         <div id="pick" hidden>
           <button id="pick-zip">Choose .zip file</button>
           <button id="pick-folder" class="secondary">Choose folder</button>
-          <p class="hint">Windows standalone build only. Your files stay in this browser.</p>
+          <p class="hint"><span class="desktop-only">Windows standalone build only.</span><span class="touch-only">The Windows standalone build's .zip only.</span> Your files stay in this browser.</p>
         </div>
-        <input id="pick-zip-input" type="file" accept=".zip" hidden>
+        <input id="pick-zip-input" type="file" accept=".zip,application/zip" hidden>
         <input id="pick-input" type="file" webkitdirectory multiple hidden>
         <button id="start" hidden>Start</button>
         <div id="recover" hidden>
@@ -136,7 +175,26 @@
         <div class="row"><button type="button" class="secondary" id="login-cancel">Cancel</button><button type="submit" id="login-ok">Log in</button></div>
       </form>
     </div>
-    <div class="nokb"><h2 class="bar">Reset Generation needs a keyboard.</h2><span>Open this page on a computer to play.</span></div>
+    <div class="pad">
+      <div class="cross">
+        <button data-key="up" aria-label="Up"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10V2M2.5 5 6 1.5 9.5 5"/></svg></button>
+        <button data-key="left" aria-label="Left"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 6H2M5 2.5 1.5 6 5 9.5"/></svg></button>
+        <button data-key="right" aria-label="Right"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M7 2.5 10.5 6 7 9.5"/></svg></button>
+        <button data-key="down" aria-label="Down"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2.5 7 6 10.5 9.5 7"/></svg></button>
+      </div>
+      <div class="acts">
+        <button data-key="back" class="back" aria-label="Back">Back</button>
+        <button data-key="select" class="select" aria-label="Select, hold to drop">Select<small>Hold to drop</small></button>
+      </div>
+      <div class="util">
+        <button data-key="menu" class="small" aria-label="Menu">Menu</button>
+        <button id="type" class="small" aria-label="Keyboard">Keyboard</button>
+        <button id="fullscreen" class="small" aria-label="Fullscreen" hidden>Fullscreen</button>
+      </div>
+    </div>
+    <input id="typing" class="typing" aria-label="Type into the game" autocapitalize="off" autocomplete="off" spellcheck="false" value=" ">
+    <video id="wake" class="wake" src="wake.mp4" muted loop playsinline preload="none" aria-hidden="true"></video>
+    <p class="slow" id="slow" role="status" hidden><span id="slow-text"></span><button id="slow-close" class="secondary">Dismiss</button></p>
     <p class="sub">The original 2009 game, right in your browser (again)</p>
     <dl class="keys" aria-label="Controls">
       <div><dt>
@@ -155,9 +213,6 @@
     <p class="notes">Windows standalone build only. Your files stay in this browser.<br>Online play needs a replacement N-Gage Arena server.</p>
   </footer>
 </div>
-<script type="module">
-  // Touch-only devices get the keyboard message instead, so they don't download the game.
-  if (!matchMedia('(hover: none) and (pointer: coarse)').matches) import('./main.js');
-</script>
+<script type="module" src="main.js"></script>
 </body>
 </html>

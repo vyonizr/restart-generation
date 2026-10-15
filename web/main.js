@@ -1,5 +1,5 @@
 // Browser host: downloads the game files, runs the engine in the emulator, draws frames to the
-// canvas, forwards the keyboard and plays the engine's 8 kHz PCM through WebAudio.
+// canvas, forwards the keyboard and the touch pad and plays the engine's 8 kHz PCM through WebAudio.
 import { GameHost, WIDTH, HEIGHT, VK } from './emu/host.js';
 import { SnapClient } from './snap.js';
 import { gameFromZip } from './zip.js';
@@ -13,6 +13,9 @@ const MAX_TICKS_PER_FRAME = 4;   // catch-up limit after a stall
 const canvas = document.getElementById('screen'), ctx = canvas.getContext('2d');
 const overlay = document.getElementById('overlay'), status = document.getElementById('status'), startButton = document.getElementById('start');
 const image = ctx.createImageData(WIDTH, HEIGHT), rgba = new Uint32Array(image.data.buffer);
+// Phones and tablets: the same query shows the touch pad in index.html.
+const touch = matchMedia('(hover: none) and (pointer: coarse)').matches;
+const TRY_ANOTHER = touch ? 'Try another .zip.' : 'Try another .zip or folder.';
 
 const store = {
   get(name) { try { const v = localStorage.getItem(`rg:${name}`); return v && Uint8Array.from(atob(v), ch => ch.charCodeAt(0)); } catch { return null; } },
@@ -60,7 +63,7 @@ function pickFiles() {
       const missing = FILES.filter(n => !SAVED.has(n) && !found[n.toLowerCase()]);
       if (missing.length) {
         console.warn('missing game files:', missing.join(', '));
-        status.textContent = `That ${what} isn't the Windows standalone build of Reset Generation. Try another .zip or folder.`;
+        status.textContent = `That ${what} isn't the Windows standalone build of Reset Generation. ${TRY_ANOTHER}`;
         return;
       }
       pick.hidden = true;
@@ -82,7 +85,7 @@ function pickFiles() {
       try {
         const entries = await gameFromZip(new Uint8Array(await file.arrayBuffer()));
         use(Object.fromEntries(Object.entries(entries).map(([n, d]) => [n.toLowerCase(), d])), '.zip');
-      } catch (e) { console.warn(e); status.textContent = `Couldn't read ${file.name}. Try another .zip or folder.`; }
+      } catch (e) { console.warn(e); status.textContent = `Couldn't read ${file.name}. ${TRY_ANOTHER}`; }
     };
   });
 }
@@ -132,6 +135,92 @@ class Audio {
       this.at += pcm.length / 8000;
     }
   }
+}
+
+// ---- touch pad: one control per finger; sliding a finger moves the press to the control under it ----
+const PAD = { left: VK.LEFT, right: VK.RIGHT, up: VK.UP, down: VK.DOWN, select: VK.CONTROL, back: VK.SHIFT, menu: VK.ESCAPE };
+const wake = document.getElementById('wake');
+
+// Keeps the screen on: a Wake Lock where the browser has one (secure contexts only), else a silent looping video.
+function stayAwake() {
+  if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {});
+  else wake.play().catch(() => {});
+}
+
+function bindPad(game, input, audio) {
+  const pad = document.querySelector('.pad');
+  const presses = new Map(), fingers = new Map(); // data-key -> press count, pointerId -> data-key
+  const button = k => pad.querySelector(`[data-key="${k}"]`);
+  const press = k => {
+    presses.set(k, (presses.get(k) || 0) + 1);
+    if (presses.get(k) > 1) return;
+    input.push(() => game.key(true, PAD[k], 0xffff, 1));
+    button(k).classList.add('held');
+    navigator.vibrate?.(8);
+  };
+  const release = k => {
+    if (presses.get(k) > 1) { presses.set(k, presses.get(k) - 1); return; }
+    presses.delete(k);
+    input.push(() => game.key(false, PAD[k], 0xffff, 1));
+    button(k).classList.remove('held');
+  };
+  const setFinger = (id, k) => {
+    const old = fingers.get(id);
+    if (old === k) return;
+    if (old) release(old);
+    if (k) { fingers.set(id, k); press(k); } else fingers.delete(id);
+  };
+  const under = e => document.elementFromPoint(e.clientX, e.clientY)?.closest('.pad [data-key]')?.dataset.key;
+  pad.addEventListener('pointerdown', e => {
+    if (audio.ctx.state !== 'running') audio.ctx.resume(); // Safari suspends sound until a tap
+    if (!navigator.wakeLock && wake.paused) stayAwake();
+    if (!e.target.closest('[data-key]')) return;
+    pad.setPointerCapture(e.pointerId);
+    setFinger(e.pointerId, under(e));
+  });
+  pad.addEventListener('pointermove', e => { if (fingers.has(e.pointerId)) setFinger(e.pointerId, under(e)); });
+  for (const t of ['pointerup', 'pointercancel']) pad.addEventListener(t, e => setFinger(e.pointerId, null));
+  // An app switch mid-press might never send pointerup, so lift every finger.
+  const liftAll = () => { for (const id of [...fingers.keys()]) setFinger(id, null); };
+  addEventListener('blur', liftAll);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) liftAll(); });
+  pad.addEventListener('mousedown', e => e.preventDefault()); // keeps focus in the typing field, so pad taps don't hide the keyboard
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && navigator.wakeLock) stayAwake(); });
+
+  // Keyboard: a hidden field raises the system keyboard; each typed character goes to the game as a key press.
+  const typing = document.getElementById('typing'), type = document.getElementById('type');
+  type.onclick = () => document.activeElement === typing ? typing.blur() : typing.focus();
+  typing.addEventListener('focus', () => type.classList.add('held'));
+  typing.addEventListener('blur', () => type.classList.remove('held'));
+  // The system keyboard's own key events are unreliable on Android, so text and Backspace come from input events instead.
+  // Enter and an attached keyboard's arrows, Shift and Esc still reach the game as key events.
+  for (const t of ['keydown', 'keyup']) typing.addEventListener(t, e => { if (e.key.length === 1 || e.key === 'Backspace') e.stopPropagation(); });
+  typing.addEventListener('beforeinput', e => {
+    e.preventDefault();
+    for (const key of e.inputType === 'deleteContentBackward' ? ['Backspace'] : [...(e.data || '')]) {
+      const k = javaKey({ key });
+      if (k) input.push(() => { game.key(true, k.code, k.ch, 1); if (k.ch !== 0xffff) game.typed(k.ch); game.key(false, k.code, k.ch, 1); });
+    }
+    typing.value = ' '; // ponytail: a space keeps Backspace firing on an empty field; IME composition isn't handled
+  });
+
+  // Fullscreen: Android and iPad; iPhone Safari can't make a page element fullscreen.
+  const full = document.getElementById('fullscreen'), page = document.querySelector('.page');
+  full.hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  full.onclick = () => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else (page.requestFullscreen || page.webkitRequestFullscreen).call(page);
+  };
+}
+
+// A one-line notice under the pad when the device can't run the game at full speed.
+function slowNotice() {
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const note = document.getElementById('slow');
+  document.getElementById('slow-text').textContent = 'This device is running the game slowly.'
+    + (ios ? ' If Lockdown Mode is on, exclude this site in Settings > Privacy & Security > Lockdown Mode.' : '');
+  document.getElementById('slow-close').onclick = () => { note.hidden = true; };
+  note.hidden = false;
 }
 
 function draw(game) {
@@ -196,16 +285,27 @@ async function main() {
   const snap = new SnapClient({ url: 'snap', ui: loginUI(), log: s => console.warn('[snap]', s) });
   const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods() });
   snap.attach(game);
-  game.boot();
+  try {
+    game.boot(); // its first step allocates the emulator's memory, so game.m is unset if that fails
+  } catch (e) {
+    if (e instanceof RangeError && !game.m) return fail("This device doesn't have enough free memory for the game. Close other apps and tabs, then reload.", e, false);
+    throw e;
+  }
   status.textContent = 'Ready';
   startButton.hidden = false;
   startButton.focus();
-  await new Promise(r => startButton.addEventListener('click', r, { once: true }));
+  // Sound and the wake video must start inside the tap itself, or Safari blocks them.
+  let audio;
+  await new Promise(r => startButton.addEventListener('click', () => {
+    audio = new Audio(game);
+    audio.ctx.resume();
+    if (touch) stayAwake();
+    r();
+  }, { once: true }));
   overlay.hidden = true;
   canvas.tabIndex = 0;
   canvas.focus();
 
-  const audio = new Audio(game);
   const held = new Set();
   const input = []; // applied at the start of each tick
   // Keys go to the game wherever focus is on the page, except in the login dialog or the overlay's buttons.
@@ -228,6 +328,21 @@ async function main() {
   });
   addEventListener('blur', () => { held.clear(); input.push(() => game.releaseAll()); });
   canvas.addEventListener('pointerdown', () => canvas.focus());
+  if (touch) bindPad(game, input, audio);
+
+  // Settings and achievements: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
+  const saveNow = () => { for (const f of game.dirtyFiles()) store.set(f.name, f.data); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+  addEventListener('pagehide', saveNow);
+
+  // Slowness: a second is slow if the loop gave up catching up in it; ten slow seconds in a row show the notice once.
+  let slow = false, slowRun = 0;
+  const slowTimer = touch && setInterval(() => {
+    if (document.hidden) return;
+    slowRun = slow ? slowRun + 1 : 0;
+    slow = false;
+    if (slowRun >= 10) { clearInterval(slowTimer); slowNotice(); }
+  }, 1000);
 
   const t0 = performance.now();
   let lastSave = 0, frames = 0, statT = t0, statI = 0;
@@ -236,7 +351,7 @@ async function main() {
       if (++frames % 60 === 0) { // exposed for debugging and the headless browser test
         const ic = game.m.cpu.icount;
         window.rgStats = { fps: +(60000 / (now - statT)).toFixed(1), mips: +((ic - statI) / (now - statT) / 1000).toFixed(1),
-          lag: Math.round(now - t0 - game.time) };
+          lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20) };
         statT = now; statI = ic;
       }
       // Tick until the engine's clock reaches real time; each tick sleeps the engine to its next frame.
@@ -244,10 +359,10 @@ async function main() {
         while (input.length) input.shift()();
         game.tick(); snap.pump();
       }
-      if (game.time < now - t0 - 500) game.m.win.now = game.clock0 + (now - t0); // give up catching up
+      if (game.time < now - t0 - 500) { game.m.win.now = game.clock0 + (now - t0); slow = true; } // give up catching up
       draw(game);
       audio.pump();
-      if (now - lastSave > 5000) { lastSave = now; for (const f of game.dirtyFiles()) store.set(f.name, f.data); }
+      if (now - lastSave > 5000) { lastSave = now; saveNow(); }
       requestAnimationFrame(frame);
     } catch (e) {
       fail('The game stopped. Reload to try again.', e);
@@ -256,14 +371,14 @@ async function main() {
   requestAnimationFrame(frame);
 }
 
-// Shows an error with a way out: reload, or forget the stored copy and choose another.
-function fail(message, e) {
+// Shows an error with a way out: reload, or forget the stored copy and choose another (unless the copy isn't at fault).
+function fail(message, e, forgettable = true) {
   console.error(e);
   overlay.hidden = false; startButton.hidden = true; document.getElementById('pick').hidden = true;
   status.textContent = message;
   const reload = document.getElementById('reload'), forget = document.getElementById('forget');
   document.getElementById('recover').hidden = false;
-  forget.hidden = source !== 'stored' && source !== 'picked';
+  forget.hidden = !forgettable || (source !== 'stored' && source !== 'picked');
   reload.onclick = () => location.reload();
   forget.onclick = () => gameStore('readwrite', s => s.delete('game')).finally(() => location.reload());
   reload.focus();

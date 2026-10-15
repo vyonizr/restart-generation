@@ -8,7 +8,7 @@ web
 
 ## Users
 
-People who own Reset Generation (RedLynx, 2009) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and a desktop browser with a keyboard. The page speaks to players only; hosting a server is covered in the README, not on the page.
+People who own Reset Generation (RedLynx, 2009) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in the README, not on the page.
 
 ## Product Purpose
 
@@ -25,13 +25,13 @@ The page is a single static page (`web/index.html`, `web/main.js`) that is serve
 - **By a game server with `RG_GAME` set:** the server sends the player's copy of the files, and the player goes straight to **Start**.
 - **By a static host without the files:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
 
-The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the Arena login dialog (shown only if the server rejects the guest login), and errors (missing files, unreadable files, the emulator stopping). Online play uses an automatic guest name (such as `Guest123456`) kept in local storage, so stats carry over between visits. Settings and achievements are also kept in local storage.
+The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the Arena login dialog (shown only if the server rejects the guest login), and errors (missing files, unreadable files, not enough memory, the emulator stopping). Online play uses an automatic guest name (such as `Guest123456`) kept in local storage, so stats carry over between visits. Settings and achievements are also kept in local storage.
 
 ## Capabilities and Constraints
 
 - Runs only the Windows standalone build. A player who owns only the Mac copy can't play.
-- Runs in any desktop browser on any operating system. The game needs a keyboard: arrow keys move, **Ctrl** or **Enter** selects (hold to drop a block), **Shift** goes back, **Esc** opens the menu.
-- Phones: the page lays out cleanly, and the play area says "Reset Generation needs a keyboard. Open this page on a computer to play." There are no touch controls.
+- Runs in any desktop browser on any operating system. On a keyboard, arrow keys move, **Ctrl** or **Enter** selects (hold to drop a block), **Shift** goes back, **Esc** opens the menu. A keyboard works on every device, including a tablet with one attached.
+- Phones and tablets (touch devices) play over the LAN: a PC runs the server with `--lan`, and the device opens the page it serves in current Android Chrome or iOS and iPadOS Safari. The game plays in portrait with a touch pad under the game screen: a D-pad, **Select** (hold to drop), **Back**, **Menu**, **Keyboard** for typing, and **Fullscreen** where the browser supports it. Online modes work as on desktop. Nothing has been tested on a real device yet.
 - The game screen is drawn by the engine at 240 × 320; the page frames it and never redraws it.
 - Plain HTML, CSS and JavaScript modules with no build step and no dependencies.
 - There is no public game server yet. Online play works only against a server someone runs, so the page must not claim that a public server is live.
@@ -58,4 +58,4 @@ The page moves through these states: loading the files, choosing the files, **St
 
 ## Accessibility & Inclusion
 
-Playing needs a keyboard, so the game is for desktop browsers. On a phone, the page stays readable and says plainly why the game can't be played there.
+The game plays with a keyboard or with the touch pad on phones and tablets, so a player without a keyboard can play too, as long as a PC on their network hosts the game. The touch pad's controls are real buttons with names for screen readers, and the rest of the page still scrolls and zooms on touch devices. If a device runs the game too slowly or lacks the memory for it, the page says so plainly.

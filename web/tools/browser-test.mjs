@@ -2,6 +2,8 @@
 // presses Start, sends keys, saves screenshots and prints console errors.
 // Usage: node web/tools/browser-test.mjs [url] [script]   script: "wait:8,shot:a,key:Control,wait:2,shot:b,reload"
 // If the page asks for the game files, set RG_PICK to the .zip or folder to give it.
+// RG_TOUCH=1 emulates a 390x844 phone with touch (RG_TOUCH=844x390 sets another size); tap:<data-key> and
+// hold:<data-key>:<seconds> then touch the pad's controls.
 import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -36,6 +38,11 @@ try {
   });
   await send('Runtime.enable');
   await send('Page.enable');
+  if (process.env.RG_TOUCH) {
+    const [width, height] = process.env.RG_TOUCH === '1' ? [390, 844] : process.env.RG_TOUCH.split('x').map(Number);
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  }
   await send('Page.navigate', { url });
   const evaluate = async expr => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.value;
   // Wait for the Start button, then press it. If the page asks for the game files, give it RG_PICK (a .zip or a folder).
@@ -64,7 +71,14 @@ try {
     await send('Input.dispatchKeyEvent', { type, key, code: key.length === 1 ? `Key${key.toUpperCase()}` : key === 'Control' ? 'ControlLeft' : key === 'Shift' ? 'ShiftLeft' : key,
       windowsVirtualKeyCode: codes[key] ?? key.toUpperCase().charCodeAt(0), location: key === 'Control' || key === 'Shift' ? 1 : 0 });
   };
-  for (const [cmd, arg] of steps) {
+  const touch = async (key, seconds) => {
+    const { x, y } = await evaluate(`(r => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 }))(document.querySelector('.pad [data-key="${key}"]').getBoundingClientRect())`);
+    await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    await sleep(seconds * 1000);
+    await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await sleep(400);
+  };
+  for (const [cmd, arg, arg2] of steps) {
     if (cmd === 'wait') await sleep(+arg * 1000);
     else if (cmd === 'login') { // login:name:password fills and submits the Arena login dialog
       const [name, pw] = arg.split(';');
@@ -73,12 +87,15 @@ try {
     }
     else if (cmd === 'reload') { await send('Page.reload'); await sleep(500); await start(); }
     else if (cmd === 'key') { await keyEvent('rawKeyDown', arg); await sleep(150); await keyEvent('keyUp', arg); await sleep(400); }
+    else if (cmd === 'tap') await touch(arg, 0.15);
+    else if (cmd === 'hold') await touch(arg, +arg2);
     else if (cmd === 'shot') {
       const { data } = await send('Page.captureScreenshot', { format: 'png' });
       fs.mkdirSync('tmp', { recursive: true });
       fs.writeFileSync(`tmp/browser_${arg}.png`, Buffer.from(data, 'base64'));
       const fps = await evaluate(`window.rgStats ? JSON.stringify(window.rgStats) : ''`);
-      console.log(`shot ${arg}`, fps);
+      const overflow = await evaluate(`document.documentElement.scrollWidth - innerWidth`);
+      console.log(`shot ${arg}`, fps, overflow > 0 ? `horizontal scroll ${overflow}px` : '');
     }
   }
   console.log(errors.length ? `console errors:\n  ${errors.slice(0, 10).join('\n  ')}` : 'no console errors');

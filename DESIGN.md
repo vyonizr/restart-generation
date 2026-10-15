@@ -145,10 +145,10 @@ A near-black blue ink ramp with white text and one saturated crimson.
 - **Crimson** (`crimson`): button fills, the 4 px bar under titles, and text selection. It never sets running text.
 
 ### Neutral
-- **Deep Ink** (`ink-0`): the keyboard-required panel on touch-only devices, one step below the ground.
+- **Deep Ink** (`ink-0`): the screen overlay, at `82%`, one step below the ground.
 - **Stage Ink** (`ink-1`): the page ground, text input fills, and key-cap fills. Also the `theme-color`.
-- **Strip Ink** (`ink-2`): the footer strip and the login dialog.
-- **Rule Ink** (`ink-3`): the scrollbar thumb.
+- **Strip Ink** (`ink-2`): the footer strip, the login dialog, and the touch pad's D-pad and **Back** fills.
+- **Rule Ink** (`ink-3`): the scrollbar thumb and the touch pad's borders.
 - **White** (`white`): primary text, headings, button labels, key-cap labels, the default focus ring, and the primary-button hover fill.
 - **Pale Steel** (`light-2`): supporting text that still needs to read, such as the status line, the hero line, the key legend, secondary button labels, and bold footer text.
 - **Muted Steel** (`light-3`): quiet text, such as the header tag, form labels, dialog notes, and footer body text. Also the secondary button, text input and key-cap borders.
@@ -171,7 +171,7 @@ All three faces are self-hosted as `woff2` and load with `font-display: swap`. A
 
 ### Hierarchy
 - **Display** (Anton 400, `15cqi` of the screen, line height `0.9`, uppercase): the title inside the game screen before **Start**. It scales with the screen container.
-- **Headline** (Anton 400, `30px` to `40px`, line height `0.9`, uppercase): the login dialog title (`30px`) and the keyboard-required title on touch-only devices (`40px`).
+- **Headline** (Anton 400, `30px`, line height `0.9`, uppercase): the login dialog title.
 - **Wordmark** (Anton 400, `26px`, line height `1`, `0.02em`, uppercase): the name in the header.
 - **Button** (Anton 400, `22px`, line height `1`, `0.01em`, uppercase): all buttons. **Start** steps up to `34px`; dialog buttons step down to `18px`.
 - **Body** (Raleway 400, `16px`, line height `1.8`): the base. The status line uses `15px` at line height `1.7` with a `30ch` measure. The key legend uses `14px`.
@@ -195,7 +195,9 @@ The footer is a two-column grid (`1fr auto`, `48px` gap): the disclaimer on the 
 
 Below `1000px` wide, the footer stacks into one left-aligned column. Below `760px` wide, the page scrolls. The header shrinks to `64px` with `16px` gutters and drops the tag. Main pads `24px 16px 48px`. The footer stacks into one left-aligned column with `32px 16px` padding.
 
-On touch-only devices (`hover: none` and `pointer: coarse`), the screen, the key legend, and the ghost type hide, and a keyboard-required panel takes the screen's place.
+On touch devices (`hover: none` and `pointer: coarse`), the hero line, the key legend, the ghost type, and the folder button hide, and the touch pad sits under the screen. Main pads `0 16px 16px` with a `12px` gap, and its content starts at the top. The screen and the pad share one width, `min(100%, (100dvh - chrome - pad) * 3 / 4)`, so both fill the visible height under the header. The pad is `clamp(120px, 38dvh, 330px)` tall, and `chrome` is the height reserved for the header and gaps: `120px` in portrait. The rest of the page scrolls, so the footer stays reachable below the pad.
+
+In landscape on touch devices, the header hides and `chrome` drops to `16px`, so the same column shrinks to fit the height. A phone gets a small but playable game; there is no separate tablet landscape layout.
 
 ## Elevation & Depth
 
@@ -229,7 +231,16 @@ Poster-loud and square.
 ### Cards / Containers
 - **Login dialog:** `ink-2` fill, square, `24px` padding, `14px` gap, width `min(320px, 86%)`, centred over the screen with the dialog lift. Its title carries the crimson bar. Actions sit right-aligned, `10px` apart, secondary before primary.
 - **Screen overlay:** `ink-0` at `82%` (`rgb(17 20 27 / 82%)`) over the screen, holding the title, status line, and actions.
-- **Keyboard-required panel:** `ink-0` fill, `32px 24px` padding, max `420px`, on touch-only devices only.
+- **Slowness notice:** one line of Raleway `13px` in `light-2` under the touch pad, as wide as it, with a secondary **Dismiss** button at `16px` with `6px 12px` padding. It appears at most once per visit.
+
+### Touch pad
+On touch devices only, under the game screen and exactly as wide as it, `clamp(120px, 38dvh, 330px)` tall. A two-column grid: the D-pad at the left edge, the **Select** and **Back** cluster at the right edge, and a row of small buttons centred below them, `10px` apart.
+- **D-pad:** a cross of four square buttons in a 3 × 3 grid. Each carries an SVG arrow at `40%` (max `30px`) with a `1.4` square-capped stroke in `light-2`, on an `ink-2` fill with a `1px` `ink-3` border.
+- **Select:** a crimson square, `62%` of its cluster, at the cluster's top right. The label is Anton `24px` with "Hold to drop" under it in Raleway 500 `11px` at `75%` white.
+- **Back:** an `ink-2` square, `42%` of its cluster, at the cluster's bottom left, labelled in Anton `20px`.
+- **Sizes:** the D-pad and the cluster are each a square of `min(half the pad's width, 240px, pad height - 60px)`. In a small cluster, as in landscape on a phone, the labels scale with it and "Hold to drop" hides.
+- **Small buttons:** **Menu**, **Keyboard**, and, where the browser supports fullscreen, **Fullscreen**. Each is `40px` tall with `0 14px` padding, a transparent fill, a `1px` `ink-3` border, and an Anton `16px` label in `light-2`.
+- **Held:** a pressed control inverts to a white fill, a crimson label, and a white border at once, with no transition, for as long as it's held. **Keyboard** stays held while the device's keyboard is up. Pad buttons don't change on hover, because a touch screen keeps a tapped button hovered.
 
 ### Inputs / Fields
 - **Style:** `ink-1` fill, `1px` `light-3` border, square, `10px 12px` padding, Raleway `15px`, white text and caret.

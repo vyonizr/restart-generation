@@ -12,7 +12,9 @@ import { Traps, Heap, VFS, Win32 } from './win32.js';
 export const IMAGE_BASE = 0x400000;
 
 export class Machine {
-  constructor({ memSize = 384 << 20, log = () => {} } = {}) {
+  // 96 MB: the heap top peaked at 19 MB (title, Arcade battle, online ranked match), rounded up to 32 MB, plus
+  // 64 MB because the heap never coalesces free blocks. iOS kills a tab at about 1.5 to 3 GB, so keep this small.
+  constructor({ memSize = 96 << 20, log = () => {} } = {}) {
     const cpu = this.cpu = new CPU(memSize);
     cpu.sentinel = 0x7000;
     this.traps = new Traps(cpu, 0x8000, 0x8000);

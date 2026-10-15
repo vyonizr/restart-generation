@@ -1,6 +1,8 @@
 // Replacement for resetgeneration-gw.arena.n-gage.com (SNAP Mobile gateway).
-// Start: node server/gateway.js   Client: start.bat with -gw 127.0.0.1
+// Start: node server/gateway.js [--lan]   Client: start.bat with -gw 127.0.0.1
+// Without --lan, both ports accept connections from this PC only.
 const net = require('net');
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -8,6 +10,7 @@ const { FRAME, readFrames, frame, parseRequest, ok, err, b64 } = require('./snap
 const gameServer = require('./casino');
 
 const PORT = Number(process.env.PORT || 8976);
+const HOST = process.argv.includes('--lan') ? undefined : '127.0.0.1';
 const POLL_HOLD_MS = 15000; // client gives up on long requests after ~40 s
 // A session with no request for this long is logged out (closed browser, killed client). Must exceed
 // POLL_HOLD_MS and the Java client's 40 s resend timeout.
@@ -249,7 +252,11 @@ function processRequest(text, addr, reply) {
   });
 }
 
-module.exports = { staleSessions };
+// [name, address] for each network address other devices can reach, from os.networkInterfaces().
+const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, list]) =>
+  list.filter(a => a.family === 'IPv4' && !a.internal).map(a => [name, a.address]));
+
+module.exports = { staleSessions, lanAddresses };
 if (require.main !== module) return; // tests import the module without starting the servers
 
 net.createServer(sock => {
@@ -268,7 +275,7 @@ net.createServer(sock => {
   });
   sock.on('error', e => log(addr, e.message));
   sock.on('close', () => log('disconnect', addr));
-}).listen(PORT, () => log(`SNAP gateway on tcp/${PORT}`));
+}).listen(PORT, HOST, () => log(`SNAP gateway on tcp/${PORT}`));
 gameServer.start?.(api);
 setInterval(() => {
   for (const s of staleSessions(sessions, Date.now(), IDLE_MS)) { log(`idle timeout ${s.name}`); dropSession(s); }
@@ -282,7 +289,7 @@ const WEB_DIR = path.join(__dirname, '..', 'web');
 let gameFiles = {};
 if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => { gameFiles = f; log(`game files from ${process.env.RG_GAME}`); },
   e => log(`RG_GAME: ${e.message}`));
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.woff2': 'font/woff2' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
 
 http.createServer((req, res) => {
   const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -302,8 +309,13 @@ http.createServer((req, res) => {
   }
   let file;
   if (url === '/') file = path.join(WEB_DIR, 'index.html');
-  else if (/^\/(emu\/)?[\w-]+\.(js|html)$/.test(url) || /^\/fonts\/[\w-]+\.woff2$/.test(url)) file = path.join(WEB_DIR, url);
+  else if (/^\/(emu\/)?[\w-]+\.(js|html|mp4)$/.test(url) || /^\/fonts\/[\w-]+\.woff2$/.test(url)) file = path.join(WEB_DIR, url);
   if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
-}).listen(HTTP_PORT, () => log(`browser client on http://localhost:${HTTP_PORT}/`));
+}).listen(HTTP_PORT, HOST, () => {
+  log(`browser client on http://localhost:${HTTP_PORT}/`);
+  if (HOST) return;
+  for (const [name, address] of lanAddresses(os.networkInterfaces())) log(`browser client on http://${address}:${HTTP_PORT}/ (${name})`);
+  log(`Other devices can't connect? See "Play on other devices" in README.md.`);
+});
