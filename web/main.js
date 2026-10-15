@@ -49,15 +49,20 @@ async function fetchFiles() {
 // Asks the player for the standalone build's .zip or its game folder (the ResetGeneration folder or the one above it).
 function pickFiles() {
   const pick = document.getElementById('pick'), zipInput = document.getElementById('pick-zip-input'), dirInput = document.getElementById('pick-input');
-  status.textContent = 'Choose your copy of Reset Generation Standalone: the .zip, or the extracted folder. The files stay in this browser.';
+  status.textContent = 'Bring your own copy of the game to play';
   pick.hidden = false;
+  document.getElementById('pick-zip').focus();
   document.getElementById('pick-zip').onclick = () => zipInput.click();
   document.getElementById('pick-folder').onclick = () => dirInput.click();
   return new Promise(resolve => {
     // found: { lowercase name: Uint8Array or File }
     const use = async (found, what) => {
       const missing = FILES.filter(n => !SAVED.has(n) && !found[n.toLowerCase()]);
-      if (missing.length) { status.textContent = `That ${what} is missing ${missing.join(', ')}. Choose the Reset Generation Standalone .zip or folder.`; return; }
+      if (missing.length) {
+        console.warn('missing game files:', missing.join(', '));
+        status.textContent = `That ${what} isn't the Windows standalone build of Reset Generation. Try another .zip or folder.`;
+        return;
+      }
       pick.hidden = true;
       status.textContent = 'Reading game files…';
       const files = {};
@@ -77,16 +82,20 @@ function pickFiles() {
       try {
         const entries = await gameFromZip(new Uint8Array(await file.arrayBuffer()));
         use(Object.fromEntries(Object.entries(entries).map(([n, d]) => [n.toLowerCase(), d])), '.zip');
-      } catch (e) { status.textContent = `Could not read ${file.name}: ${e.message}`; }
+      } catch (e) { console.warn(e); status.textContent = `Couldn't read ${file.name}. Try another .zip or folder.`; }
     };
   });
 }
 
+let source = null; // where the files came from: 'stored', 'server' or 'picked'
+
 async function loadFiles() {
   let files = null;
   try { files = await gameStore('readonly', s => s.get('game')); } catch { /* storage blocked */ }
+  source = files ? 'stored' : 'server';
   files ||= await fetchFiles().catch(() => null);
   if (!files) {
+    source = 'picked';
     files = await pickFiles();
     try { await gameStore('readwrite', s => s.put(files, 'game')); } catch { /* not kept: the player picks again next visit */ }
   }
@@ -157,7 +166,7 @@ function loginUI() {
     e.preventDefault();
     try { localStorage.setItem('rg:username', user.value); } catch {}
     const h = handlers;
-    form.hidden = true; canvas.focus();
+    form.hidden = true; canvas.inert = false; canvas.focus();
     h?.ready();
   });
   cancel.addEventListener('click', () => { const h = handlers; ui.stopLogin(); h?.cancel(); });
@@ -168,10 +177,10 @@ function loginUI() {
       if (guest) { user.value = guest.username; pass.value = guest.password; ready(); return; }
       try { user.value ||= localStorage.getItem('rg:username') || ''; } catch {}
       note.textContent = 'New names are registered on first login.';
-      form.hidden = false;
+      form.hidden = false; canvas.inert = true;
       (user.value ? pass : user).focus();
     },
-    stopLogin() { form.hidden = true; handlers = null; canvas.focus(); },
+    stopLogin() { form.hidden = true; canvas.inert = false; handlers = null; canvas.focus(); },
     visible: () => !form.hidden,
     attempting() { note.textContent = 'Logging in…'; },
     rejected() { if (guest) { guest = null; user.value = pass.value = ''; } },
@@ -193,29 +202,31 @@ async function main() {
   startButton.focus();
   await new Promise(r => startButton.addEventListener('click', r, { once: true }));
   overlay.hidden = true;
+  canvas.tabIndex = 0;
   canvas.focus();
 
   const audio = new Audio(game);
   const held = new Set();
   const input = []; // applied at the start of each tick
-  canvas.addEventListener('keydown', e => {
+  // Keys go to the game wherever focus is on the page, except in the login dialog or the overlay's buttons.
+  addEventListener('keydown', e => {
     const k = javaKey(e);
-    if (!k) return;
+    if (!k || e.target.closest?.('#login, #overlay')) return;
     e.preventDefault();
     if (held.has(e.code)) return;      // the Java listener ignored auto-repeat too
     held.add(e.code);
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
     input.push(() => { game.key(true, k.code, k.ch, loc); if (k.ch !== 0xffff) game.typed(k.ch); });
   });
-  canvas.addEventListener('keyup', e => {
+  addEventListener('keyup', e => {
     const k = javaKey(e);
-    if (!k) return;
+    if (!k || e.target.closest?.('#login, #overlay')) return;
     e.preventDefault();
     held.delete(e.code);
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
     input.push(() => game.key(false, k.code, k.ch, loc));
   });
-  canvas.addEventListener('blur', () => { held.clear(); input.push(() => game.releaseAll()); });
+  addEventListener('blur', () => { held.clear(); input.push(() => game.releaseAll()); });
   canvas.addEventListener('pointerdown', () => canvas.focus());
 
   const t0 = performance.now();
@@ -239,12 +250,23 @@ async function main() {
       if (now - lastSave > 5000) { lastSave = now; for (const f of game.dirtyFiles()) store.set(f.name, f.data); }
       requestAnimationFrame(frame);
     } catch (e) {
-      console.error(e);
-      overlay.hidden = false; startButton.hidden = true;
-      status.textContent = `The emulator stopped: ${e.message}`;
+      fail('The game stopped. Reload to try again.', e);
     }
   };
   requestAnimationFrame(frame);
 }
 
-main().catch(e => { console.error(e); status.textContent = `Could not start: ${e.message}`; });
+// Shows an error with a way out: reload, or forget the stored copy and choose another.
+function fail(message, e) {
+  console.error(e);
+  overlay.hidden = false; startButton.hidden = true; document.getElementById('pick').hidden = true;
+  status.textContent = message;
+  const reload = document.getElementById('reload'), forget = document.getElementById('forget');
+  document.getElementById('recover').hidden = false;
+  forget.hidden = source !== 'stored' && source !== 'picked';
+  reload.onclick = () => location.reload();
+  forget.onclick = () => gameStore('readwrite', s => s.delete('game')).finally(() => location.reload());
+  reload.focus();
+}
+
+main().catch(e => fail("The game couldn't start with this copy.", e));

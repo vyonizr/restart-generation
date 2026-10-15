@@ -282,7 +282,7 @@ const WEB_DIR = path.join(__dirname, '..', 'web');
 let gameFiles = {};
 if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => { gameFiles = f; log(`game files from ${process.env.RG_GAME}`); },
   e => log(`RG_GAME: ${e.message}`));
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.woff2': 'font/woff2' };
 
 http.createServer((req, res) => {
   const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -302,7 +302,7 @@ http.createServer((req, res) => {
   }
   let file;
   if (url === '/') file = path.join(WEB_DIR, 'index.html');
-  else if (/^\/(emu\/)?[\w-]+\.(js|html)$/.test(url)) file = path.join(WEB_DIR, url);
+  else if (/^\/(emu\/)?[\w-]+\.(js|html)$/.test(url) || /^\/fonts\/[\w-]+\.woff2$/.test(url)) file = path.join(WEB_DIR, url);
   if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
   fs.createReadStream(file).pipe(res);

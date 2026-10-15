@@ -3,63 +3,161 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Play Reset Generation (2009) in your browser with your own copy of the game. An unofficial fan revival.">
+<meta name="theme-color" content="#181c26">
 <title>Reset Generation</title>
+<link rel="preload" href="fonts/anton.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-  :root { --bg: #10131a; --panel: #1b2030; --text: #e8ecf4; --muted: #9aa4b8; --accent: #f5c542; }
-  @media (prefers-color-scheme: light) { :root { --bg: #eef1f6; --panel: #ffffff; --text: #141822; --muted: #4c5568; --accent: #b8860b; } }
+  @font-face { font-family: 'Anton'; src: url(fonts/anton.woff2) format('woff2'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'Raleway'; src: url(fonts/raleway.woff2) format('woff2'); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: 'Roboto Mono'; src: url(fonts/roboto-mono.woff2) format('woff2'); font-weight: 100 700; font-display: swap; }
+  :root {
+    --ink-0: #11141b; --ink-1: #181c26; --ink-2: #282b35; --ink-3: #373b49;
+    --red: #a50034; --light-2: #e2e4ec; --light-3: #c6cad7;
+    --display: 'Anton', 'Arial Narrow', sans-serif; --body: 'Raleway', system-ui, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace;
+    color-scheme: dark; scrollbar-color: var(--ink-3) var(--ink-1);
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; }
-  .screen { position: relative; width: min(480px, 92vw); aspect-ratio: 3 / 4; background: #000; border-radius: 8px; overflow: hidden;
-    box-shadow: 0 8px 32px rgb(0 0 0 / 35%); }
-  canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
-  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 12px; background: rgb(0 0 0 / 70%); color: #fff; text-align: center; padding: 24px; }
-  .overlay[hidden] { display: none; }
-  button { font: inherit; font-weight: 600; padding: 10px 22px; border-radius: 6px; border: 0; background: var(--accent); color: #111; cursor: pointer; }
-  button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-  .login { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(300px, 80%);
-    background: var(--panel); color: var(--text); border-radius: 8px; padding: 16px; display: grid; gap: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / 50%); }
-  .login[hidden] { display: none; }
-  .login h2 { margin: 0; font-size: 17px; }
-  .login label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
-  .login input { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--muted); background: var(--bg); color: var(--text); }
-  .login .row { display: flex; gap: 8px; justify-content: flex-end; }
-  .login .secondary { background: transparent; color: var(--text); border: 1px solid var(--muted); }
-  #pick { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-  #pick[hidden] { display: none; }
-  #pick .secondary { background: transparent; color: #fff; border: 1px solid #fff; }
-  .login p { margin: 0; font-size: 13px; color: var(--muted); }
-  .keys { max-width: min(480px, 92vw); width: 100%; background: var(--panel); border-radius: 8px; padding: 12px 16px; color: var(--muted); }
-  .keys b { color: var(--text); }
-  kbd { font: 13px ui-monospace, monospace; background: var(--bg); border-radius: 4px; padding: 1px 6px; color: var(--text); }
+  body { margin: 0; background: var(--ink-1); color: #fff; font: 16px/1.8 var(--body); -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--red); color: #fff; }
+  h1, h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; line-height: .9; margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  .page { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; overflow: clip; }
+  header { position: relative; z-index: 1; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 48px; }
+  .name { font: 400 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+  .tag { font: 500 13px/1 var(--mono); color: var(--light-3); }
+  .ghost { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 400 23vw/.82 var(--display); text-transform: uppercase; text-align: center;
+    color: transparent; -webkit-text-stroke: 1px rgb(255 255 255 / 12%); white-space: nowrap; pointer-events: none; user-select: none; }
+  main { position: relative; min-height: 0; display: grid; place-content: center; justify-items: center; gap: 18px; padding: 0 48px 24px; }
+
+  /* The engine draws 240 × 320; the page only frames and scales it */
+  .screen { position: relative; height: clamp(300px, 100vh - 330px, 640px); height: clamp(300px, 100dvh - 330px, 640px); aspect-ratio: 3 / 4; container-type: size;
+    overflow: hidden; background: #000 radial-gradient(rgb(255 255 255 / 16%) 1px, transparent 1.5px) 0 0 / 8px 8px;
+    box-shadow: 0 2px 16px rgb(0 0 0 / 40%), 0 2px 4px rgb(0 0 0 / 30%); }
+  .screen:has(canvas:focus-visible) { outline: 2px solid var(--light-3); outline-offset: 4px; }
+  canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; outline: none; }
+  #overlay { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 3cqh; padding: 6cqi; text-align: center; overflow-y: auto;
+    background: rgb(17 20 27 / 82%); }
+  #overlay h2 { font-size: 15cqi; }
+  .bar::after { content: ''; display: block; width: 128px; max-width: 45%; height: 4px; background: var(--red); margin-top: 12px; }
+  #status { max-width: 30ch; text-wrap: balance; font-size: 15px; line-height: 1.7; color: var(--light-2); }
+  #pick, #recover { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+  .hint { flex-basis: 100%; text-wrap: balance; font-size: 13px; line-height: 1.6; color: var(--light-3); }
+
+  /* Buttons: square, crimson, inverting to white on hover */
+  button { font: 400 22px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; padding: 16px 28px; border: 1px solid var(--red); border-radius: 0;
+    background: var(--red); color: #fff; cursor: pointer; transition: background-color .2s, color .2s, border-color .2s; }
+  button:hover { background: #fff; color: var(--red); border-color: #fff; }
+  button.secondary { background: transparent; color: var(--light-2); border-color: var(--light-3); }
+  button.secondary:hover { background: transparent; color: #fff; border-color: #fff; }
+  #start { font-size: 34px; padding: 18px 56px; }
+
+  /* Arena login dialog, over the screen */
+  .login { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(320px, 86%); display: grid; gap: 14px; padding: 24px;
+    background: var(--ink-2); box-shadow: 0 2px 16px rgb(0 0 0 / 50%); }
+  .login h2 { font-size: 30px; }
+  .login label { display: grid; gap: 6px; font: 500 13px/1 var(--body); color: var(--light-3); }
+  .login input { font: 15px/1.4 var(--body); padding: 10px 12px; border: 1px solid var(--light-3); border-radius: 0; background: var(--ink-1); color: #fff; caret-color: #fff; }
+  .login input:focus-visible { outline-offset: 2px; }
+  .login p { font: 13px/1.6 var(--body); color: var(--light-3); }
+  .login .row { display: flex; gap: 10px; justify-content: flex-end; }
+  .login button { font-size: 18px; padding: 12px 20px; }
+
+  .sub { font: 15px/1.6 var(--mono); color: var(--light-2); text-align: center; }
+  .keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; margin: 0; font: 14px/1 var(--body); color: var(--light-2); }
+  .keys div { display: flex; align-items: center; gap: 6px; }
+  .keys dt { display: flex; align-items: center; gap: 6px; margin-right: 2px; }
+  .keys dd, .keys .or { margin: 0; }
+  kbd { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; border: 1px solid var(--light-3); background: var(--ink-1);
+    font: 500 13px/1 var(--mono); color: #fff; }
+  kbd svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
+
+  .nokb { display: none; }
+
+  footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: center; padding: 16px 48px; background: var(--ink-2); }
+  footer p { font: 12px/1.7 var(--mono); color: var(--light-3); }
+  footer strong { font-weight: 500; color: var(--light-2); }
+  .disclaimer { max-width: 110ch; }
+  .notes { text-align: right; }
+
+  @media (max-width: 999px) {
+    footer { grid-template-columns: 1fr; gap: 8px; }
+    .notes { text-align: left; }
+  }
+  /* Touch-only devices can't play: no keyboard */
+  @media (hover: none) and (pointer: coarse) {
+    .screen, .keys, .ghost, .sub { display: none; }
+    .nokb { display: grid; gap: 16px; max-width: 420px; padding: 32px 24px; background: var(--ink-0); }
+    .nokb h2 { font-size: 40px; }
+    .nokb span { font: 15px/1.7 var(--body); color: var(--light-2); }
+  }
+  @media (max-width: 759px) {
+    header { height: 64px; padding: 0 16px; }
+    .tag { display: none; }
+    .ghost { font-size: 34vw; }
+    main { padding: 24px 16px 48px; }
+    footer { grid-template-columns: 1fr; gap: 12px; padding: 32px 16px; }
+    .notes { text-align: left; }
+  }
 </style>
 </head>
 <body>
-  <div class="screen">
-    <canvas id="screen" width="240" height="320" tabindex="0" aria-label="Game screen"></canvas>
-    <div class="overlay" id="overlay">
-      <p id="status">Loading game files…</p>
-      <div id="pick" hidden>
-        <button id="pick-zip">Choose .zip file</button>
-        <button id="pick-folder" class="secondary">Choose folder</button>
+<div class="page">
+  <header><h1 class="name">Reset Generation</h1><span class="tag">Unofficial fan revival</span></header>
+  <span class="ghost" aria-hidden="true">Reset<br>Generation</span>
+  <main>
+    <div class="screen">
+      <canvas id="screen" width="240" height="320" tabindex="-1" aria-label="Game screen"></canvas>
+      <div id="overlay">
+        <h2 class="bar">Reset<br>Generation</h2>
+        <p id="status" role="status">Loading game files…</p>
+        <div id="pick" hidden>
+          <button id="pick-zip">Choose .zip file</button>
+          <button id="pick-folder" class="secondary">Choose folder</button>
+          <p class="hint">Windows standalone build only. Your files stay in this browser.</p>
+        </div>
+        <input id="pick-zip-input" type="file" accept=".zip" hidden>
+        <input id="pick-input" type="file" webkitdirectory multiple hidden>
+        <button id="start" hidden>Start</button>
+        <div id="recover" hidden>
+          <button id="reload">Reload</button>
+          <button id="forget" class="secondary" hidden>Use a different copy</button>
+        </div>
       </div>
-      <input id="pick-zip-input" type="file" accept=".zip" hidden>
-      <input id="pick-input" type="file" webkitdirectory multiple hidden>
-      <button id="start" hidden>Start</button>
+      <form class="login" id="login" role="dialog" aria-modal="true" aria-labelledby="login-title" hidden>
+        <h2 class="bar" id="login-title">Log in to Arena</h2>
+        <label>Player name <input id="username" name="username" autocomplete="username" maxlength="15" pattern="[A-Za-z0-9_]{1,15}" required></label>
+        <label>Password <input id="password" name="password" type="password" autocomplete="current-password" required></label>
+        <p id="login-note">New names are registered on first login.</p>
+        <div class="row"><button type="button" class="secondary" id="login-cancel">Cancel</button><button type="submit" id="login-ok">Log in</button></div>
+      </form>
     </div>
-    <form class="login" id="login" hidden>
-      <h2>Log in to Arena</h2>
-      <label>Player name <input id="username" name="username" autocomplete="username" maxlength="15" pattern="[A-Za-z0-9_]{1,15}" required></label>
-      <label>Password <input id="password" name="password" type="password" autocomplete="current-password" required></label>
-      <p id="login-note">New names are registered on first login.</p>
-      <div class="row"><button type="button" class="secondary" id="login-cancel">Cancel</button><button type="submit" id="login-ok">Log in</button></div>
-    </form>
-  </div>
-  <div class="keys">
-    <b>Controls:</b> <kbd>Arrows</kbd> move · <kbd>Ctrl</kbd> or <kbd>Enter</kbd> select (hold to drop a block) ·
-    <kbd>Shift</kbd> back · <kbd>Esc</kbd> menu
-  </div>
-  <script type="module" src="main.js"></script>
+    <div class="nokb"><h2 class="bar">Reset Generation needs a keyboard.</h2><span>Open this page on a computer to play.</span></div>
+    <p class="sub">The original 2009 game, right in your browser (again)</p>
+    <dl class="keys" aria-label="Controls">
+      <div><dt>
+        <kbd><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 6H2M5 2.5 1.5 6 5 9.5"/></svg><span class="vh">Left</span></kbd>
+        <kbd><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M7 2.5 10.5 6 7 9.5"/></svg><span class="vh">Right</span></kbd>
+        <kbd><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10V2M2.5 5 6 1.5 9.5 5"/></svg><span class="vh">Up</span></kbd>
+        <kbd><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2.5 7 6 10.5 9.5 7"/></svg><span class="vh">Down</span></kbd>
+      </dt><dd>Move</dd></div>
+      <div><dt><kbd>Ctrl</kbd><span class="or">or</span><kbd>Enter</kbd></dt><dd>Select; hold to drop a block</dd></div>
+      <div><dt><kbd>Shift</kbd></dt><dd>Back</dd></div>
+      <div><dt><kbd>Esc</kbd></dt><dd>Menu</dd></div>
+    </dl>
+  </main>
+  <footer>
+    <p class="disclaimer"><strong>Reset Generation © 2009 RedLynx.</strong> This is an unofficial fan revival, not affiliated with or endorsed by RedLynx or Ubisoft. Bring your own copy of the game.<br>Made by vyonizr.</p>
+    <p class="notes">Windows standalone build only. Your files stay in this browser.<br>Online play needs a replacement N-Gage Arena server.</p>
+  </footer>
+</div>
+<script type="module">
+  // Touch-only devices get the keyboard message instead, so they don't download the game.
+  if (!matchMedia('(hover: none) and (pointer: coarse)').matches) import('./main.js');
+</script>
 </body>
 </html>
