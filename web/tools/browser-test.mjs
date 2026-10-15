@@ -19,7 +19,7 @@ const proc = spawn(browser, ['--headless=new', `--remote-debugging-port=${port}`
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let ws, id = 0;
-const pending = new Map(), errors = [];
+const pending = new Map(), errors = [], warnings = [];
 const send = (method, params = {}) => new Promise(res => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
 
 try {
@@ -34,7 +34,8 @@ try {
     const m = JSON.parse(e.data);
     if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result || m.error); pending.delete(m.id); }
     if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
-    if (m.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(m.params.type)) errors.push(m.params.args.map(a => a.value ?? a.description).join(' '));
+    if (m.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(m.params.type))
+      (m.params.type === 'error' ? errors : warnings).push(m.params.args.map(a => a.value ?? a.description).join(' '));
   });
   await send('Runtime.enable');
   await send('Page.enable');
@@ -98,7 +99,10 @@ try {
       console.log(`shot ${arg}`, fps, overflow > 0 ? `horizontal scroll ${overflow}px` : '');
     }
   }
+  if (warnings.length) console.log(`console warnings:\n  ${warnings.slice(0, 10).join('\n  ')}`);
   console.log(errors.length ? `console errors:\n  ${errors.slice(0, 10).join('\n  ')}` : 'no console errors');
+  // Exceptions and console.error fail the run; warnings don't, since the browser emits some on its own.
+  if (errors.length) process.exitCode = 1;
 } finally {
   proc.kill();
 }

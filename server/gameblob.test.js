@@ -5,8 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const g = require('./gameblob');
 
-const dir = process.env.RG_CAPTURES || path.join(process.env.TEMP || '/tmp',
-  'claude/E--programming-projects-reset-generation-rea/6403c30b-aa5a-4631-87b3-b7de1df09128/scratchpad/rgtrace/out');
+const dir = process.env.RG_CAPTURES;
+if (!dir) { console.log('set RG_CAPTURES to a folder of captures (see tools/rgtrace)'); process.exit(1); }
 const lengths = {};
 try {
   for (const [f, n] of fs.readFileSync(path.join(dir, 'lengths.txt'), 'utf8').split(/\r?\n/).map(l => l.trim().split(/\s+/)))

@@ -53,7 +53,7 @@ Phones and tablets play in portrait, with a touch pad under the game screen; a k
 
 ## Run the server
 
-Requires Node.js 18 or later.
+Requires Node.js 18 or later. The project has no npm dependencies, on purpose, so there's nothing to install.
 
 To use npm scripts instead, put `RG_GAME=<path>` in a `.env` file in the repo root, then run `npm start` (or `npm run start:lan` for `--lan`), `npm run dev` to restart on file changes, and `npm test` for the self-checks that need no local data. The npm scripts need Node.js 22.9 or later.
 
