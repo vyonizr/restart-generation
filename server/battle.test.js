@@ -85,6 +85,27 @@ trio.deadline = 0;
 battle.tick(trio, api);
 assert.equal(trio.started, true);
 
+// d is defeated during turn 1 and sends nothing after its last shot.
+const send = (s, sender, seq, type, turn, phase) => fromClient(trio, s, { seq, type, sender, turn, phase,
+  body: Buffer.from(new Int32Array([3, 4]).buffer) });
+send(c, 1, 1, gm.TYPE.PLACE_TILE, 1, 2); send(d, 2, 1, gm.TYPE.PLACE_TILE, 1, 2);
+send(c, 1, 2, gm.TYPE.END_TURN_REQUEST, 1, 4); send(d, 2, 2, gm.TYPE.END_TURN_REQUEST, 1, 4);
+send(c, 1, 3, gm.TYPE.FIRE_CANNON, 1, 5); send(c, 1, 4, gm.TYPE.FIRE_CANNON, 1, 5);
+send(d, 2, 3, gm.TYPE.FIRE_CANNON, 1, 5); send(d, 2, 4, gm.TYPE.FIRE_CANNON, 1, 5);
+assert.deepEqual([trio.turn, trio.phase], [2, 2]);
+// Turn 2: d was active last turn, so phase 2 still waits for it, until the forced EndTurn.
+send(c, 1, 5, gm.TYPE.PLACE_TILE, 2, 2);
+assert.equal(trio.phase, 2, 'stopped waiting for d too early');
+trio.phaseStart = 0;
+battle.tick(trio, api);
+assert.equal(trio.phase, 4);
+// Every client skips d's turn; c's first shot moves the host to phase 5. d has now been silent for a
+// whole turn, so phase 5 ends after c's last shot.
+send(c, 1, 6, gm.TYPE.FIRE_CANNON, 2, 5);
+assert.equal(trio.phase, 5);
+send(c, 1, 7, gm.TYPE.FIRE_CANNON, 2, 5);
+assert.deepEqual([trio.turn, trio.phase], [3, 2]);
+
 // A relaxed table sends no phase time limits and forces the end of a phase only after 3 minutes.
 const calm = battle.createTable(2, api, true);
 const [e, f] = [client('e'), client('f')];

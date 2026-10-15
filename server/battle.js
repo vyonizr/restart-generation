@@ -56,7 +56,7 @@ function createTable(seats, api, relaxed = false) {
   const limits = t.game.timeLimit;
   return {
     seats, template: t.name, game: tableGame(t, relaxed ? limits.map(() => -1) : limits), snap: t.snap,
-    players: [],        // { s, index, team, state, lastSeq }
+    players: [],        // { s, index, team, state, lastSeq, seen }
     history: [],        // raw reliable GameMessages, replayed to late joiners (handshake step 4)
     seq: 3, started: false, // server seq continues after the handshake messages (1-3)
     deadline: Date.now() + START_DEADLINE_MS,
@@ -82,7 +82,7 @@ const alive = table => table.players.filter(p => p.state === 'playing' && !table
 // Handshake step 1, after the SEAT_TAKE response (lobby FUN_100ebed0 waits for this).
 function seat(table, s, api) {
   if (table.players.some(p => p.s === s) || table.players.length >= table.seats) return;
-  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0 };
+  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, 2) };
   table.players.push(p);
   sendMsg(table, p, { seq: 1, type: gm.TYPE.INIT, body: initBody(Buffer.concat([table.game, i32(1)])) }, api);
 }
@@ -138,9 +138,17 @@ function endTurn(table, api) {
   return enterPhase(table, turn + 1, 2);
 }
 
-const allDone = table => alive(table).every(p => table.done.has(p.team));
+// (turn, phase) as one ascending number; p.seen is the step of the team's last order or EndTurnRequest.
+const step = (turn, phase) => turn * 10 + phase;
+// Clients stop sending after their castle or princess is captured, which the server can't see
+// (docs/re/re_rules.md section 5). A team silent for a whole turn counts as done in phases 2 and 5. In
+// phase 4 every client still decides whose turn it is, so the server keeps waiting there.
+// ponytail: guesses defeats; an idle living player is skipped too. A headless witness engine would be exact.
+const silent = (table, p) => step(table.turn, table.phase) - p.seen >= 10;
+const allDone = table => alive(table).every(p => table.done.has(p.team) || silent(table, p));
 
 function onEndTurnRequest(table, p, m, api) {
+  p.seen = step(table.turn, table.phase);
   if (m.turn !== table.turn || m.phase !== table.phase) return;
   if (table.phase === 4) {
     if (table.ended4.has(p.team)) return;
@@ -166,7 +174,7 @@ function onGame(table, p, data, api) {
     if (m.body.readInt32LE(0) === 3) m.body = i32(2); // sync errors are reported as disconnects
     lose(table, p, api);
   }
-  if (ORDERS.has(m.type)) table.lastOrderTeam = p.team;
+  if (ORDERS.has(m.type)) { table.lastOrderTeam = p.team; p.seen = step(table.turn, table.phase); }
   // Forward unchanged to the other players (v16), keeping the client's own seq and sender.
   if (m.reliable) table.history.push(gm.write(m));
   for (const o of table.players) if (o !== p && o.state === 'playing') sendMsg(table, o, m, api);
