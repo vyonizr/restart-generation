@@ -55,6 +55,8 @@ Phones and tablets play in portrait, with a touch pad under the game screen; a k
 
 Requires Node.js 18 or later.
 
+To use npm scripts instead, put `RG_GAME=<path>` in a `.env` file in the repo root, then run `npm start` (or `npm run start:lan` for `--lan`), `npm run dev` to restart on file changes, and `npm test` for the self-checks that need no local data. The npm scripts need Node.js 22.9 or later.
+
 ```sh
 node server/gateway.js
 ```

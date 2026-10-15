@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/gateway.js",
+    "start:lan": "node --env-file-if-exists=.env server/gateway.js --lan",
+    "dev": "node --env-file-if-exists=.env --watch server/gateway.js",
+    "dev:lan": "node --env-file-if-exists=.env --watch server/gateway.js --lan",
+    "test": "node server/snap.test.js && node server/gateway.test.js",
+    "test:battle": "node server/battle.test.js",
+    "test:gameblob": "node --env-file-if-exists=.env server/gameblob.test.js",
+    "browser-test": "node --env-file-if-exists=.env web/tools/browser-test.mjs",
+    "boot": "node --env-file-if-exists=.env web/tools/boot.mjs"
+  }
+}
