@@ -1,0 +1,351 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-15T00:00:00Z",
+  "title": "Design System: Reset Generation",
+  "extensions": {
+    "colorMeta": {
+      "crimson": {
+        "role": "primary",
+        "displayName": "Crimson",
+        "canonical": "#a50034",
+        "tonalRamp": [
+          "oklch(15% 0.18 12)",
+          "oklch(27% 0.18 12)",
+          "oklch(39% 0.18 12)",
+          "oklch(51% 0.18 12)",
+          "oklch(63% 0.18 12)",
+          "oklch(75% 0.18 12)",
+          "oklch(85% 0.18 12)",
+          "oklch(95% 0.18 12)"
+        ]
+      },
+      "ink-0": {
+        "role": "neutral",
+        "displayName": "Deep Ink",
+        "canonical": "#11141b",
+        "tonalRamp": [
+          "oklch(15% 0.02 268)",
+          "oklch(27% 0.02 268)",
+          "oklch(39% 0.02 268)",
+          "oklch(51% 0.02 268)",
+          "oklch(63% 0.02 268)",
+          "oklch(75% 0.02 268)",
+          "oklch(85% 0.02 268)",
+          "oklch(95% 0.02 268)"
+        ]
+      },
+      "ink-1": {
+        "role": "neutral",
+        "displayName": "Stage Ink",
+        "canonical": "#181c26",
+        "tonalRamp": [
+          "oklch(15% 0.02 268)",
+          "oklch(27% 0.02 268)",
+          "oklch(39% 0.02 268)",
+          "oklch(51% 0.02 268)",
+          "oklch(63% 0.02 268)",
+          "oklch(75% 0.02 268)",
+          "oklch(85% 0.02 268)",
+          "oklch(95% 0.02 268)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Strip Ink",
+        "canonical": "#282b35",
+        "tonalRamp": [
+          "oklch(15% 0.02 268)",
+          "oklch(27% 0.02 268)",
+          "oklch(39% 0.02 268)",
+          "oklch(51% 0.02 268)",
+          "oklch(63% 0.02 268)",
+          "oklch(75% 0.02 268)",
+          "oklch(85% 0.02 268)",
+          "oklch(95% 0.02 268)"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Rule Ink",
+        "canonical": "#373b49",
+        "tonalRamp": [
+          "oklch(15% 0.02 268)",
+          "oklch(27% 0.02 268)",
+          "oklch(39% 0.02 268)",
+          "oklch(51% 0.02 268)",
+          "oklch(63% 0.02 268)",
+          "oklch(75% 0.02 268)",
+          "oklch(85% 0.02 268)",
+          "oklch(95% 0.02 268)"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(27% 0 0)",
+          "oklch(39% 0 0)",
+          "oklch(51% 0 0)",
+          "oklch(63% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "light-2": {
+        "role": "neutral",
+        "displayName": "Pale Steel",
+        "canonical": "#e2e4ec",
+        "tonalRamp": [
+          "oklch(15% 0.012 275)",
+          "oklch(27% 0.012 275)",
+          "oklch(39% 0.012 275)",
+          "oklch(51% 0.012 275)",
+          "oklch(63% 0.012 275)",
+          "oklch(75% 0.012 275)",
+          "oklch(85% 0.012 275)",
+          "oklch(95% 0.012 275)"
+        ]
+      },
+      "light-3": {
+        "role": "neutral",
+        "displayName": "Muted Steel",
+        "canonical": "#c6cad7",
+        "tonalRamp": [
+          "oklch(15% 0.017 275)",
+          "oklch(27% 0.017 275)",
+          "oklch(39% 0.017 275)",
+          "oklch(51% 0.017 275)",
+          "oklch(63% 0.017 275)",
+          "oklch(75% 0.017 275)",
+          "oklch(85% 0.017 275)",
+          "oklch(95% 0.017 275)"
+        ]
+      },
+      "screen-black": {
+        "role": "neutral",
+        "displayName": "Screen Black",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(27% 0 0)",
+          "oklch(39% 0 0)",
+          "oklch(51% 0 0)",
+          "oklch(63% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The title inside the game screen before Start; scales with the screen container."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Dialog title (30px) and the keyboard-required title on touch-only devices (40px)."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "The name in the header."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "All buttons; Start steps up to 34px, dialog buttons down to 18px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base reading text."
+      },
+      "body-small": {
+        "displayName": "Body small",
+        "purpose": "Status line (30ch measure) and keyboard-required message."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels."
+      },
+      "mono-line": {
+        "displayName": "Mono line",
+        "purpose": "The hero line under the screen."
+      },
+      "mono-label": {
+        "displayName": "Mono label",
+        "purpose": "Header tag and key-cap labels."
+      },
+      "mono-small": {
+        "displayName": "Mono small",
+        "purpose": "Footer text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "screen-lift",
+        "value": "0 2px 16px rgb(0 0 0 / 40%), 0 2px 4px rgb(0 0 0 / 30%)",
+        "purpose": "The game screen only."
+      },
+      {
+        "name": "dialog-lift",
+        "value": "0 2px 16px rgb(0 0 0 / 50%)",
+        "purpose": "The login dialog over the screen."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-invert",
+        "value": "background-color .2s, color .2s, border-color .2s",
+        "purpose": "Button hover inversion, default easing."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "max-width: 759px"
+      },
+      {
+        "name": "touch-only",
+        "value": "(hover: none) and (pointer: coarse)"
+      }
+    ],
+    "focus": {
+      "value": "outline: 2px solid #fff; outline-offset: 3px",
+      "purpose": "Global focus-visible ring."
+    },
+    "ghostType": {
+      "value": "Anton 400 uppercase, 23vw (34vw below 760px), line-height .82, color transparent, -webkit-text-stroke: 1px rgb(255 255 255 / 12%)",
+      "purpose": "Outlined name behind the game screen; hidden on touch-only devices."
+    },
+    "titleBar": {
+      "value": "128px wide (max 45%), 4px tall, crimson, 12px below the title",
+      "purpose": "Marks titles."
+    },
+    "screenBacking": {
+      "value": "#000 radial-gradient(rgb(255 255 255 / 16%) 1px, transparent 1.5px) 0 0 / 8px 8px",
+      "purpose": "Game screen backing behind the canvas."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Crimson fill that inverts to white on hover; the main action.",
+      "html": "<button class=\"ds-btn\">Choose .zip file</button>",
+      "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-btn{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.01em;padding:16px 28px;border:1px solid var(--red);border-radius:0;background:var(--red);color:#fff;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s;}.ds-btn:hover{background:#fff;color:var(--red);border-color:#fff;}.ds-btn:focus-visible{outline:2px solid #fff;outline-offset:3px;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outlined alternative that fills crimson on hover.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">Choose folder</button>",
+      "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-btn{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.01em;padding:16px 28px;border:1px solid var(--red);border-radius:0;background:var(--red);color:#fff;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s;}.ds-btn:hover{background:#fff;color:var(--red);border-color:#fff;}.ds-btn:focus-visible{outline:2px solid #fff;outline-offset:3px;}.ds-btn-secondary{background:transparent;color:var(--light-2);border-color:var(--light-3);}.ds-btn-secondary:hover{background:transparent;color:#fff;border-color:#fff;}"
+    },
+    {
+      "name": "Start Button",
+      "kind": "button",
+      "refersTo": "button-start",
+      "description": "The single largest action, shown once the files are ready.",
+      "html": "<button class=\"ds-btn ds-btn-start\">Start</button>",
+      "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-btn{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.01em;padding:16px 28px;border:1px solid var(--red);border-radius:0;background:var(--red);color:#fff;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s;}.ds-btn:hover{background:#fff;color:var(--red);border-color:#fff;}.ds-btn:focus-visible{outline:2px solid #fff;outline-offset:3px;}.ds-btn-start{font-size:34px;padding:18px 56px;}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Square ink field with a stacked label; the border turns white on focus.",
+      "html": "<label class=\"ds-label\">Player name <input class=\"ds-input\"></label>",
+      "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-label{display:grid;gap:6px;font:500 13px/1 var(--body);color:var(--light-3);}.ds-input{font:15px/1.4 var(--body);padding:10px 12px;border:1px solid var(--light-3);border-radius:0;background:var(--ink-1);color:#fff;caret-color:#fff;}.ds-input:focus-visible{outline:2px solid #fff;outline-offset:2px;}"
+    },
+    {
+      "name": "Login Dialog",
+      "kind": "card",
+      "refersTo": "dialog",
+      "description": "Square ink-2 dialog over the game screen, titled with the crimson bar.",
+      "html": "<form class=\"ds-dialog\"><h2 class=\"ds-bar\">Log in to Arena</h2><p>New names are registered on first login.</p><div class=\"ds-row\"><button type=\"button\" class=\"ds-btn ds-btn-secondary\">Cancel</button><button class=\"ds-btn\">Log in</button></div></form>",
+      "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-btn{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.01em;padding:16px 28px;border:1px solid var(--red);border-radius:0;background:var(--red);color:#fff;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s;}.ds-btn:hover{background:#fff;color:var(--red);border-color:#fff;}.ds-btn:focus-visible{outline:2px solid #fff;outline-offset:3px;}.ds-btn-secondary{background:transparent;color:var(--light-2);border-color:var(--light-3);}.ds-btn-secondary:hover{background:transparent;color:#fff;border-color:#fff;}.ds-dialog .ds-btn{font-size:18px;padding:12px 20px;}.ds-dialog{width:320px;display:grid;gap:14px;padding:24px;background:var(--ink-2);color:#fff;box-shadow:0 2px 16px rgb(0 0 0 / 50%);}.ds-dialog h2{font:400 30px/.9 var(--display);text-transform:uppercase;margin:0;}.ds-bar::after{content:'';display:block;width:128px;max-width:45%;height:4px;background:var(--red);margin-top:12px;}.ds-dialog p{margin:0;font:13px/1.6 var(--body);color:var(--light-3);}.ds-row{display:flex;gap:10px;justify-content:flex-end;}"
+    },
+    {
+      "name": "Key Legend",
+      "kind": "custom",
+      "refersTo": "key-cap",
+      "description": "Square mono key caps with a Raleway label, one wrapping row under the screen.",
+      "html": "<dl class=\"ds-keys\"><div><dt><kbd class=\"ds-kbd\"><svg viewBox=\"0 0 12 12\" aria-hidden=\"true\"><path d=\"M10 6H2M5 2.5 1.5 6 5 9.5\"/></svg></kbd><kbd class=\"ds-kbd\"><svg viewBox=\"0 0 12 12\" aria-hidden=\"true\"><path d=\"M2 6h8M7 2.5 10.5 6 7 9.5\"/></svg></kbd></dt><dd>Move</dd></div><div><dt><kbd class=\"ds-kbd\">Ctrl</kbd><span>or</span><kbd class=\"ds-kbd\">Enter</kbd></dt><dd>Select</dd></div></dl>",
+      "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-keys{display:flex;flex-wrap:wrap;gap:10px 28px;margin:0;font:14px/1 var(--body);color:var(--light-2);}.ds-keys div,.ds-keys dt{display:flex;align-items:center;gap:6px;}.ds-keys dd{margin:0;}.ds-kbd{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 8px;border:1px solid var(--light-3);background:var(--ink-1);font:500 13px/1 var(--mono);color:#fff;}.ds-kbd svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:square;}"
+    },
+    {
+      "name": "Header",
+      "kind": "nav",
+      "refersTo": "wordmark",
+      "description": "Anton wordmark left, mono tag right; no navigation links.",
+      "html": "<header class=\"ds-header\"><span class=\"ds-name\">Reset Generation</span><span class=\"ds-tag\">Unofficial fan revival</span></header>",
+      "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-header{height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:0 48px;background:var(--ink-1);color:#fff;}.ds-name{font:400 26px/1 var(--display);letter-spacing:.02em;text-transform:uppercase;}.ds-tag{font:500 13px/1 var(--mono);color:var(--light-3);}"
+    },
+    {
+      "name": "Footer Strip",
+      "kind": "custom",
+      "refersTo": "footer",
+      "description": "Ink-2 strip with the disclaimer left and notes right, in small mono.",
+      "html": "<footer class=\"ds-footer\"><p><strong>Reset Generation &copy; 2009 RedLynx.</strong> This is an unofficial fan revival.</p><p class=\"ds-notes\">Your files stay in this browser.</p></footer>",
+      "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-footer{display:grid;grid-template-columns:1fr auto;gap:48px;align-items:center;padding:16px 48px;background:var(--ink-2);}.ds-footer p{margin:0;font:12px/1.7 var(--mono);color:var(--light-3);}.ds-footer strong{font-weight:500;color:var(--light-2);}.ds-notes{text-align:right;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Stage",
+    "overview": "The game's own screen is the hero. The page is a dark stage that frames the engine's 240 × 320 output at the largest size that fits one viewport, and everything around it recedes: a slim header, one line of mono text, a key legend, and a footer strip. The palette is near-black blue ink, white text, and a single crimson used for fills and marks.\n\nThe system is dark only (`color-scheme: dark`). Depth comes from flat ink steps, not from layered cards. Type is loud only where it names things: Anton uppercase for the name, titles, and buttons. Raleway carries reading text, and Roboto Mono carries the quiet utility voice. Every corner is square.\n\nThe page draws no game art of its own. The only imagery is the engine's screen after the player's files load, plus a huge outlined ghost of the name behind it.",
+    "keyCharacteristics": [
+      "One centred game screen as the hero, sized by viewport height.",
+      "Dark ink ground with one crimson accent.",
+      "Anton uppercase display at line height `0.9`.",
+      "Square corners everywhere.",
+      "Buttons invert on hover over `0.2s`."
+    ],
+    "rules": [
+      {
+        "name": "The One Crimson Rule",
+        "body": "Crimson is the only chromatic color. Use it for fills, the title bar, and selection, never for body text.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Step Rule",
+        "body": "Separate regions by stepping the ink ramp (`ink-1` ground, `ink-2` strips and dialogs), not by borders or tinted panels.",
+        "section": "colors"
+      },
+      {
+        "name": "The Display Is Uppercase Rule",
+        "body": "Anton is always uppercase, weight 400, with line height `0.9` for headings and `1` for single-line labels. Headings use `text-wrap: balance`.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Is An Aside Rule",
+        "body": "Roboto Mono is limited to the header tag, the hero line, the footer, and key caps. Don't use it for headings, buttons, or form text.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Frame Rule",
+        "body": "Header, footer, legend, and buttons carry no shadow. Only the game screen and dialogs above it are lifted.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** keep the game screen the largest object on the page and centred.",
+      "**Do** set every display line in Anton 400 uppercase at line height `0.9`.",
+      "**Do** mark titles with the crimson bar (`128px` by `4px`, `12px` below).",
+      "**Do** keep every corner square (`0`).",
+      "**Do** invert buttons on hover over `0.2s`: crimson to white for primary, muted outline to white outline for secondary.",
+      "**Do** separate regions with ink steps (`ink-1`, `ink-2`)."
+    ],
+    "donts": [
+      "**Don't** use crimson for body or running text.",
+      "**Don't** introduce a second accent color or a light theme.",
+      "**Don't** round corners.",
+      "**Don't** use Roboto Mono beyond the header tag, hero line, footer, and key caps.",
+      "**Don't** add shadows to anything except the game screen and dialogs over it.",
+      "**Don't** add game art, screenshots, or RedLynx or Ubisoft logos to the page."
+    ]
+  }
+}
