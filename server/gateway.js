@@ -256,3 +256,21 @@ net.createServer(sock => {
   sock.on('close', () => log('disconnect', addr));
 }).listen(PORT, () => log(`SNAP gateway on tcp/${PORT}`));
 gameServer.start?.(api);
+
+// ---- browser client: serves web/ and the player's own copy of the game files ----
+const http = require('http');
+const HTTP_PORT = Number(process.env.HTTP_PORT || 8080);
+const WEB_DIR = path.join(__dirname, '..', 'web');
+const GAME_DIR = process.env.RG_GAME_DIR || path.join(__dirname, '..', 'tmp', 'ResetGeneration-Standalone', 'ResetGeneration');
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
+
+http.createServer((req, res) => {
+  const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  let file;
+  if (url === '/') file = path.join(WEB_DIR, 'index.html');
+  else if (/^\/game\/[\w.-]+$/.test(url)) file = path.join(GAME_DIR, url.slice(6));
+  else if (/^\/(emu\/)?[\w-]+\.(js|html)$/.test(url)) file = path.join(WEB_DIR, url);
+  if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
+  res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+  fs.createReadStream(file).pipe(res);
+}).listen(HTTP_PORT, () => log(`browser client on http://localhost:${HTTP_PORT}/`));

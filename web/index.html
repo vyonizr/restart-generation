@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset Generation</title>
+<style>
+  :root { --bg: #10131a; --panel: #1b2030; --text: #e8ecf4; --muted: #9aa4b8; --accent: #f5c542; }
+  @media (prefers-color-scheme: light) { :root { --bg: #eef1f6; --panel: #ffffff; --text: #141822; --muted: #4c5568; --accent: #b8860b; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; }
+  .screen { position: relative; width: min(480px, 92vw); aspect-ratio: 3 / 4; background: #000; border-radius: 8px; overflow: hidden;
+    box-shadow: 0 8px 32px rgb(0 0 0 / 35%); }
+  canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; background: rgb(0 0 0 / 70%); color: #fff; text-align: center; padding: 24px; }
+  .overlay[hidden] { display: none; }
+  button { font: inherit; font-weight: 600; padding: 10px 22px; border-radius: 6px; border: 0; background: var(--accent); color: #111; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .keys { max-width: min(480px, 92vw); width: 100%; background: var(--panel); border-radius: 8px; padding: 12px 16px; color: var(--muted); }
+  .keys b { color: var(--text); }
+  kbd { font: 13px ui-monospace, monospace; background: var(--bg); border-radius: 4px; padding: 1px 6px; color: var(--text); }
+</style>
+</head>
+<body>
+  <div class="screen">
+    <canvas id="screen" width="240" height="320" tabindex="0" aria-label="Game screen"></canvas>
+    <div class="overlay" id="overlay">
+      <p id="status">Loading game files…</p>
+      <button id="start" hidden>Start</button>
+    </div>
+  </div>
+  <div class="keys">
+    <b>Controls:</b> <kbd>Arrows</kbd> move · <kbd>Ctrl</kbd> or <kbd>Enter</kbd> select (hold to drop a block) ·
+    <kbd>Shift</kbd> back · <kbd>Esc</kbd> menu
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
