@@ -111,6 +111,11 @@ export function compileBlock(cpu, start) {
       return `c.cond(${cc})`;
     };
 
+    if (op === 0x66 && m8[p] === 0x8b) { // mov r16, r/m16
+      p++;
+      const mr = modrm(), v = mr.ea ? `dv.getUint16(${mr.ea},true)` : `(r[${mr.rm}]&65535)`;
+      return done(`r[${mr.reg}]=(r[${mr.reg}]&~65535)|${v};`);
+    }
     if (op < 0x40 && (op & 7) < 6 && op !== 0x0f) {
       const aop = op >> 3, form = op & 7;
       if (aop === 2 || aop === 3) return null;
@@ -166,6 +171,12 @@ export function compileBlock(cpu, start) {
       }
       case 0x84: { const mr = modrm(); return done(`fr=(${rm8(mr)}&${REG8[mr.reg]})>>>0;c.lop=3;c.lres=fr;c.lsz=8;`, null); }
       case 0x85: { const mr = modrm(); return done(alu(4, rm32(mr), `r[${mr.reg}]`, null), 'logic'); }
+      case 0xf6: {
+        const mr = modrm();
+        if (mr.reg !== 0) return null;
+        const v = m8[p++];
+        return done(`fr=(${rm8(mr)}&${v})>>>0;c.lop=3;c.lres=fr;c.lsz=8;`, null);
+      }
       case 0xa8: { const v = m8[p++]; return done(`fr=(r[0]&${v})>>>0;c.lop=3;c.lres=fr;c.lsz=8;`, null); }
       case 0xa9: { const v = s32(); return done(alu(4, 'r[0]', v, null), 'logic'); }
       case 0x88: { const mr = modrm(); return done(setRm8(mr, REG8[mr.reg])); }

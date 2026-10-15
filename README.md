@@ -2,7 +2,17 @@
 
 A replacement for the dead Nokia N-Gage Arena (SNAP Mobile) backend used by the standalone Java build of Reset Generation (RedLynx, 2009).
 
-Status: login, stats, rankings, achievements, friends, ranked Quick Match (2-4 players), friendly rooms, and server-hosted battles work with the real client. See `docs/protocol.md`.
+Status: the game runs in the browser. The original engine (a 32-bit Windows DLL) runs unchanged in a JavaScript x86 emulator, and the server restores login, stats, rankings, achievements, friends, ranked Quick Match (2-4 players), friendly rooms, and server-hosted battles. See `docs/protocol.md` for the protocol and `web/emu` for the emulator.
+
+## Play in the browser
+
+1. Put your copy of the standalone game's `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files) where the server can read it, and set `RG_GAME_DIR` to that folder. The default is `tmp/ResetGeneration-Standalone/ResetGeneration`.
+2. Run `node server/gateway.js`.
+3. Open `http://localhost:8080/` and press **Start**.
+
+Controls: arrow keys move, **Ctrl** or **Enter** selects (hold to drop a block), **Shift** goes back, **Esc** opens the menu. To play online, choose **Online** in the main menu and log in; a new player name is registered on first login. Settings and achievements are kept in the browser's local storage.
+
+The server sends the game files to the browser, so serve only a copy you own. To let other people play, host the server where they can reach port 8080 (HTTP); the Java client still uses port 8976.
 
 ## Run the server
 
@@ -36,7 +46,7 @@ The server hosts battles with a level template captured from the game engine, st
 
 The game has 6 maps, each in a 2-, 3- and 4-player version (18 levels).
 
-## Point the game at the server
+## Point the Java client at the server
 
 Pass the server address with `-gw` in the game's start command:
 
