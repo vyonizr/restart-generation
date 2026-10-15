@@ -355,12 +355,13 @@ async function main() {
         statT = now; statI = ic;
       }
       // Tick until the engine's clock reaches real time; each tick sleeps the engine to its next frame.
-      for (let i = 0; i < MAX_TICKS_PER_FRAME && game.time < now - t0; i++) {
+      let ticks = 0;
+      for (; ticks < MAX_TICKS_PER_FRAME && game.time < now - t0; ticks++) {
         while (input.length) input.shift()();
         game.tick(); snap.pump();
       }
       if (game.time < now - t0 - 500) { game.m.win.now = game.clock0 + (now - t0); slow = true; } // give up catching up
-      draw(game);
+      if (ticks) draw(game); // the framebuffer only changes inside a tick
       audio.pump();
       if (now - lastSave > 5000) { lastSave = now; saveNow(); }
       requestAnimationFrame(frame);
