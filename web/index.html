@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Play Reset Generation (2009) in your browser with your own copy of the game. An unofficial fan revival.">
 <meta name="theme-color" content="#181c26">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Reset Generation</title>
 <link rel="preload" href="fonts/anton.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -100,10 +102,11 @@
     .notes { text-align: left; }
   }
 
-  /* Touch devices: the touch pad under the game screen, both as wide as fits the height */
+  /* Touch devices: no header, and the touch pad under the game screen, both as wide as fits the height */
   @media (hover: none) and (pointer: coarse) {
-    :root { --pad: clamp(120px, 38dvh, 330px); --chrome: 120px; --w: min(100%, (100dvh - var(--chrome) - var(--pad)) * 3 / 4); }
-    .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
+    :root { --pad: clamp(120px, 31dvh, 330px); --chrome: 30px; --w: min(100%, (100dvh - var(--chrome) - var(--pad)) * 3 / 4); }
+    header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
+    .page { grid-template-rows: 1fr auto; }
     .touch-only { display: inline; }
     html, body { overscroll-behavior: none; }
     main { grid-template-columns: 100%; align-content: start; gap: 12px; padding: 0 16px 16px; }
@@ -135,11 +138,9 @@
       font: 13px/1.6 var(--body); color: var(--light-2); }
     .slow button { flex: none; font-size: 16px; padding: 6px 12px; }
   }
-  /* Landscape: no header, so the column gets the height */
+  /* Landscape: a thinner bottom gap, so the column gets the height */
   @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
-    :root { --chrome: 16px; }
-    header { display: none; }
-    .page { grid-template-rows: 1fr auto; }
+    :root { --pad: clamp(120px, 38dvh, 330px); --chrome: 16px; }
     main { padding-bottom: 4px; }
   }
 </style>

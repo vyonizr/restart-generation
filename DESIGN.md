@@ -195,9 +195,9 @@ The footer is a two-column grid (`1fr auto`, `48px` gap): the disclaimer on the 
 
 Below `1000px` wide, the footer stacks into one left-aligned column. Below `760px` wide, the page scrolls. The header shrinks to `64px` with `16px` gutters and drops the tag. Main pads `24px 16px 48px`. The footer stacks into one left-aligned column with `32px 16px` padding.
 
-On touch devices (`hover: none` and `pointer: coarse`), the hero line, the key legend, the ghost type, and the folder button hide, and the touch pad sits under the screen. Main pads `0 16px 16px` with a `12px` gap, and its content starts at the top. The screen and the pad share one width, `min(100%, (100dvh - chrome - pad) * 3 / 4)`, so both fill the visible height under the header. The pad is `clamp(120px, 38dvh, 330px)` tall, and `chrome` is the height reserved for the header and gaps: `120px` in portrait. The rest of the page scrolls, so the footer stays reachable below the pad.
+On touch devices (`hover: none` and `pointer: coarse`), the header, the hero line, the key legend, the ghost type, and the folder button hide, and the touch pad sits under the screen. Main pads `0 16px 16px` with a `12px` gap, and its content starts at the top. The screen and the pad share one width, `min(100%, (100dvh - chrome - pad) * 3 / 4)`, so both fill the visible height. In portrait, the pad is `clamp(120px, 31dvh, 330px)` tall, and `chrome` is the height reserved for the gaps: `30px`. A `390 × 664` phone viewport (an iPhone 13 in Safari) gets a screen about `321 × 428`, so each game pixel is about 4 device pixels. The rest of the page scrolls, so the footer stays reachable below the pad.
 
-In landscape on touch devices, the header hides and `chrome` drops to `16px`, so the same column shrinks to fit the height. A phone gets a small but playable game; there is no separate tablet landscape layout.
+In landscape on touch devices, the pad is `clamp(120px, 38dvh, 330px)` tall and `chrome` drops to `16px`, so the same column shrinks to fit the height. A phone gets a small but playable game; there is no separate tablet landscape layout.
 
 ## Elevation & Depth
 
@@ -234,7 +234,7 @@ Poster-loud and square.
 - **Slowness notice:** one line of Raleway `13px` in `light-2` under the touch pad, as wide as it, with a secondary **Dismiss** button at `16px` with `6px 12px` padding. It appears at most once per visit.
 
 ### Touch pad
-On touch devices only, under the game screen and exactly as wide as it, `clamp(120px, 38dvh, 330px)` tall. A two-column grid: the D-pad at the left edge, the **Select** and **Back** cluster at the right edge, and a row of small buttons centred below them, `10px` apart.
+On touch devices only, under the game screen and exactly as wide as it, `clamp(120px, 31dvh, 330px)` tall in portrait and `clamp(120px, 38dvh, 330px)` in landscape. A two-column grid: the D-pad at the left edge, the **Select** and **Back** cluster at the right edge, and a row of small buttons centred below them, `10px` apart.
 - **D-pad:** a cross of four square buttons in a 3 × 3 grid. Each carries an SVG arrow at `40%` (max `30px`) with a `1.4` square-capped stroke in `light-2`, on an `ink-2` fill with a `1px` `ink-3` border.
 - **Select:** a crimson square, `62%` of its cluster, at the cluster's top right. The label is Anton `24px` with "Hold to drop" under it in Raleway 500 `11px` at `75%` white.
 - **Back:** an `ink-2` square, `42%` of its cluster, at the cluster's bottom left, labelled in Anton `20px`.
@@ -248,7 +248,7 @@ On touch devices only, under the game screen and exactly as wide as it, `clamp(1
 - **Focus:** the global ring, `2px` solid white, offset `2px`.
 
 ### Navigation
-There is no navigation. The header holds only the wordmark on the left and the mono tag on the right.
+There is no navigation. The header holds only the wordmark on the left and the mono tag on the right. Touch devices don't show the header.
 
 ### Key caps
 Square `kbd` caps, at least `30px` wide and `30px` tall, `0 8px` padding, `1px` `light-3` border, `ink-1` fill, white Roboto Mono 500 `13px` label. Arrow keys use inline SVG arrows at `12px` with a `1.6` square-capped stroke in the current color; each carries a visually hidden text name.
