@@ -120,6 +120,7 @@ function handle(req, s, send) {
       const ns = login(user, String(p[2] || ''));
       if (!ns) return send(err(966, 'InvalidPassword'));
       log(`login ${user} (gameclass ${p[5]})`);
+      announce(ns, 'available'); // the native client never calls setPresence itself
       return send(ok([[ns.sid, ns.sid, ns.sid, ns.userId]]));
     }
     case 98: return send(ok([[Math.floor(Date.now() / 1000)]]));
@@ -176,10 +177,14 @@ function handle(req, s, send) {
         return [acc.id, acc.name, v];
       });
       send(ok(rows));
-      for (const [name, v] of Object.entries(s.account.friends || {})) {
-        const o = v === 'both' && online(accountOf(name));
-        if (o) presenceTo(s, o, 'available');
-      }
+      // The native friend list handler (FUN_10096b70) recreates every friend as offline, so
+      // presence sent together with the list is lost.
+      setTimeout(() => {
+        for (const [name, v] of Object.entries(s.account.friends || {})) {
+          const o = v === 'both' && online(accountOf(name));
+          if (o && sessions.has(s.sid)) presenceTo(s, o, 'available');
+        }
+      }, 1000);
       return;
     }
     case 305: // setPresence: P1 availability, P2 "SM2.0.1,<presence>"

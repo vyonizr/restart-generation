@@ -6,7 +6,7 @@ Reset Generation (web/standalone build, 2009) talks to three layers:
 2. **RedLynx MT / NAF framework**: a message layer inside the native DLL (`MT_PING`, `MT_PONG`, `MT_GAMESERVER`, `MT_GAMEROOM`, `MT_USER`, `MT_HOSTMIGRATION`, `MT_SERVICE_DISCOVERY`, `MT_STATS_AUTH`). Its payloads travel inside SNAP game packets.
 3. **CasinoSystem game server**: RedLynx's matchmaking, rankings, and friends service (`CASINOSYSTEM_LOGIN`, `CASINO_MATCHMAKING`, `CASINO_MATCHED_UP`, `GET_RANKINGS`, and so on). The Java side never sees these messages.
 
-All three layers are recovered and verified against the live client: two clients can log in, matchmake, play a ranked battle hosted by the server, and see the result in their stats. Friendly arenas and the friends list are not implemented yet.
+All three layers are recovered and verified against the live client: login, friends, ranked matchmaking, friendly rooms, and server-hosted battles.
 
 ## Client configuration
 
@@ -173,6 +173,28 @@ Verified flows:
 `RB` = `00 00000000`.
 
 Matching also sends `LOCK_PLAYER_IN_GAME` (`0x11 00 1d u32 0`) before `MATCHED_UP`, so the lobby shows "Game starting" and the player can't back out.
+
+## Friends
+
+The friend list lives in the SNAP layer. `C=302` returns rows `id|name|status` (`to` = request sent, `from` = request received, `both` = friend). The client shows every listed friend as offline until it gets event 307 with availability `available`, `unavailable` or `away` (any other value breaks its menu). The native code never sends `setPresence`, so the server pushes 307 to a user's friends at login and logout, and sends a new user the presence of online friends about 1 s after its `C=302` reply (sooner and the client overwrites it). Requests use `C=306` to `C=309` and events 308, 309 and 311.
+
+CasinoSystem receives `REGISTER_FRIENDS`, `FRIEND_ADD` and `FRIEND_REMOVE` (`0x11 00 21/24/23`) only as information; none needs a reply.
+
+## Friendly rooms
+
+The Online menu item **Create Room** needs at least one entry in the friend list.
+
+| Step | Client sends | Server sends |
+| --- | --- | --- |
+| Create | `0x11 00 14 u32 0` | `01 14 RB CasinoInfo` with type 2, a new id (never 1), and the host's name. Friends get event `0x11 02 15 String id CasinoInfo String name` and see a menu entry named after the host. |
+| List | `0x11 00 07 u32 0` | `01 03 RB u8 n` plus `n` CasinoInfos of rooms hosted by friends. It replaces the client's whole list. |
+| Poll | `0x11 00 19 u32 id` every 6 s | `01 19 RB u32 id, inLobby, waiting, playing`, or `01 25 00 u32 id` (CASINO_NOT_FOUND) once the room is gone |
+| Enter | `0x13 00 08 u32 id` | `01 08 RB Profile CasinoInfo`, plus event `02 08 String id Profile` to the members |
+| Pick hero | `0x13 00 09 String heroType String random` | `01 09 RB u8 n Profiles`, plus event `02 09 String id Profile` to the members. This list is the lobby. |
+| Start | `0x11 00 1c u32 id` from any member | `01 1c RB`, then `LOCK_PLAYER_IN_GAME` and `MATCHED_UP` (on `0x13`) to the lobby players, as in ranked. `01 1c 01 00000000` shows "matchmaking failed". |
+| Leave | `0x13 00 0a` / `00 0b` | `01 0a` / `01 0b`, plus event `02 0a String id` to the members. An empty room closes, and friends get event `02 16` (FRIENDLY_CASINO_LEFT). |
+
+Friendly battles don't change fame or ranked stats.
 
 ## Battle
 

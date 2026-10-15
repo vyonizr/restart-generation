@@ -7,7 +7,8 @@ const { T, createReader, encode, u32 } = require('./mt');
 const battle = require('./battle');
 
 const CAPTURE = path.join(__dirname, '..', 'data', 'capture.log');
-const RANKED_CASINO = 0x12; // MT type of ranked-casino messages (friendly casinos use 0x13)
+const RANKED_CASINO = 0x12;   // MT type of ranked-casino messages
+const FRIENDLY_CASINO = 0x13; // MT type of friendly-casino messages
 const MAX_SEATS = 4;         // SM_GROOM_MAX_NUM_USERS
 const GATHER_MS = 15000;     // how long a smaller table waits for more players
 
@@ -17,6 +18,8 @@ const A = {
   ENTER: 8, MATCHMAKING: 9, CANCEL_MATCHMAKING: 0x0a, EXIT: 0x0b,
   SEAT_RESERVE: 0x0c, SEAT_TAKE: 0x0d, SEAT_LEAVE: 0x0e,
   REGISTER_FRIENDS: 0x21, FRIEND_REMOVE: 0x23, FRIEND_ADD: 0x24, MATCHED_UP: 0x1f, LOCK_PLAYER: 0x1d,
+  CREATE: 0x14, FRIENDLY_ENTERED: 0x15, FRIENDLY_LEFT: 0x16, FRIENDLY_UPDATE: 0x19, FRIENDLY_START: 0x1c,
+  CASINO_NOT_FOUND: 0x25,
 };
 const REQUEST = 0, RESPONSE = 1, EVENT = 2;
 
@@ -69,6 +72,9 @@ function finishMatch(host, api) {
   if (host.finished) return;
   host.finished = true;
   const { winner, players } = battle.result(host);
+  api.log(`battle over: ${winner ? winner.s.name + ' won' : 'no winner'}`);
+  // Friendly games are unranked: the client keeps CASINO_FRIENDLY_STATS apart from CASINO_MATCHMAKER_STATS.
+  if (!host.ranked) return;
   for (const p of players) {
     const st = stats(p.s.account);
     st.matches++;
@@ -76,7 +82,6 @@ function finishMatch(host, api) {
     st.highestFame = Math.max(st.highestFame ?? 0, st.fame);
   }
   api.saveAccounts();
-  api.log(`battle over: ${winner ? winner.s.name + ' won' : 'no winner'}`);
 }
 
 const fameLevel = acc => 1 + Math.floor(stats(acc).fame / 100);
@@ -97,7 +102,8 @@ function send(s, api, type, body) {
   api.send(s, encode(type, body));
 }
 
-function leaveCasino(s) {
+function leaveCasino(s, api) {
+  if (api) leaveFriendly(s, api);
   ranked.delete(s);
   const i = queue.indexOf(s);
   if (i >= 0) queue.splice(i, 1);
@@ -112,24 +118,56 @@ function tableSize() {
 }
 
 function matchmake(api) {
-  for (let size; (size = tableSize());) {
-    const host = battle.createTable(size, api);
-    if (!host) return;
-    const players = queue.splice(0, size);
-    const n = nextTable++;
-    const table = { id: String(n), name: `table_${n}`, max: size, url: `naf://rg.com:80/table_${n}` };
-    // The client leaves CasinoSystem and joins this SNAP room by name (FUN_100cdd00, FUN_1010fd80).
-    const room = api.createRoom(table.name, size);
-    room.battle = host;
-    tables.add(room);
-    api.log(`matched ${players.map(p => p.name).join(', ')} into ${table.name}`);
-    for (const p of players) {
-      ranked.delete(p);
-      // Shows GAME_STARTING and stops the player backing out (FUN_100469c0). Must precede
-      // MATCHED_UP, which closes the client's CasinoSystem connection.
-      send(p, api, T.CASINO, Buffer.concat([header(REQUEST, A.LOCK_PLAYER), u32(0)]));
-      send(p, api, RANKED_CASINO, event(A.MATCHED_UP, p.userId, tableDescriptor(table)));
+  for (let size; (size = tableSize());) if (!startTable(queue.splice(0, size), RANKED_CASINO, api)) return;
+}
+
+// Creates the table room and battle, then sends every player to it. Returns false without a template.
+function startTable(players, casinoType, api) {
+  const size = players.length;
+  const host = battle.createTable(size, api);
+  if (!host) { if (casinoType === RANKED_CASINO) queue.unshift(...players); return false; }
+  const n = nextTable++;
+  const table = { id: String(n), name: `table_${n}`, max: size, url: `naf://rg.com:80/table_${n}` };
+  // The client leaves CasinoSystem and joins this SNAP room by name (FUN_100cdd00, FUN_1010fd80).
+  const room = api.createRoom(table.name, size);
+  room.battle = host;
+  host.ranked = casinoType === RANKED_CASINO;
+  tables.add(room);
+  api.log(`matched ${players.map(p => p.name).join(', ')} into ${table.name}`);
+  for (const p of players) {
+    ranked.delete(p);
+    // Shows GAME_STARTING and stops the player backing out (FUN_100469c0). Must precede
+    // MATCHED_UP, which closes the client's CasinoSystem connection.
+    send(p, api, T.CASINO, Buffer.concat([header(REQUEST, A.LOCK_PLAYER), u32(0)]));
+    send(p, api, casinoType, event(A.MATCHED_UP, p.userId, tableDescriptor(table)));
+  }
+  return true;
+}
+
+// Friendly arenas: a private casino per host, visible to the host's buddies (docs/protocol.md).
+const friendly = new Map();  // id -> { id, name, host, members: Set, lobby: [] }
+let nextFriendly = 2;        // id 1 is the ranked casino
+const friendlyInfo = c => ({ type: 2, id: c.id, name: c.name, inLobby: c.members.size, waiting: c.lobby.length, playing: 0 });
+const buddies = (a, b) => a.account.friends?.[b.name.toLowerCase()] === 'both';
+const visibleTo = (s, c) => c.host !== s && buddies(c.host, s);
+
+function friendlyAnnounce(c, action, api) {
+  for (const o of api.sessions.values()) {
+    if (visibleTo(o, c) && !c.members.has(o)) {
+      send(o, api, T.CASINO, event(action, c.host.userId, casinoInfo(friendlyInfo(c)), str(c.name)));
     }
+  }
+}
+
+function leaveFriendly(s, api) {
+  for (const c of friendly.values()) {
+    const i = c.lobby.indexOf(s);
+    if (i >= 0) {
+      c.lobby.splice(i, 1);
+      for (const m of c.members) if (m !== s) send(m, api, FRIENDLY_CASINO, event(A.CANCEL_MATCHMAKING, s.userId));
+    }
+    c.members.delete(s);
+    if (c.members.size === 0) { friendly.delete(c.id); friendlyAnnounce(c, A.FRIENDLY_LEFT, api); }
   }
 }
 
@@ -143,7 +181,7 @@ function onCasino(s, type, kind, action, body, api) {
       api.log(`casino login ${s.name} (${body.subarray(16).toString('latin1')})`);
       return reply(profile(myProfile(s)), u8(1), casinoInfo(rankedInfo()));
     case A.LOGOUT:
-      leaveCasino(s);
+      leaveCasino(s, api);
       return reply();
     case A.STATISTICS: {
       const rank = ranking(api).indexOf(s.account) + 1;
@@ -164,17 +202,59 @@ function onCasino(s, type, kind, action, body, api) {
       api.saveAccounts();
       return reply(blob);
     }
-    case A.FRIENDLY_LIST: // answered with F_CASINO (response 7 is ignored by the client)
-      return send(s, api, type, response(A.F_CASINO, u8(0)));
-    case A.REGISTER_FRIENDS:
-      return reply();
-    case A.ENTER:
-      ranked.add(s);
-      return reply(profile(myProfile(s)), casinoInfo(rankedInfo()));
+    case A.FRIENDLY_LIST: { // answered with F_CASINO, which replaces the client's whole list
+      const list = [...friendly.values()].filter(c => visibleTo(s, c));
+      return send(s, api, type, response(A.F_CASINO, u8(list.length), ...list.map(c => casinoInfo(friendlyInfo(c)))));
+    }
+    case A.REGISTER_FRIENDS: case A.FRIEND_ADD: case A.FRIEND_REMOVE:
+      return; // the buddy list lives in the SNAP gateway; no reply needed
+    case A.CREATE: { // client then enters it on 0x13 by itself
+      leaveFriendly(s, api);
+      const c = { id: nextFriendly++, name: s.name, host: s, members: new Set(), lobby: [] };
+      friendly.set(c.id, c);
+      api.log(`${s.name} created friendly arena ${c.id}`);
+      reply(casinoInfo(friendlyInfo(c)));
+      return friendlyAnnounce(c, A.FRIENDLY_ENTERED, api);
+    }
+    case A.FRIENDLY_UPDATE: { // polled every 6 s per known casino
+      const id = body.readUInt32LE(0), c = friendly.get(id);
+      if (!c) return send(s, api, type, Buffer.concat([header(RESPONSE, A.CASINO_NOT_FOUND), u8(0), u32(id)]));
+      const i = friendlyInfo(c);
+      return reply(u32(id), u32(i.inLobby), u32(i.waiting), u32(i.playing));
+    }
+    case A.FRIENDLY_START: { // any listed member may start (no host check in the client)
+      const c = friendly.get(body.readUInt32LE(0));
+      const players = c ? c.lobby.slice(0, MAX_SEATS) : [];
+      if (players.length < 2 || !battle.seatCounts().has(players.length)) {
+        return send(s, api, type, Buffer.concat([header(RESPONSE, action), u8(1), u32(0)])); // MATCHMAKING_FAILED
+      }
+      reply();
+      api.log(`friendly arena ${c.id} starts with ${players.map(p => p.name).join(', ')}`);
+      friendly.delete(c.id);
+      friendlyAnnounce(c, A.FRIENDLY_LEFT, api);
+      return startTable(players, FRIENDLY_CASINO, api);
+    }
+    case A.ENTER: {
+      if (type === RANKED_CASINO) { ranked.add(s); return reply(profile(myProfile(s)), casinoInfo(rankedInfo())); }
+      const c = friendly.get(body.readUInt32LE(0));
+      if (!c) return send(s, api, T.CASINO, Buffer.concat([header(RESPONSE, A.CASINO_NOT_FOUND), u8(0), body.subarray(0, 4)]));
+      for (const m of c.members) send(m, api, type, event(A.ENTER, s.userId, profile(myProfile(s))));
+      c.members.add(s);
+      return reply(profile(myProfile(s)), casinoInfo(friendlyInfo(c)));
+    }
     case A.MATCHMAKING: { // body: String heroType, String random
       const [heroType, next] = readStr(body, 0);
       const [random] = readStr(body, next);
       s.match = { heroType, random };
+      if (type === FRIENDLY_CASINO) { // friendly lobby: list players, the start is up to them
+        const c = [...friendly.values()].find(o => o.members.has(s));
+        if (!c) return reply(u8(0));
+        const others = c.lobby.filter(q => q !== s);
+        reply(u8(others.length), ...others.map(o => profile(myProfile(o))));
+        for (const m of c.members) if (m !== s) send(m, api, type, event(A.MATCHMAKING, s.userId, profile(myProfile(s))));
+        if (!c.lobby.includes(s)) c.lobby.push(s);
+        return;
+      }
       const others = queue.filter(q => q !== s);
       reply(u8(others.length), ...others.map(o => profile(myProfile(o))));
       for (const o of others) send(o, api, type, event(A.MATCHMAKING, s.userId, profile(myProfile(s))));
@@ -184,10 +264,16 @@ function onCasino(s, type, kind, action, body, api) {
     case A.CANCEL_MATCHMAKING: {
       const i = queue.indexOf(s);
       if (i >= 0) queue.splice(i, 1);
+      for (const c of friendly.values()) {
+        const j = c.lobby.indexOf(s);
+        if (j < 0) continue;
+        c.lobby.splice(j, 1);
+        for (const m of c.members) if (m !== s) send(m, api, FRIENDLY_CASINO, event(A.CANCEL_MATCHMAKING, s.userId));
+      }
       return reply();
     }
     case A.EXIT:
-      leaveCasino(s);
+      leaveCasino(s, api);
       return reply();
     case A.SEAT_RESERVE:
     case A.SEAT_TAKE:
@@ -217,7 +303,7 @@ function onMessage(s, msg, api) {
       if (p) return battle.onGame(host, p, body, api);
       break;
     }
-    case T.CASINO: case RANKED_CASINO: case 0x13: case T.TABLE:
+    case T.CASINO: case RANKED_CASINO: case FRIENDLY_CASINO: case T.TABLE:
       if (onCasino(s, type, body[0], body[1], body.subarray(2), api) !== false) return;
   }
   api.log(`unhandled MT type 0x${type.toString(16)} from ${s.name}, ${body.length} bytes`);
@@ -238,7 +324,7 @@ module.exports = {
   },
   onLeave(s, room, api) {
     record(`${s.name} left ${room.id} "${room.name}"`);
-    if (room.name === 'CasinoSystem') leaveCasino(s);
+    if (room.name === 'CasinoSystem') leaveCasino(s, api);
     const p = room.battle?.players.find(o => o.s === s);
     if (p) battle.leave(room.battle, p, api);
     if (room.members.size === 0) tables.delete(room);

@@ -2,7 +2,7 @@
 
 A replacement for the dead Nokia N-Gage Arena (SNAP Mobile) backend used by the standalone Java build of Reset Generation (RedLynx, 2009).
 
-Status: login, stats, rankings, achievements, ranked Quick Match, and 1-vs-1 ranked battles hosted by the server work with the real client. Friendly arenas, the friends list, and 3-4 player tables are not implemented yet. See `docs/protocol.md`.
+Status: login, stats, rankings, achievements, friends, ranked Quick Match (2-4 players), friendly rooms, and server-hosted battles work with the real client. See `docs/protocol.md`.
 
 ## Run the server
 
