@@ -54,7 +54,8 @@ function createTable(seats, api) {
     seats, template: t.name, game: tableGame(t), snap: t.snap,
     players: [],        // { s, index, team, state, lastSeq }
     history: [],        // raw reliable GameMessages, replayed to late joiners (handshake step 4)
-    seq: 3, started: false, // server seq continues after the handshake messages (1-3) deadline: Date.now() + START_DEADLINE_MS,
+    seq: 3, started: false, // server seq continues after the handshake messages (1-3)
+    deadline: Date.now() + START_DEADLINE_MS,
     turn: 0, phase: 0, phaseStart: 0, done: new Set(), ended4: new Set(),
     cannons: cannonCount(t.game), fired: new Map(), // team -> FireCannon count this phase
     limits: t.game.timeLimit, losers: [], lastOrderTeam: 0, finished: false,

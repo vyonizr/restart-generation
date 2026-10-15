@@ -72,4 +72,15 @@ shot(b, 2, 4);
 assert.deepEqual(take(a).map(m => m.type).slice(-2), [gm.TYPE.FIRE_CANNON, gm.TYPE.END_TURN]);
 assert.deepEqual(take(b).at(-1).type, gm.TYPE.END_TURN);
 assert.deepEqual([host.turn, host.phase], [2, 2]);
+
+// A 3-seat table with 2 players waits for the third until the start deadline.
+const trio = battle.createTable(3, api);
+assert(trio, 'no 3-player template');
+const [c, d] = [client('c'), client('d')];
+for (const s of [c, d]) { battle.seat(trio, s, api); fromClient(trio, s, join(s.name)); }
+battle.tick(trio, api);
+assert.equal(trio.started, false, 'started before the deadline');
+trio.deadline = 0;
+battle.tick(trio, api);
+assert.equal(trio.started, true);
 console.log('battle host ok');
