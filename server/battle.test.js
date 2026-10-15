@@ -60,4 +60,16 @@ fromClient(host, a, { seq: 2, type: gm.TYPE.END_TURN_REQUEST, sender: 1, turn: 1
 assert.equal(host.phase, 4);
 fromClient(host, b, { seq: 2, type: gm.TYPE.END_TURN_REQUEST, sender: 2, turn: 1, phase: 4 });
 assert.equal(host.phase, 5);
+take(a); take(b);
+
+// Phase 5: every template gives each player 2 cannons. The phase ends right after the last shot.
+const shot = (s, sender, seq) => fromClient(host, s, { seq, type: gm.TYPE.FIRE_CANNON, sender, turn: 1, phase: 5,
+  body: Buffer.from(new Int32Array([3, 4]).buffer) });
+shot(a, 1, 3); shot(a, 1, 4); shot(b, 2, 3);
+assert.equal(host.phase, 5, 'b still has a shot');
+shot(b, 2, 4);
+// a sees b's last shot before the EndTurn.
+assert.deepEqual(take(a).map(m => m.type).slice(-2), [gm.TYPE.FIRE_CANNON, gm.TYPE.END_TURN]);
+assert.deepEqual(take(b).at(-1).type, gm.TYPE.END_TURN);
+assert.deepEqual([host.turn, host.phase], [2, 2]);
 console.log('battle host ok');

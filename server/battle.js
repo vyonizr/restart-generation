@@ -18,6 +18,10 @@ const ORDERS = new Set([gm.TYPE.MOVE_UNIT, gm.TYPE.FIRE_CANNON, gm.TYPE.PLACE_TI
 const i32 = v => { const b = Buffer.alloc(4); b.writeInt32LE(v); return b; };
 const u8 = v => Buffer.from([v]);
 const initBody = payload => Buffer.concat([i32(payload.length), payload]); // InitGameData FUN_100585f0
+const rule = (game, map, name) => game[map].find(e => e.name === name)?.value;
+// Shots per living player in phase 5 (FUN_10042240), or -1 when only a simulation could tell.
+const cannonCount = game => rule(game, 'bools', 'IsNumCannonsEqualToNumPrincesses')
+  ? -1 : rule(game, 'ints', 'NumberOfCannonsInCastle') ?? -1;
 
 // Templates are rgtrace captures (tools/rgtrace): <name>.game + <name>.snap with one castle per player.
 function loadTemplates() {
@@ -52,6 +56,7 @@ function createTable(seats, api) {
     history: [],        // raw reliable GameMessages, replayed to late joiners (handshake step 4)
     seq: 3, started: false, // server seq continues after the handshake messages (1-3) deadline: Date.now() + START_DEADLINE_MS,
     turn: 0, phase: 0, phaseStart: 0, done: new Set(), ended4: new Set(),
+    cannons: cannonCount(t.game), fired: new Map(), // team -> FireCannon count this phase
     limits: t.game.timeLimit, losers: [], lastOrderTeam: 0, finished: false,
   };
 }
@@ -109,7 +114,7 @@ function maybeBegin(table, api) {
 
 function enterPhase(table, turn, phase) {
   table.turn = turn; table.phase = phase; table.phaseStart = Date.now();
-  table.done.clear();
+  table.done.clear(); table.fired.clear();
   if (phase === 2) table.ended4.clear();
 }
 
@@ -160,6 +165,13 @@ function onGame(table, p, data, api) {
   if (m.reliable) table.history.push(gm.write(m));
   for (const o of table.players) if (o !== p && o.state === 'playing') sendMsg(table, o, m, api);
   if (table.phase === 2 && m.type === gm.TYPE.PLACE_TILE) { table.done.add(p.team); if (allDone(table)) endTurn(table, api); }
+  // Clients never request the end of phase 5 after their last shot: the original host ended it once no
+  // shots were left (FUN_1000e430), one FireCannon per shot.
+  if (table.phase === 5 && m.type === gm.TYPE.FIRE_CANNON && table.cannons > 0) {
+    const n = (table.fired.get(p.team) ?? 0) + 1;
+    table.fired.set(p.team, n);
+    if (n >= table.cannons) { table.done.add(p.team); if (allDone(table)) endTurn(table, api); }
+  }
 }
 
 function lose(table, p, api) {
