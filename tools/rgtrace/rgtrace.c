@@ -1,13 +1,16 @@
 // rgtrace: attach to the game's java.exe, capture Game::write and BattleLogic snapshot output.
 // Build (x86): cl /nologo /O1 rgtrace.c
-// Usage: rgtrace <pid> <outdir>   (pid of the game's java.exe; run tools/rgtrace/lengths.js on the log afterwards)
+// Usage: rgtrace <pid> <outdir> [hexva]   (pid of the game's java.exe; run tools/rgtrace/lengths.js on the log afterwards)
+// With hexva (an original 0x10xxxxxx address), it instead prints the code addresses on the stack the first two times
+// that address runs: a quick way to find a function's callers.
 #define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
 #include <stdio.h>
 #include <wchar.h>
 
 #define IMAGE_BASE 0x10000000u
-enum { K_SBL_INIT, K_GAME_WRITE, K_SNAP_SAVE, K_RET };
+enum { K_SBL_INIT, K_GAME_WRITE, K_SNAP_SAVE, K_RET, K_STACK };
+static DWORD stackVa; static int stackHits;
 typedef struct { DWORD va; int kind; BYTE orig; int armed; DWORD tid; DWORD stream; DWORD ent[6]; int forKind; } BP;
 
 static BP bps[64]; static int nbp;
@@ -64,6 +67,12 @@ static void onBreak(DEBUG_EVENT *ev) {
     BP *r = add(ret, K_RET); r->tid = ev->dwThreadId; r->stream = stream; r->forKind = b->kind; streamFields(stream, r->ent);
     printf("%s called this=%08lx stream=%08lx ret=%08lx\n", b->kind == K_GAME_WRITE ? "Game::write" : "snapshot save", c.Ecx, stream, ret); fflush(stdout);
     break; }
+  case K_STACK: {
+    printf("hit %08lx esp=%08lx ecx=%08lx\n", addr - base + IMAGE_BASE, c.Esp, c.Ecx);
+    for (int i = 0; i < 64; i++) { DWORD v = rd(c.Esp + i * 4); if (v >= base && v < base + 0x1d0000) printf("  [esp+%02x] %08lx\n", i * 4, v - base + IMAGE_BASE); }
+    fflush(stdout);
+    if (++stackHits >= 2) { SetThreadContext(th, &c); CloseHandle(th); return; }
+    break; }
   case K_RET:
     dump(b); b->va = 0; // one-shot
     SetThreadContext(th, &c); CloseHandle(th); return;
@@ -73,8 +82,9 @@ static void onBreak(DEBUG_EVENT *ev) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3) { fprintf(stderr, "usage: rgtrace <pid> <outdir>\n"); return 1; }
+  if (argc < 3) { fprintf(stderr, "usage: rgtrace <pid> <outdir> [hexva]\n"); return 1; }
   DWORD pid = strtoul(argv[1], NULL, 10); strcpy(outdir, argv[2]); CreateDirectoryA(outdir, NULL);
+  if (argc > 3) stackVa = strtoul(argv[3], NULL, 16);
   if (!DebugActiveProcess(pid)) { fprintf(stderr, "attach failed %lu\n", GetLastError()); return 1; }
   DebugSetProcessKillOnExit(FALSE);
   printf("attached to %lu\n", pid); fflush(stdout);
@@ -90,9 +100,8 @@ int main(int argc, char **argv) {
       if (!base && wcsstr(path, L"ResetGeneration-Win32-Web.dll")) {
         base = (DWORD)ev.u.LoadDll.lpBaseOfDll;
         printf("game dll at %08lx\n", base); fflush(stdout);
-        add(rel(0x1000eeb0), K_SBL_INIT);
-        add(rel(0x1003c4a0), K_GAME_WRITE);
-        add(rel(0x10006a80), K_SNAP_SAVE);
+        if (stackVa) add(rel(stackVa), K_STACK);
+        else { add(rel(0x1000eeb0), K_SBL_INIT); add(rel(0x1003c4a0), K_GAME_WRITE); add(rel(0x10006a80), K_SNAP_SAVE); }
       }
       if (ev.u.LoadDll.hFile) CloseHandle(ev.u.LoadDll.hFile);
       break; }
