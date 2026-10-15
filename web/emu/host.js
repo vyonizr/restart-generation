@@ -2,6 +2,7 @@
 // place of Java: frame buffer, keys, sound and the SNAP bridge are JS objects behind the fake JNI.
 import { Machine } from './machine.js';
 import { JNI, JObject } from './jni.js';
+import { installFastPaths } from './fast.js';
 
 export const WIDTH = 240, HEIGHT = 320;
 const HOME = 'C:\\RG';
@@ -11,8 +12,8 @@ export const VK = { ENTER: 10, BACK_SPACE: 8, SHIFT: 16, CONTROL: 17, ESCAPE: 27
 
 export class GameHost {
   // files: { name: Uint8Array } for the DLL and everything in the ResetGeneration folder.
-  constructor(files, { log = () => {}, language = 'en', snap = null, jit = true } = {}) {
-    this.jit = jit;
+  constructor(files, { log = () => {}, language = 'en', snap = null, jit = true, fast = true } = {}) {
+    this.jit = jit; this.fast = fast;
     this.files = files; this.log = log; this.language = language;
     this.snapMethods = snap; // JS implementation of NativeSNAPMobileInterface (online play)
   }
@@ -22,6 +23,7 @@ export class GameHost {
     m.cpu.jit = this.jit;
     for (const [name, data] of Object.entries(this.files)) if (!name.endsWith('.dll') && !name.endsWith('.dylib')) m.vfs.put(`${HOME}\\${name}`, data);
     m.loadDll(this.files['ResetGeneration-Win32-Web.dll']);
+    if (this.fast) installFastPaths(m.cpu, va => m.addr(va));
     const jni = this.jni = new JNI(m, { log: this.log }), env = jni.env;
     const ex = n => m.addr(n);
     const call = (name, ...args) => m.cpu.call(ex(name), [env, ...args]);
