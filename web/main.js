@@ -140,10 +140,14 @@ class Audio {
 const PAD = { left: VK.LEFT, right: VK.RIGHT, up: VK.UP, down: VK.DOWN, select: VK.CONTROL, back: VK.SHIFT, menu: VK.ESCAPE };
 const wake = document.getElementById('wake');
 
-// Keeps the screen on: a Wake Lock where the browser has one (secure contexts only), else a silent looping video.
+// Keeps the screen on: a Wake Lock where the browser has one (secure contexts only), else a hidden video.
+// Chrome and Safari hold the screen only for a video that can make sound, and Safari not for a looping one,
+// so the video has a silent audio track, plays unmuted, and jumps back before it ends.
+wake.addEventListener('timeupdate', () => { if (wake.currentTime > 0.5) wake.currentTime = 0; });
 function stayAwake() {
-  if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {});
-  else wake.play().catch(() => {});
+  if (navigator.wakeLock) return navigator.wakeLock.request('screen').catch(() => {});
+  if (navigator.audioSession) navigator.audioSession.type = 'ambient'; // mixes with the player's music instead of stopping it
+  wake.play().catch(() => {});
 }
 
 function bindPad(game, input, audio) {
@@ -184,7 +188,7 @@ function bindPad(game, input, audio) {
   addEventListener('blur', liftAll);
   document.addEventListener('visibilitychange', () => { if (document.hidden) liftAll(); });
   pad.addEventListener('mousedown', e => e.preventDefault()); // keeps focus in the typing field, so pad taps don't hide the keyboard
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && navigator.wakeLock) stayAwake(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) stayAwake(); });
 
   // Keyboard: a hidden field raises the system keyboard; each typed character goes to the game as a key press.
   const typing = document.getElementById('typing'), type = document.getElementById('type');

@@ -44,6 +44,10 @@ _Avoid_: virtual gamepad, on-screen keyboard
 One match between two to four players on one level.
 _Avoid_: game, round
 
+**Observer**:
+Someone attached to a battle who doesn't play in it. A player who waits while other players take their turns is still a player, not an observer.
+_Avoid_: spectator, watching player
+
 **Ranked match**:
 A battle arranged by matchmaking, whose result changes the players' stats.
 _Avoid_: quick match game
