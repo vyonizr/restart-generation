@@ -127,7 +127,7 @@ Not serialized: +0x8/+0x9 (rollback flags), +0x10 (1 = received from network).
 | 1 | BattleBeginMessage | FUN_10058a80 (create FUN_1000cd10) | none (Mac v2_01c5ac) |
 | 2 | (none) | - | - |
 | 3 | MoveUnitMessage | FUN_10042dd0 | order data (not decoded) |
-| 4 | FireCannonMessage | FUN_100430a0 | order |
+| 4 | FireCannonMessage | FUN_100430a0 | order: `i32 x, i32 y` target (+0x44, +0x48; serialize FUN_100430e0), one message per shot |
 | 5 | PlaceTileMessage | FUN_10042ff0 | order |
 | 6 | AttackMessage | FUN_10043140 | order |
 | 7 | EndTurnMessage | FUN_10058b40 | none (Mac v2_0797aa) |

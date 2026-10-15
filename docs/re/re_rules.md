@@ -174,6 +174,10 @@ after a PlaceTile (FUN_1000e4f0, Mac v18) if phase == 2 and every alive player p
   `IsNumCannonsEqualToNumPrincesses`). Captured QuickMatch rules: 2 cannons, flag false.
   Rule keys are djb2 hashes (FUN_100efda0: h = 5381; h = h*33 + c): NumberOfCannonsInCastle = -1977660154
   (ints), IsNumCannonsEqualToNumPrincesses = -1211318101 (bools), KickLoserMode = -1834786863 (bools, true).
+- Clients send EndTurnRequest only when their local phase timer reaches 0 (once per phase, latch `+0x7c`;
+  FUN_10074fa0). The cannon UI goes idle after the last shot without a request, so ending phase 5 early
+  needs FireCannon counting. With 0 cannons the client UI sends nothing, and every client skips phase 5
+  by itself (startPhase case 5).
 
 ### 3.4 Client validation of incoming messages (FUN_100239b0 -> FUN_10022620)
 - Reliable messages except 11/14: `turn <= game.turn`, `0 <= phase < 9`, `0 <= player < 5 or sender == 0`.
@@ -284,7 +288,6 @@ Desync or abort risks:
 ## 7. Unknowns
 1. Header field +0x40 (always 0 in server-created messages).
 2. Global flag `FUN_100021f0()+0x110` that delays BattleBegin.
-3. Whether the cannon UI sends EndTurnRequest by itself after the last shot (if not, phase 5 relies on
-   counting FireCannon or the timer). Whether clients send EndTurnRequest when their local timer hits 0.
-4. Exact eligibility details of phase-4 order (`+0x14` must be 1, skip counter `+0x18`), KickLoserMode effects.
-5. Bodies of order messages (3, 4, 5, 6, 8, 13, 16); needed only to count cannons or detect defeats.
+3. Exact eligibility details of phase-4 order (`+0x14` must be 1, skip counter `+0x18`), KickLoserMode effects.
+4. Bodies of order messages (3, 5, 6, 8, 13, 16); needed only to detect defeats. FireCannon (4) is decoded
+   in re_match.md.
