@@ -40,6 +40,7 @@ Self-checks:
 
 ```sh
 node server/snap.test.js
+node server/gateway.test.js
 node server/battle.test.js
 node server/gameblob.test.js
 ```

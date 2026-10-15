@@ -9,3 +9,4 @@ A browser can't open the raw TCP connection that the Java client uses for SNAP. 
 ## Consequences
 
 - Each battle message costs one HTTP request. Nothing measures that overhead.
+- The server logs out a session that sends no request for 45 seconds, so a closed browser leaves its room and goes offline within that time.

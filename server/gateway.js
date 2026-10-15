@@ -9,6 +9,9 @@ const gameServer = require('./casino');
 
 const PORT = Number(process.env.PORT || 8976);
 const POLL_HOLD_MS = 15000; // client gives up on long requests after ~40 s
+// A session with no request for this long is logged out (closed browser, killed client). Must exceed
+// POLL_HOLD_MS and the Java client's 40 s resend timeout.
+const IDLE_MS = 45000;
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const ACCOUNTS = path.join(DATA_DIR, 'accounts.json');
 
@@ -40,7 +43,7 @@ function login(name, password) {
     return null;
   }
   for (const s of sessions.values()) if (s.userId === acc.id) dropSession(s); // ANOTHER_LOGIN
-  const s = { sid: crypto.randomBytes(12).toString('hex'), userId: acc.id, name: acc.name, account: acc, room: null, events: [], poll: null };
+  const s = { sid: crypto.randomBytes(12).toString('hex'), userId: acc.id, name: acc.name, account: acc, room: null, events: [], poll: null, lastSeen: Date.now() };
   sessions.set(s.sid, s);
   return s;
 }
@@ -67,6 +70,8 @@ function dropSession(s) {
   sessions.delete(s.sid);
   gameServer.onLogout?.(s, api);
 }
+
+const staleSessions = (sessions, now, ms) => [...sessions.values()].filter(s => now - s.lastSeen > ms);
 
 function pushEvent(s, line) {
   s.events.push(line);
@@ -232,6 +237,7 @@ function handle(req, s, send) {
 function processRequest(text, addr, reply) {
   const req = parseRequest(text);
   const s = sessions.get(req.session);
+  if (s) s.lastSeen = Date.now();
   const cacheKey = `${req.session || addr}:${req.rid}`;
   if (replies.has(cacheKey)) return reply(replies.get(cacheKey));
   if (req.cmd !== 3) log(`<- ${s?.name || addr} C=${req.cmd}`, req.cmd === 1 ? `user=${req.params[1]}` : '');
@@ -242,6 +248,9 @@ function processRequest(text, addr, reply) {
     reply(payload);
   });
 }
+
+module.exports = { staleSessions };
+if (require.main !== module) return; // tests import the module without starting the servers
 
 net.createServer(sock => {
   const addr = `${sock.remoteAddress}:${sock.remotePort}`;
@@ -261,6 +270,9 @@ net.createServer(sock => {
   sock.on('close', () => log('disconnect', addr));
 }).listen(PORT, () => log(`SNAP gateway on tcp/${PORT}`));
 gameServer.start?.(api);
+setInterval(() => {
+  for (const s of staleSessions(sessions, Date.now(), IDLE_MS)) { log(`idle timeout ${s.name}`); dropSession(s); }
+}, 5000);
 
 // ---- browser client: serves web/ and the player's own copy of the game files ----
 const http = require('http');
