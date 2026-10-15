@@ -12,6 +12,7 @@ const g = require('./gameblob');
 const TEMPLATES = path.join(__dirname, '..', 'data', 'templates');
 const START_DEADLINE_MS = 40000;  // Mac FUN_000cd7ee
 const OVERTIME_MS = 30000;        // forced EndTurn this long after the phase limit (FUN_1000ddf0)
+const RELAXED_MS = 180000;        // forced EndTurn this long after a phase starts on a relaxed table
 const ORDERS = new Set([gm.TYPE.MOVE_UNIT, gm.TYPE.FIRE_CANNON, gm.TYPE.PLACE_TILE, gm.TYPE.ATTACK,
   gm.TYPE.POINT, gm.TYPE.SPECIAL_SKILL]);
 
@@ -34,31 +35,35 @@ function loadTemplates() {
 }
 
 // Game for a fresh online table: no join infos yet (players arrive through the handshake), new seed.
-function tableGame(t) {
+function tableGame(t, timeLimit) {
   const seed = crypto.randomBytes(4).readInt32LE();
   const rng = g.seedRng(seed);
   g.rngNext(rng); // captures hold the seeded state plus one draw
-  return g.writeGame({ ...t.game, randomSeed: seed, rng, playerSlots: t.seats + 1, players: [], slotHeroes: [] });
+  return g.writeGame({ ...t.game, timeLimit, randomSeed: seed, rng, playerSlots: t.seats + 1, players: [], slotHeroes: [] });
 }
 
 // ponytail: templates load once; restart the server after importing new ones.
 let templates;
 const seatCounts = () => new Set((templates ??= loadTemplates()).map(t => t.seats));
 
-function createTable(seats, api) {
+// A relaxed table sends -1 phase time limits, so clients show no countdown and only the server ends a
+// stalled phase.
+function createTable(seats, api, relaxed = false) {
   const fit = (templates ??= loadTemplates()).filter(t => t.seats === seats);
   if (!fit.length) { api.log(`no battle template for ${seats} players in data/templates`); return null; }
   const t = fit[crypto.randomInt(fit.length)];
-  api.log(`table uses template ${t.name}`);
+  api.log(`table uses template ${t.name}${relaxed ? ' without phase time limits' : ''}`);
+  const limits = t.game.timeLimit;
   return {
-    seats, template: t.name, game: tableGame(t), snap: t.snap,
+    seats, template: t.name, game: tableGame(t, relaxed ? limits.map(() => -1) : limits), snap: t.snap,
     players: [],        // { s, index, team, state, lastSeq }
     history: [],        // raw reliable GameMessages, replayed to late joiners (handshake step 4)
     seq: 3, started: false, // server seq continues after the handshake messages (1-3)
     deadline: Date.now() + START_DEADLINE_MS,
     turn: 0, phase: 0, phaseStart: 0, done: new Set(), ended4: new Set(),
     cannons: cannonCount(t.game), fired: new Map(), // team -> FireCannon count this phase
-    limits: t.game.timeLimit, losers: [], lastOrderTeam: 0, finished: false,
+    forceAfter: limits.map(l => l === -1 ? -1 : relaxed ? RELAXED_MS : l + OVERTIME_MS), // ms, per phase
+    losers: [], lastOrderTeam: 0, finished: false,
   };
 }
 
@@ -203,9 +208,9 @@ function result(table) {
 
 function tick(table, api) {
   if (!table.started) return maybeBegin(table, api);
-  const limit = table.limits[table.phase] ?? -1;
+  const limit = table.forceAfter[table.phase] ?? -1;
   if (limit === -1 || table.finished) return;
-  if (Date.now() - table.phaseStart > limit + OVERTIME_MS) {
+  if (Date.now() - table.phaseStart > limit) {
     if (table.phase === 4) {
       const cur = alive(table).find(p => !table.ended4.has(p.team));
       if (cur) table.ended4.add(cur.team);

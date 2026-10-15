@@ -11,6 +11,7 @@ const RANKED_CASINO = 0x12;   // MT type of ranked-casino messages
 const FRIENDLY_CASINO = 0x13; // MT type of friendly-casino messages
 const MAX_SEATS = 4;         // SM_GROOM_MAX_NUM_USERS
 const GATHER_MS = 15000;     // how long a smaller table waits for more players
+const RELAXED_FRIENDLY = process.env.RG_RELAXED_FRIENDLY === '1'; // friendly tables without phase time limits
 
 // Casino action ids (FUN_100994e0).
 const A = {
@@ -124,7 +125,7 @@ function matchmake(api) {
 // Creates the table room and battle, then sends every player to it. Returns false without a template.
 function startTable(players, casinoType, api) {
   const size = players.length;
-  const host = battle.createTable(size, api);
+  const host = battle.createTable(size, api, casinoType === FRIENDLY_CASINO && RELAXED_FRIENDLY);
   if (!host) { if (casinoType === RANKED_CASINO) queue.unshift(...players); return false; }
   const n = nextTable++;
   const table = { id: String(n), name: `table_${n}`, max: size, url: `naf://rg.com:80/table_${n}` };

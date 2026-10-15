@@ -31,6 +31,7 @@ for (const s of [a, b]) {
   assert.equal(init.type, gm.TYPE.INIT);
   const game = g.parseGame(init.body.subarray(4));
   assert.deepEqual(game.players, []);
+  assert(game.timeLimit.some(l => l > 0), 'a normal table keeps the template limits');
   fromClient(host, s, join(s.name));
 }
 const msgsA = take(a), msgsB = take(b);
@@ -83,4 +84,22 @@ assert.equal(trio.started, false, 'started before the deadline');
 trio.deadline = 0;
 battle.tick(trio, api);
 assert.equal(trio.started, true);
+
+// A relaxed table sends no phase time limits and forces the end of a phase only after 3 minutes.
+const calm = battle.createTable(2, api, true);
+const [e, f] = [client('e'), client('f')];
+for (const s of [e, f]) {
+  battle.seat(calm, s, api);
+  assert(g.parseGame(take(s)[0].body.subarray(4)).timeLimit.every(l => l === -1), 'relaxed table sent a limit');
+  fromClient(calm, s, join(s.name));
+}
+take(e); take(f);
+assert.equal(calm.phase, 2);
+calm.phaseStart = Date.now() - 170000;
+battle.tick(calm, api);
+assert.equal(calm.phase, 2, 'forced the end of phase 2 before 3 minutes');
+calm.phaseStart = Date.now() - 181000;
+battle.tick(calm, api);
+assert.equal(calm.phase, 4);
+assert.deepEqual(take(e).map(m => [m.type, m.turn, m.phase]), [[gm.TYPE.END_TURN, 1, 2]]);
 console.log('battle host ok');

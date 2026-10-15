@@ -52,6 +52,14 @@ _Avoid_: quick match game
 A battle between players who gathered in a friendly room; its result changes no stats.
 _Avoid_: private match, custom game
 
+**Phase**:
+One step of a battle turn in which players act: tile placement (all at once), player turns (one at a time), or cannons (all at once).
+_Avoid_: round, stage
+
+**Phase time limit**:
+The countdown each player sees during a phase; when it runs out, the phase ends for that player.
+_Avoid_: turn timer, player timeout
+
 **Battle template**:
 The starting state of a battle for one level and player count, captured from the engine.
 _Avoid_: map file, level data
