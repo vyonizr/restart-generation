@@ -7,6 +7,7 @@ import { compileBlock } from './jit.js';
 export const EAX = 0, ECX = 1, EDX = 2, EBX = 3, ESP = 4, EBP = 5, ESI = 6, EDI = 7;
 
 // Lazy flag sources.
+const HOT = 64; // runs before an instruction's block is compiled; see CPU.tiered
 const F_ADD = 1, F_SUB = 2, F_LOGIC = 3, F_INC = 4, F_DEC = 5, F_SHIFT = 6, F_MUL = 7, F_EXPL = 8;
 const CF = 1, PF = 4, AF = 16, ZF = 64, SF = 128, DF = 1024, OF = 2048;
 const MASK = { 8: 0xff, 16: 0xffff, 32: 0xffffffff };
@@ -193,10 +194,22 @@ export class CPU {
   fetch(eip) {
     const trap = this.traps.get(eip);
     const off0 = eip - this.codeBase;
-    const f = trap ? () => trap(this) : this.jit && off0 >= 0 && off0 < this.codeCache.length ? compileBlock(this, eip) : this.decode(eip);
+    const f = trap ? () => trap(this) : this.jit && off0 >= 0 && off0 < this.codeCache.length ? this.tiered(eip) : this.decode(eip);
     const off = eip - this.codeBase;
     if (off >= 0 && off < this.codeCache.length) this.codeCache[off] = f; else this.otherCache.set(eip, f);
     return f;
+  }
+  // Interprets the instruction at eip until it has run HOT times, then compiles the block starting there.
+  // Code that runs only a few times, like a new screen's setup, then skips the block compiler's cost.
+  tiered(eip) {
+    const step = this.decode(eip);
+    let runs = 0;
+    return () => {
+      if (++runs < HOT) return step();
+      const f = compileBlock(this, eip);
+      this.codeCache[eip - this.codeBase] = f;
+      return f();
+    };
   }
   // Calls fn at address with stdcall/cdecl args and runs until it returns to a sentinel.
   call(addr, args = [], limit = 2e9) {
