@@ -10,10 +10,20 @@ const HOME = 'C:\\RG';
 // Java KeyEvent codes for the keys the game uses.
 export const VK = { ENTER: 10, BACK_SPACE: 8, SHIFT: 16, CONTROL: 17, ESCAPE: 27, LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, SPACE: 32 };
 
+// In-memory engine patches (docs/adr/0007). Each one is written only if the engine has the original bytes.
+// Every story and hero playable from the start; nothing is marked finished. A story's badge (lock, 0%, 50%)
+// counts its playable missions (FUN_100d7b70), so the story list is patched apart from the missions.
+export const UNLOCKS = [
+  { what: 'every mission playable', va: 0x100d7a70, from: '8b4424088b4c2404', to: 'b001c20800' }, // mov al, 1; ret 8
+  { what: 'no story locked', va: 0x100c8a98, from: '8b570433c9', to: 'eb4c' }, // FUN_100c89c0: a story with no playable mission shows 0%
+  { what: 'no hero greyed out', va: 0x100dc850, from: '8b41348b4c2404c6040101c20400', to: 'c20400' }, // ret 4
+];
+
 export class GameHost {
   // files: { name: Uint8Array } for the DLL and everything in the ResetGeneration folder.
-  constructor(files, { log = () => {}, language = 'en', snap = null, jit = true, fast = true } = {}) {
-    this.jit = jit; this.fast = fast;
+  // patches: entries like UNLOCKS, applied after the DLL loads.
+  constructor(files, { log = () => {}, warn = console.warn, language = 'en', snap = null, jit = true, fast = true, patches = [] } = {}) {
+    this.jit = jit; this.fast = fast; this.patches = patches; this.warn = warn;
     this.files = files; this.log = log; this.language = language;
     this.snapMethods = snap; // JS implementation of NativeSNAPMobileInterface (online play)
   }
@@ -23,6 +33,12 @@ export class GameHost {
     m.cpu.jit = this.jit;
     for (const [name, data] of Object.entries(this.files)) if (!name.endsWith('.dll') && !name.endsWith('.dylib')) m.vfs.put(`${HOME}\\${name}`, data);
     m.loadDll(this.files['ResetGeneration-Win32-Web.dll']);
+    for (const p of this.patches) {
+      const at = m.addr(p.va);
+      const now = [...m.cpu.m8.subarray(at, at + p.from.length / 2)].map(b => b.toString(16).padStart(2, '0')).join('');
+      if (now !== p.from) { this.warn(`engine patch skipped (${p.what}): unexpected bytes at ${p.va.toString(16)}`); continue; }
+      m.cpu.m8.set(p.to.match(/../g).map(h => parseInt(h, 16)), at);
+    }
     if (this.fast) installFastPaths(m.cpu, va => m.addr(va));
     const jni = this.jni = new JNI(m, { log: this.log }), env = jni.env;
     const ex = n => m.addr(n);
@@ -81,10 +97,12 @@ export class GameHost {
   javaArray(strings) { return new JObject('[Ljava/lang/String;', { items: strings.map(s => new JObject('java/lang/String', { value: s })) }); }
   javaIntArray(ints) { return new JObject('[I', { items: ints }); }
 
-  // Files the game wrote (settings, achievements), for saving.
+  // Files the game wrote or deleted since the last call (settings, achievements, saves), for saving.
+  // A deleted file comes back with data null.
   dirtyFiles() {
-    const out = [];
-    for (const f of this.m.vfs.files.values()) if (f.dirty) { out.push(f); f.dirty = false; }
+    const vfs = this.m.vfs, out = [...vfs.deleted].map(name => ({ name, data: null }));
+    vfs.deleted.clear();
+    for (const f of vfs.files.values()) if (f.dirty) { out.push(f); f.dirty = false; }
     return out;
   }
 }

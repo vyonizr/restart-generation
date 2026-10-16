@@ -73,9 +73,10 @@ export class Heap {
 
 // ---- in-memory file system; paths are case-insensitive and use backslashes ----
 export class VFS {
-  constructor() { this.files = new Map(); this.dirs = new Set(); }
+  constructor() { this.files = new Map(); this.dirs = new Set(); this.deleted = new Set(); } // deleted: names, for saving
   norm(p) { return p.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase(); }
-  put(path, data) { this.files.set(this.norm(path), { name: path.split(/[\\/]/).pop(), data }); }
+  put(path, data) { const name = path.split(/[\\/]/).pop(); this.deleted.delete(name); this.files.set(this.norm(path), { name, data }); }
+  delete(path) { const f = this.get(path); if (f) { this.files.delete(this.norm(path)); this.deleted.add(f.name); } }
   get(path) { return this.files.get(this.norm(path)); }
   // Glob with * and ? in the last path component.
   find(pattern) {
@@ -321,7 +322,7 @@ export class Win32 {
       SetEndOfFile: [1, h => { const o = self.handles.get(h); if (o) { o.f.data = o.f.data.slice(0, o.pos); o.f.dirty = true; } return ok; }],
       FlushFileBuffers: noop(1),
       CloseHandle: [1, h => { self.handles.delete(h); return ok; }],
-      DeleteFileA: [1, name => { vfs.files.delete(vfs.norm(str(name))); return ok; }],
+      DeleteFileA: [1, name => { vfs.delete(str(name)); return ok; }],
       CreateDirectoryA: [2, name => { vfs.dirs.add(vfs.norm(str(name))); return ok; }],
       RemoveDirectoryA: noop(1),
       FindFirstFileA: [2, (pat, data) => {

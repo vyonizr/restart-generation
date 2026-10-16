@@ -1,13 +1,13 @@
 // Browser host: downloads the game files, runs the engine in the emulator, draws frames to the
 // canvas, forwards the keyboard and the touch pad and plays the engine's 8 kHz PCM through WebAudio.
-import { GameHost, WIDTH, HEIGHT, VK } from './emu/host.js';
+import { GameHost, WIDTH, HEIGHT, VK, UNLOCKS } from './emu/host.js';
 import { SnapClient } from './snap.js';
 import { gameFromZip } from './zip.js';
 
 const GAME_URL = 'game/';   // served by server/gateway.js from the user's own copy of the game
 const FILES = ['ResetGeneration-Win32-Web.dll', 'settings.cfg', 'achievements.dat', 'base.pak', 'fonts.pak', 'story.pak',
   'intro.pak', 'fight.pak', 'gameplay.pak', 'gameplay2.pak', 'levels.pak', 'menus.pak'];
-const SAVED = new Set(['settings.cfg', 'achievements.dat']);
+const OPTIONAL = new Set(['settings.cfg', 'achievements.dat']); // the game creates them if they're missing
 
 const canvas = document.getElementById('screen'), ctx = canvas.getContext('2d');
 const overlay = document.getElementById('overlay'), status = document.getElementById('status'), startButton = document.getElementById('start');
@@ -18,7 +18,11 @@ const TRY_ANOTHER = touch ? 'Try another .zip.' : 'Try another .zip or folder.';
 
 const store = {
   get(name) { try { const v = localStorage.getItem(`rg:${name}`); return v && Uint8Array.from(atob(v), ch => ch.charCodeAt(0)); } catch { return null; } },
-  set(name, data) { try { localStorage.setItem(`rg:${name}`, btoa(String.fromCharCode(...data))); } catch { /* storage full or blocked */ } },
+  set(name, data) {
+    try { data ? localStorage.setItem(`rg:${name}`, btoa(String.fromCharCode(...data))) : localStorage.removeItem(`rg:${name}`); } catch { /* storage full or blocked */ }
+  },
+  // Every saved game file. The page's own keys (rg:guest, rg:username) have no file extension.
+  names() { try { return Object.keys(localStorage).filter(k => k.startsWith('rg:') && k.includes('.')).map(k => k.slice(3)); } catch { return []; } },
 };
 
 // The player's own game files, kept in IndexedDB after they choose their game folder once.
@@ -41,7 +45,7 @@ async function fetchFiles() {
   let done = 0;
   for (const name of FILES) {
     const res = await fetch(GAME_URL + name);
-    if (!res.ok) { if (SAVED.has(name)) continue; return null; }
+    if (!res.ok) { if (OPTIONAL.has(name)) continue; return null; }
     files[name] = new Uint8Array(await res.arrayBuffer());
     status.textContent = `Loading game files… ${++done}/${FILES.length}`;
   }
@@ -59,7 +63,7 @@ function pickFiles() {
   return new Promise(resolve => {
     // found: { lowercase name: Uint8Array or File }
     const use = async (found, what) => {
-      const missing = FILES.filter(n => !SAVED.has(n) && !found[n.toLowerCase()]);
+      const missing = FILES.filter(n => !OPTIONAL.has(n) && !found[n.toLowerCase()]);
       if (missing.length) {
         console.warn('missing game files:', missing.join(', '));
         status.textContent = `That ${what} isn't the Windows standalone build of Reset Generation. ${TRY_ANOTHER}`;
@@ -101,7 +105,7 @@ async function loadFiles() {
     files = await pickFiles();
     try { await gameStore('readwrite', s => s.put(files, 'game')); } catch { /* not kept: the player picks again next visit */ }
   }
-  for (const name of SAVED) { const saved = store.get(name); if (saved) files[name] = saved; }
+  for (const name of store.names()) { const saved = store.get(name); if (saved) files[name] = saved; }
   return files;
 }
 
@@ -286,7 +290,7 @@ async function main() {
   status.textContent = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
   const snap = new SnapClient({ url: 'snap', ui: loginUI(), log: s => console.warn('[snap]', s) });
-  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods() });
+  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches: UNLOCKS });
   snap.attach(game);
   try {
     game.boot(); // its first step allocates the emulator's memory, so game.m is unset if that fails
@@ -333,7 +337,7 @@ async function main() {
   canvas.addEventListener('pointerdown', () => canvas.focus());
   if (touch) bindPad(game, input, audio);
 
-  // Settings and achievements: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
+  // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
   const saveNow = () => { for (const f of game.dirtyFiles()) store.set(f.name, f.data); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
   addEventListener('pagehide', saveNow);
