@@ -63,7 +63,7 @@ node server/gateway.js
 
 The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](#play-on-other-devices)). To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in `data/accounts.json`.
 
-To give new players more time, set `RG_RELAXED_FRIENDLY=1`. Friendly matches then show no countdown in any phase, and the server ends a phase only after 3 minutes if someone stops playing. Ranked matches keep the 20 s limit.
+To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and the server ends a phase only after 3 minutes if someone stops playing. Ranked matches keep the 20 s limit.
 
 Self-checks:
 

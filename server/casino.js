@@ -11,7 +11,7 @@ const RANKED_CASINO = 0x12;   // MT type of ranked-casino messages
 const FRIENDLY_CASINO = 0x13; // MT type of friendly-casino messages
 const MAX_SEATS = 4;         // SM_GROOM_MAX_NUM_USERS
 const GATHER_MS = 15000;     // how long a smaller table waits for more players
-const RELAXED_FRIENDLY = process.env.RG_RELAXED_FRIENDLY === '1'; // friendly tables without phase time limits
+const RELAXED_FRIENDLY = process.env.RG_RELAXED_FRIENDLY === '1' || process.argv.includes('--relaxed'); // friendly tables without phase time limits
 
 // Casino action ids (FUN_100994e0).
 const A = {
