@@ -40,6 +40,18 @@ _Avoid_: mobile, handheld
 The on-screen controls under the game screen on a touch device: a D-pad, Select, Back, Menu and Keyboard.
 _Avoid_: virtual gamepad, on-screen keyboard
 
+**Hero**:
+One of the ten playable characters a player picks for a battle.
+_Avoid_: character
+
+**Story**:
+One hero's campaign in Story Mode, the single-player mode, made of two missions.
+_Avoid_: campaign, chapter
+
+**Mission**:
+One single-player battle inside a story.
+_Avoid_: level, stage
+
 **Battle**:
 One match between two to four players on one level.
 _Avoid_: game, round
