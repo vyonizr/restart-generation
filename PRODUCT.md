@@ -25,7 +25,7 @@ The page is a single static page (`web/index.html`, `web/main.js`) that is serve
 - **By a game server with `RG_GAME` set:** the server sends the player's copy of the files, and the player goes straight to **Start**.
 - **By a static host without the files:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
 
-The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the Arena login dialog (shown only if the server rejects the guest login), and errors (missing files, unreadable files, not enough memory, the emulator stopping). Online play uses an automatic guest name (such as `Guest123456`) kept in local storage, so stats carry over between visits. Settings and achievements are also kept in local storage.
+The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the name dialog (shown at the first online login, and again if the server rejects the saved name), and errors (missing files, unreadable files, not enough memory, the emulator stopping). Online play uses a name the player sets at the first online login, which starts as a random guest name (such as `Guest123456`). The name and a generated password are kept in local storage, so stats carry over between visits. **Change name** under **Start** clears the name, and a new name starts with fresh stats. Settings and achievements are also kept in local storage.
 
 ## Capabilities and Constraints
 

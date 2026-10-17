@@ -21,7 +21,7 @@ const store = {
   set(name, data) {
     try { data ? localStorage.setItem(`rg:${name}`, btoa(String.fromCharCode(...data))) : localStorage.removeItem(`rg:${name}`); } catch { /* storage full or blocked */ }
   },
-  // Every saved game file. The page's own keys (rg:guest, rg:username) have no file extension.
+  // Every saved game file. The page's own keys (rg:guest) have no file extension.
   names() { try { return Object.keys(localStorage).filter(k => k.startsWith('rg:') && k.includes('.')).map(k => k.slice(3)); } catch { return []; } },
 };
 
@@ -239,48 +239,63 @@ function draw(game) {
   ctx.putImageData(image, 0, 0);
 }
 
-// A guest identity kept in this browser, so online play starts without a login dialog.
-// The server registers the name on its first login.
+// The player's online identity, kept in this browser: a name and a password the page generates.
+// The name is a random GuestNNNNNN until the player sets one, which sets `named`. The server registers it on its first login.
 function guestIdentity() {
   try {
     const saved = JSON.parse(localStorage.getItem('rg:guest'));
     if (saved) return saved;
   } catch {}
-  const rand = new Uint32Array(5);
-  crypto.getRandomValues(rand);
-  const guest = { username: `Guest${rand[0] % 1e6}`, password: [...rand.slice(1)].map(n => n.toString(36)).join('') };
-  try { localStorage.setItem('rg:guest', JSON.stringify(guest)); } catch {}
+  const guest = { username: `Guest${crypto.getRandomValues(new Uint32Array(1))[0] % 1e6}`, password: randomPassword() };
+  saveGuest(guest);
   return guest;
 }
 
-// The Arena login dialog. It appears only if the guest login is rejected.
+function randomPassword() { return [...crypto.getRandomValues(new Uint32Array(4))].map(n => n.toString(36)).join(''); }
+
+function saveGuest(guest) { try { localStorage.setItem('rg:guest', JSON.stringify(guest)); } catch {} }
+
+// The Arena login dialog, used to set the player's name.
+// It appears at the first online login, and again if the server rejects the saved name, when it also asks for the password.
 function loginUI() {
   const form = document.getElementById('login'), user = document.getElementById('username'), pass = document.getElementById('password');
-  const note = document.getElementById('login-note'), cancel = document.getElementById('login-cancel');
-  let handlers = null, guest = guestIdentity();
+  const field = document.getElementById('password-field'), note = document.getElementById('login-note'), cancel = document.getElementById('login-cancel');
+  // The saved identity stays as it is until the server accepts the name the player typed (pending).
+  let handlers = null, guest = guestIdentity(), pending = null, taken = false;
   form.addEventListener('submit', e => {
     e.preventDefault();
-    try { localStorage.setItem('rg:username', user.value); } catch {}
+    const name = user.value.trim();
+    // A new name is a new account, so it gets a new password. The same name keeps its password, or the one the player typed.
+    const password = taken || name.toLowerCase() === guest.username.toLowerCase() ? pass.value : randomPassword();
+    pending = { username: name, password, named: true };
+    pass.value = password; // credentials() reads the fields, so they must hold what the server will see
+    taken = false;
     const h = handlers;
     form.hidden = true; canvas.inert = false; canvas.focus();
     h?.ready();
   });
-  cancel.addEventListener('click', () => { const h = handlers; ui.stopLogin(); h?.cancel(); });
+  cancel.addEventListener('click', () => { const h = handlers; pending = null; taken = false; ui.stopLogin(); h?.cancel(); });
   form.addEventListener('keydown', e => { if (e.key === 'Escape') cancel.click(); e.stopPropagation(); });
   const ui = {
     startLogin(ready, cancelled) {
       handlers = { ready, cancel: cancelled };
-      if (guest) { user.value = guest.username; pass.value = guest.password; ready(); return; }
-      try { user.value ||= localStorage.getItem('rg:username') || ''; } catch {}
-      note.textContent = 'New names are registered on first login.';
+      if (taken) pass.value = ''; // the name field keeps the name the server rejected
+      else {
+        user.value = guest.username; pass.value = guest.password;
+        if (guest.named) { ready(); return; }
+      }
+      field.hidden = note.hidden = !taken;
       form.hidden = false; canvas.inert = true;
-      (user.value ? pass : user).focus();
+      (taken ? pass : user).focus();
     },
     stopLogin() { form.hidden = true; canvas.inert = false; handlers = null; canvas.focus(); },
     visible: () => !form.hidden,
-    attempting() { note.textContent = 'Logging in…'; },
-    rejected() { if (guest) { guest = null; user.value = pass.value = ''; } },
+    attempting() {},
+    accepted() { if (pending) { guest = pending; saveGuest(guest); pending = null; } },
+    rejected(badLogin) { pending = null; taken = badLogin; },
     credentials: () => ({ username: user.value.trim(), password: pass.value }),
+    name: () => guest.named ? guest.username : '',
+    forget() { delete guest.named; saveGuest(guest); },
   };
   return ui;
 }
@@ -298,11 +313,19 @@ async function botSwitch(snap) {
   return true;
 }
 
+// "Online as <name> · Change name" under Start, once the player has set a name.
+function onlineAs(login) {
+  const line = document.getElementById('online-as');
+  const show = () => { line.hidden = !login.name(); document.getElementById('online-name').textContent = login.name(); };
+  document.getElementById('change-name').onclick = () => { login.forget(); show(); startButton.focus(); };
+  show();
+}
+
 async function main() {
   const files = await loadFiles();
   status.textContent = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
-  const snap = new SnapClient({ url: 'snap', ui: loginUI(), log: s => console.warn('[snap]', s) });
+  const login = loginUI(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
   const patches = [...UNLOCKS, ...(await botSwitch(snap) ? LONE_START : [])];
   const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches });
   snap.attach(game);
@@ -315,6 +338,7 @@ async function main() {
   status.textContent = 'Ready';
   startButton.hidden = false;
   startButton.focus();
+  onlineAs(login);
   // Sound and the wake video must start inside the tap itself, or Safari blocks them.
   let audio;
   await new Promise(r => startButton.addEventListener('click', () => {

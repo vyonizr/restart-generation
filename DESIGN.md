@@ -229,8 +229,9 @@ Poster-loud and square.
 - **Dialog size:** `18px` label with `12px 20px` padding.
 
 ### Cards / Containers
-- **Login dialog:** `ink-2` fill, square, `24px` padding, `14px` gap, width `min(320px, 86%)`, centred over the screen with the dialog lift. Its title carries the crimson bar. Actions sit right-aligned, `10px` apart, secondary before primary.
+- **Login dialog:** `ink-2` fill, square, `24px` padding, `14px` gap, width `min(320px, 86%)`, centred over the screen with the dialog lift. Its title carries the crimson bar. Actions sit right-aligned, `10px` apart, secondary before primary. The password field and its note appear only when the server rejects the saved name.
 - **Screen overlay:** `ink-0` at `82%` (`rgb(17 20 27 / 82%)`) over the screen, holding the title, status line, and actions.
+- **Online-as line:** one `hint` line under **Start** that names the player's online name, with a secondary **Change name** button at `13px` with `4px 8px` padding. It appears only after the player has set a name.
 - **Slowness notice:** one line of Raleway `13px` in `light-2` under the touch pad, as wide as it, with a secondary **Dismiss** button at `16px` with `6px 12px` padding. It appears at most once per visit.
 
 ### Touch pad

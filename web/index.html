@@ -57,6 +57,7 @@
   button.secondary { background: transparent; color: var(--light-2); border-color: var(--light-3); }
   button.secondary:hover { background: transparent; color: #fff; border-color: #fff; }
   #start { font-size: 34px; padding: 18px 56px; }
+  #online-as button { font-size: 13px; padding: 4px 8px; }
 
   /* Arena login dialog, over the screen */
   .login { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(320px, 86%); display: grid; gap: 14px; padding: 24px;
@@ -165,17 +166,18 @@
         <input id="pick-zip-input" type="file" accept=".zip,application/zip" hidden>
         <input id="pick-input" type="file" webkitdirectory multiple hidden>
         <button id="start" hidden>Start</button>
+        <p class="hint" id="online-as" hidden>Online as <b id="online-name"></b> · <button id="change-name" class="secondary">Change name</button></p>
         <div id="recover" hidden>
           <button id="reload">Reload</button>
           <button id="forget" class="secondary" hidden>Use a different copy</button>
         </div>
       </div>
       <form class="login" id="login" role="dialog" aria-modal="true" aria-labelledby="login-title" hidden>
-        <h2 class="bar" id="login-title">Log in to Arena</h2>
-        <label>Player name <input id="username" name="username" autocomplete="username" maxlength="15" pattern="[A-Za-z0-9_]{1,15}" required></label>
-        <label>Password <input id="password" name="password" type="password" autocomplete="current-password" required></label>
-        <p id="login-note">New names are registered on first login.</p>
-        <div class="row"><button type="button" class="secondary" id="login-cancel">Cancel</button><button type="submit" id="login-ok">Log in</button></div>
+        <h2 class="bar" id="login-title">Set your name</h2>
+        <label>Player name <input id="username" name="username" autocomplete="username" maxlength="15" pattern="[A-Za-z0-9_]{1,15}" title="Letters, numbers and _, up to 15" required></label>
+        <label id="password-field" hidden>Password <input id="password" name="password" type="password" autocomplete="current-password" required></label>
+        <p id="login-note" hidden>That name is taken. If it's yours, enter its password.</p>
+        <div class="row"><button type="button" class="secondary" id="login-cancel">Cancel</button><button type="submit" id="login-ok">Play online</button></div>
       </form>
     </div>
     <div class="pad">
