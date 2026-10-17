@@ -1,6 +1,6 @@
 // Browser host: downloads the game files, runs the engine in the emulator, draws frames to the
 // canvas, forwards the keyboard and the touch pad and plays the engine's 8 kHz PCM through WebAudio.
-import { GameHost, WIDTH, HEIGHT, VK, UNLOCKS } from './emu/host.js';
+import { GameHost, WIDTH, HEIGHT, VK, UNLOCKS, LONE_START } from './emu/host.js';
 import { SnapClient } from './snap.js';
 import { gameFromZip } from './zip.js';
 
@@ -285,12 +285,26 @@ function loginUI() {
   return ui;
 }
 
+// The bot switch: the server fills the empty seats of a friendly match this player starts with bots.
+// It appears only if the server can run bots; the choice is kept in this browser and sent at each login.
+// Returns whether the server can run bots.
+async function botSwitch(snap) {
+  const box = document.getElementById('bots'), on = document.getElementById('bots-on');
+  try { if (!(await (await fetch('bots')).json()).available) return false; } catch { return false; }
+  try { on.checked = localStorage.getItem('rg:bots') === '1'; } catch {}
+  snap.fillBots = on.checked;
+  on.onchange = () => { try { localStorage.setItem('rg:bots', on.checked ? '1' : '0'); } catch {} snap.setFillBots(on.checked); };
+  box.hidden = false;
+  return true;
+}
+
 async function main() {
   const files = await loadFiles();
   status.textContent = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
   const snap = new SnapClient({ url: 'snap', ui: loginUI(), log: s => console.warn('[snap]', s) });
-  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches: UNLOCKS });
+  const patches = [...UNLOCKS, ...(await botSwitch(snap) ? LONE_START : [])];
+  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches });
   snap.attach(game);
   try {
     game.boot(); // its first step allocates the emulator's memory, so game.m is unset if that fails

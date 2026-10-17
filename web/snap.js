@@ -14,6 +14,7 @@ const rotr = (b, n) => ((b >> n) | (b << (8 - n))) & 0xff;
 const scramble = (bytes, k) => bytes.map((b, i) => { const key = KEYS[k][i % 32]; return rotr(b, key & 7) ^ key; });
 const VALID_NAME = /^[A-Za-z0-9_]{1,15}$/;
 const STATE = { NONE: 0, UNCONFIRMED: 1, REQUESTED: 2, ONLINE: 3, AWAY: 4, OFFLINE: 5 };
+const FILL_BOTS = 900; // not a SNAP Mobile command: this server's own, P1 1 or 0 (server/gateway.js)
 
 export class SnapClient {
   // ui: { startLogin(onReady, onCancel), stopLogin(), attempting(), rejected(), credentials() -> {username, password} }
@@ -29,8 +30,13 @@ export class SnapClient {
     this.events = [];   // native callbacks to run between ticks
     this.actions = []; this.busy = false;
     this.polling = false;
+    this.fillBots = false; // fill empty seats with bots in the friendly matches this player starts
   }
   attach(host) { this.host = host; }
+  setFillBots(on) {
+    this.fillBots = on;
+    this.addAction(() => this.request(FILL_BOTS, { 1: on ? 1 : 0 }), false);
+  }
 
   // ---- transport ----
   async request(cmd, params = {}, { sessionless = false } = {}) {
@@ -104,6 +110,7 @@ export class SnapClient {
       if (!lobby) return;
       this.lobbyID = lobby[0];
       await this.request(109, { 1: this.lobbyID });
+      if (this.fillBots) await this.request(FILL_BOTS, { 1: 1 });
       this.credentialsOK = true;
       this.loggedIn = true;
       this.ui.stopLogin();

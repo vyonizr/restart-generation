@@ -4,6 +4,7 @@
 // If the page asks for the game files, set RG_PICK to the .zip or folder to give it.
 // RG_TOUCH=1 emulates a 390x844 phone with touch (RG_TOUCH=844x390 sets another size); tap:<data-key> and
 // hold:<data-key>:<seconds> then touch the pad's controls.
+// click:<CSS selector> clicks a page element.
 import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -88,6 +89,7 @@ try {
     }
     else if (cmd === 'reload') { await send('Page.reload'); await sleep(500); await start(); }
     else if (cmd === 'key') { await keyEvent('rawKeyDown', arg); await sleep(150); await keyEvent('keyUp', arg); await sleep(400); }
+    else if (cmd === 'click') await evaluate(`document.querySelector(${JSON.stringify(arg)}).click()`); // click:<CSS selector>
     else if (cmd === 'tap') await touch(arg, 0.15);
     else if (cmd === 'hold') await touch(arg, +arg2);
     else if (cmd === 'shot') {

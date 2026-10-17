@@ -8,6 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { FRAME, readFrames, frame, parseRequest, ok, err, b64 } = require('./snap');
 const gameServer = require('./casino');
+const bots = require('./bots');
 
 const PORT = Number(process.env.PORT || 8976);
 const HOST = process.argv.includes('--lan') ? undefined : '127.0.0.1';
@@ -36,13 +37,13 @@ const replies = new Map();  // "<S|addr>:<R>" -> cached response, for client ret
 
 function login(name, password) {
   const key = name.toLowerCase();
-  let acc = accounts[key];
+  let acc = bots.account(name, password) || accounts[key]; // a bot's account is never saved
   if (!acc) { // First login registers the name, as the original web sign-up page did.
     const salt = crypto.randomBytes(8).toString('hex');
     acc = accounts[key] = { id: String(Object.keys(accounts).length + 1), name, salt, hash: hash(password, salt) };
     saveAccounts();
     log('registered', name);
-  } else if (hash(password, acc.salt) !== acc.hash) {
+  } else if (!acc.bot && hash(password, acc.salt) !== acc.hash) {
     return null;
   }
   for (const s of sessions.values()) if (s.userId === acc.id) dropSession(s); // ANOTHER_LOGIN
@@ -137,6 +138,9 @@ function handle(req, s, send) {
   if (!s) return send(err(702, 'InvalidSession'));
   switch (req.cmd) {
     case 2: case 104: dropSession(s); return send(ok());
+    case 900: // this server's own: P1 1 fills the empty seats of friendly matches this player starts with bots
+      s.fillBots = String(p[1]) === '1';
+      return send(ok());
     case 3: case 311: case 130: { // retrieveAllEvents: long poll
       if (s.poll) flushPoll(s);
       s.poll = { send, timer: setTimeout(() => flushPoll(s), s.events.length ? 0 : POLL_HOLD_MS) };
@@ -301,6 +305,10 @@ http.createServer((req, res) => {
     }));
     return;
   }
+  if (url === '/bots') { // whether the page shows the bot switch
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+    return res.end(JSON.stringify({ available: bots.available() }));
+  }
   if (url.startsWith('/game/')) {
     const data = Object.hasOwn(gameFiles, url.slice(6)) && gameFiles[url.slice(6)];
     if (!data) { res.writeHead(404); return res.end('not found'); }
@@ -315,6 +323,7 @@ http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 }).listen(HTTP_PORT, HOST, () => {
   log(`browser client on http://localhost:${HTTP_PORT}/`);
+  bots.configure(`http://127.0.0.1:${HTTP_PORT}/snap`);
   if (HOST) return;
   for (const [name, address] of lanAddresses(os.networkInterfaces())) log(`browser client on http://${address}:${HTTP_PORT}/ (${name})`);
   log(`Other devices can't connect? See "Play on other devices" in README.md.`);

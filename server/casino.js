@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { T, createReader, encode, u32 } = require('./mt');
 const battle = require('./battle');
+const bots = require('./bots');
 
 const CAPTURE = path.join(__dirname, '..', 'data', 'capture.log');
 const RANKED_CASINO = 0x12;   // MT type of ranked-casino messages
@@ -20,7 +21,7 @@ const A = {
   SEAT_RESERVE: 0x0c, SEAT_TAKE: 0x0d, SEAT_LEAVE: 0x0e,
   REGISTER_FRIENDS: 0x21, FRIEND_REMOVE: 0x23, FRIEND_ADD: 0x24, MATCHED_UP: 0x1f, LOCK_PLAYER: 0x1d,
   CREATE: 0x14, FRIENDLY_ENTERED: 0x15, FRIENDLY_LEFT: 0x16, FRIENDLY_UPDATE: 0x19, FRIENDLY_START: 0x1c,
-  CASINO_NOT_FOUND: 0x25,
+  UNLOCK_PLAYER: 0x1e, CASINO_NOT_FOUND: 0x25,
 };
 const REQUEST = 0, RESPONSE = 1, EVENT = 2;
 
@@ -139,10 +140,41 @@ function startTable(players, casinoType, api) {
     ranked.delete(p);
     // Shows GAME_STARTING and stops the player backing out (FUN_100469c0). Must precede
     // MATCHED_UP, which closes the client's CasinoSystem connection.
-    send(p, api, T.CASINO, Buffer.concat([header(REQUEST, A.LOCK_PLAYER), u32(0)]));
-    send(p, api, casinoType, event(A.MATCHED_UP, p.userId, tableDescriptor(table)));
+    lockPlayer(p, true, api);
+    // A bot waits in the ranked Quick Match, so it gets the ranked casino's MATCHED_UP.
+    send(p, api, p.account.bot ? RANKED_CASINO : casinoType, event(A.MATCHED_UP, p.userId, tableDescriptor(table)));
   }
   return true;
+}
+
+// Unlocking shows MATCHMAKING_FAILED in the lobby (FUN_100469c0).
+function lockPlayer(s, lock, api) {
+  send(s, api, T.CASINO, Buffer.concat([header(REQUEST, lock ? A.LOCK_PLAYER : A.UNLOCK_PLAYER), u32(0)]));
+}
+
+// A friendly start with the bot switch on: bots fill every empty seat up to four. The players wait on
+// GAME_STARTING while the bots start, about 15 s. The room closes only once the table starts; if it can't,
+// the players are unlocked back into it.
+function startWithBots(c, players, api) {
+  c.starting = true;
+  for (const p of players) lockPlayer(p, true, api);
+  const fail = list => {
+    api.log(`friendly arena ${c.id} couldn't start with bots`);
+    c.starting = false;
+    for (const b of list) bots.stop(b);
+    for (const p of players) if (api.sessions.has(p.sid)) lockPlayer(p, false, api);
+  };
+  bots.spawn(MAX_SEATS - players.length, api.log).then(list => {
+    const humans = players.filter(p => api.sessions.has(p.sid)), seated = [...humans, ...list];
+    if (!humans.length || seated.length < 2 || !battle.seatCounts().has(seated.length)) return fail(list);
+    closeFriendly(c, api);
+    startTable(seated, FRIENDLY_CASINO, api);
+  }, e => { api.log(e.stack); fail([]); });
+}
+
+function closeFriendly(c, api) {
+  friendly.delete(c.id);
+  friendlyAnnounce(c, A.FRIENDLY_LEFT, api);
 }
 
 // Friendly arenas: a private casino per host, visible to the host's buddies (docs/protocol.md).
@@ -168,7 +200,7 @@ function leaveFriendly(s, api) {
       for (const m of c.members) if (m !== s) send(m, api, FRIENDLY_CASINO, event(A.CANCEL_MATCHMAKING, s.userId));
     }
     c.members.delete(s);
-    if (c.members.size === 0) { friendly.delete(c.id); friendlyAnnounce(c, A.FRIENDLY_LEFT, api); }
+    if (c.members.size === 0) closeFriendly(c, api);
   }
 }
 
@@ -225,18 +257,20 @@ function onCasino(s, type, kind, action, body, api) {
     }
     case A.FRIENDLY_START: { // any listed member may start (no host check in the client)
       const c = friendly.get(body.readUInt32LE(0));
-      const players = c ? c.lobby.slice(0, MAX_SEATS) : [];
-      if (players.length < 2 || !battle.seatCounts().has(players.length)) {
+      const players = c && !c.starting ? c.lobby.slice(0, MAX_SEATS) : [];
+      // Bots fill the room of a host who has the switch on and starts the match.
+      const withBots = c?.host === s && s.fillBots && players.length < MAX_SEATS && bots.available() && battle.seatCounts().has(MAX_SEATS);
+      if (!players.length || (!withBots && (players.length < 2 || !battle.seatCounts().has(players.length)))) {
         return send(s, api, type, Buffer.concat([header(RESPONSE, action), u8(1), u32(0)])); // MATCHMAKING_FAILED
       }
       reply();
-      api.log(`friendly arena ${c.id} starts with ${players.map(p => p.name).join(', ')}`);
-      friendly.delete(c.id);
-      friendlyAnnounce(c, A.FRIENDLY_LEFT, api);
+      api.log(`friendly arena ${c.id} starts with ${players.map(p => p.name).join(', ')}${withBots ? ' and bots' : ''}`);
+      if (withBots) return startWithBots(c, players, api);
+      closeFriendly(c, api);
       return startTable(players, FRIENDLY_CASINO, api);
     }
     case A.ENTER: {
-      if (type === RANKED_CASINO) { ranked.add(s); return reply(profile(myProfile(s)), casinoInfo(rankedInfo())); }
+      if (type === RANKED_CASINO) { if (!s.account.bot) ranked.add(s); return reply(profile(myProfile(s)), casinoInfo(rankedInfo())); }
       const c = friendly.get(body.readUInt32LE(0));
       if (!c) return send(s, api, T.CASINO, Buffer.concat([header(RESPONSE, A.CASINO_NOT_FOUND), u8(0), body.subarray(0, 4)]));
       for (const m of c.members) send(m, api, type, event(A.ENTER, s.userId, profile(myProfile(s))));
@@ -256,6 +290,7 @@ function onCasino(s, type, kind, action, body, api) {
         if (!c.lobby.includes(s)) c.lobby.push(s);
         return;
       }
+      if (s.account.bot) { reply(u8(0)); return bots.ready(s); } // waits here, out of the queue, until seated
       const others = queue.filter(q => q !== s);
       reply(u8(others.length), ...others.map(o => profile(myProfile(o))));
       for (const o of others) send(o, api, type, event(A.MATCHMAKING, s.userId, profile(myProfile(s))));
@@ -286,6 +321,7 @@ function onCasino(s, type, kind, action, body, api) {
     case A.SEAT_LEAVE: // every client sends it when its battle ends normally (FUN_100ec8b0)
       reply();
       if (s.room?.battle) finishMatch(s.room.battle, api);
+      if (s.account.bot) bots.stop(s);
       return;
   }
   return false;
@@ -328,6 +364,8 @@ module.exports = {
     if (room.name === 'CasinoSystem') leaveCasino(s, api);
     const p = room.battle?.players.find(o => o.s === s);
     if (p) battle.leave(room.battle, p, api);
+    // Bots left alone at a table have no one to play for.
+    if (room.battle && ![...room.members].some(m => !m.account.bot)) for (const m of room.members) bots.stop(m);
     if (room.members.size === 0) tables.delete(room);
   },
   start(api) {

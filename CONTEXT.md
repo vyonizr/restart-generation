@@ -56,6 +56,10 @@ _Avoid_: level, stage
 One match between two to four players on one level.
 _Avoid_: game, round
 
+**Bot**:
+A player the computer controls in an online battle, filling a seat no person took.
+_Avoid_: CPU, AI player, computer
+
 **Observer**:
 Someone attached to a battle who doesn't play in it. A player who waits while other players take their turns is still a player, not an observer.
 _Avoid_: spectator, watching player
