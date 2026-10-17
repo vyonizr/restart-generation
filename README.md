@@ -79,6 +79,24 @@ node server/gameblob.test.js
 
 `battle.test.js` needs a battle template, and `gameblob.test.js` needs raw captures in `RG_CAPTURES`.
 
+## Run in Docker
+
+`compose.yaml` builds and runs the server in a container. The image doesn't contain the game files (ADR 0001). To set it up, create a `.env` file in the repo root:
+
+```sh
+# Your copy of the game: the .zip or the extracted folder. Start a relative path with ./
+RG_GAME_PATH=./ResetGeneration-Standalone.zip
+# Who can connect. 127.0.0.1 (default) is this PC only; 0.0.0.0 is your network or the internet.
+BIND=127.0.0.1
+```
+
+Then run `docker compose up -d --build` and open `http://localhost:8080/`. The container keeps accounts and battle templates in `./data`, so create that folder and put your captured templates in it before the first start.
+
+- **Local or LAN:** set `RG_GAME_PATH`. The server serves the game files and runs bots. For LAN play, set `BIND=0.0.0.0`.
+- **Public:** leave `RG_GAME_PATH` empty and set `BIND=0.0.0.0`. The server then serves no game files and runs no bots, so each player chooses their own copy (see [Host the page without the game files](#host-the-page-without-the-game-files)).
+
+The container serves plain HTTP. For a public server, put a reverse proxy or tunnel in front of port 8080 that provides HTTPS, which the page needs for features such as screen wake lock, and that waits more than 15 s for a response, because the server holds `retrieveAllEvents` requests for up to 15 s (ADR 0004). Anyone can log in as any name and drop that player's session (ADR 0009). Each bot needs about 400 MB of memory.
+
 ## Battle templates
 
 The server hosts battles with a level template captured from the game engine, stored in `data/templates/`. Matchmaking waits until a template with one castle per seat exists. To capture one on Windows:

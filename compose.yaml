@@ -1,0 +1,14 @@
+services:
+  rg:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${BIND:-127.0.0.1}:8080:8080"
+      - "${BIND:-127.0.0.1}:8976:8976"
+    environment:
+      # Set only if RG_GAME_PATH is set: the server then serves the game files and runs bots.
+      RG_GAME: ${RG_GAME_PATH:+/game}
+    volumes:
+      - ./data:/app/data
+      # With no RG_GAME_PATH, this mounts an empty file that the server ignores.
+      - ${RG_GAME_PATH:-/dev/null}:/game:ro
