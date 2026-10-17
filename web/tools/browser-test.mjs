@@ -82,10 +82,10 @@ try {
   };
   for (const [cmd, arg, arg2] of steps) {
     if (cmd === 'wait') await sleep(+arg * 1000);
-    else if (cmd === 'login') { // login:name:password fills and submits the Arena login dialog
-      const [name, pw] = arg.split(';');
+    else if (cmd === 'login') { // login:name fills and submits the Arena login dialog
+      const name = arg;
       for (let i = 0; i < 50 && !(await evaluate(`!document.getElementById('login').hidden`)); i++) await sleep(200);
-      await evaluate(`document.getElementById('username').value=${JSON.stringify(name)};document.getElementById('password').value=${JSON.stringify(pw)};document.getElementById('login').requestSubmit()`);
+      await evaluate(`document.getElementById('username').value=${JSON.stringify(name)};document.getElementById('login').requestSubmit()`);
     }
     else if (cmd === 'reload') { await send('Page.reload'); await sleep(500); await start(); }
     else if (cmd === 'key') { await keyEvent('rawKeyDown', arg); await sleep(150); await keyEvent('keyUp', arg); await sleep(400); }

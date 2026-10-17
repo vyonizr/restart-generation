@@ -25,7 +25,6 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const accounts = fs.existsSync(ACCOUNTS) ? JSON.parse(fs.readFileSync(ACCOUNTS, 'utf8')) : {};
 const saveAccounts = () => fs.writeFileSync(ACCOUNTS, JSON.stringify(accounts, null, 1));
-const hash = (pw, salt) => crypto.scryptSync(pw, salt, 32).toString('hex');
 
 const LOBBY = { id: '1', name: 'resgen' };
 const sessions = new Map(); // sid -> session
@@ -35,16 +34,14 @@ let nextRoomId = 1;
 rooms.set('0', { id: '0', name: 'CasinoSystem', max: 100000, members: new Set(), permanent: true });
 const replies = new Map();  // "<S|addr>:<R>" -> cached response, for client retransmits
 
+// A name is the whole identity: no password. Anyone can log in as any name, and that drops the name's other session.
 function login(name, password) {
   const key = name.toLowerCase();
   let acc = bots.account(name, password) || accounts[key]; // a bot's account is never saved
   if (!acc) { // First login registers the name, as the original web sign-up page did.
-    const salt = crypto.randomBytes(8).toString('hex');
-    acc = accounts[key] = { id: String(Object.keys(accounts).length + 1), name, salt, hash: hash(password, salt) };
+    acc = accounts[key] = { id: String(Object.keys(accounts).length + 1), name };
     saveAccounts();
     log('registered', name);
-  } else if (!acc.bot && hash(password, acc.salt) !== acc.hash) {
-    return null;
   }
   for (const s of sessions.values()) if (s.userId === acc.id) dropSession(s); // ANOTHER_LOGIN
   const s = { sid: crypto.randomBytes(12).toString('hex'), userId: acc.id, name: acc.name, account: acc, room: null, events: [], poll: null, lastSeen: Date.now() };
@@ -126,8 +123,9 @@ function handle(req, s, send) {
     case 1: { // extendedLogin: P1 user, P2 password (scrambled), P5 game class
       const user = String(p[1] || '');
       if (!/^[A-Za-z0-9_]{1,15}$/.test(user)) return send(err(965, 'AuthenticationFailed'));
-      const ns = login(user, String(p[2] || ''));
-      if (!ns) return send(err(966, 'InvalidPassword'));
+      const password = String(p[2] || '');
+      if (/^CPU_\d+$/i.test(user) && !bots.account(user, password)) return send(err(965, 'AuthenticationFailed')); // CPU_n is a bot's name
+      const ns = login(user, password);
       log(`login ${user} (gameclass ${p[5]})`);
       announce(ns, 'available'); // the native client never calls setPresence itself
       return send(ok([[ns.sid, ns.sid, ns.sid, ns.userId]]));
@@ -262,7 +260,7 @@ function processRequest(text, addr, reply) {
 const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, list]) =>
   list.filter(a => a.family === 'IPv4' && !a.internal).map(a => [name, a.address]));
 
-module.exports = { staleSessions, lanAddresses };
+module.exports = { staleSessions, lanAddresses, handle };
 if (require.main !== module) return; // tests import the module without starting the servers
 
 net.createServer(sock => {

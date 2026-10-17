@@ -241,61 +241,49 @@ function draw(game) {
   ctx.putImageData(image, 0, 0);
 }
 
-// The player's online identity, kept in this browser: a name and a password the page generates.
+// The player's online identity, kept in this browser: a name, with no password.
 // The name is a random GuestNNNNNN until the player sets one, which sets `named`. The server registers it on its first login.
 function guestIdentity() {
   try {
     const saved = JSON.parse(localStorage.getItem('rg:guest'));
     if (saved) return saved;
   } catch {}
-  const guest = { username: `Guest${crypto.getRandomValues(new Uint32Array(1))[0] % 1e6}`, password: randomPassword() };
+  const guest = { username: `Guest${crypto.getRandomValues(new Uint32Array(1))[0] % 1e6}` };
   saveGuest(guest);
   return guest;
 }
 
-function randomPassword() { return [...crypto.getRandomValues(new Uint32Array(4))].map(n => n.toString(36)).join(''); }
-
 function saveGuest(guest) { try { localStorage.setItem('rg:guest', JSON.stringify(guest)); } catch {} }
 
 // The Arena login dialog, used to set the player's name.
-// It appears at the first online login, and again if the server rejects the saved name, when it also asks for the password.
+// It appears at the first online login.
 function loginUI() {
-  const form = document.getElementById('login'), user = document.getElementById('username'), pass = document.getElementById('password');
-  const field = document.getElementById('password-field'), note = document.getElementById('login-note'), cancel = document.getElementById('login-cancel');
+  const form = document.getElementById('login'), user = document.getElementById('username'), cancel = document.getElementById('login-cancel');
   // The saved identity stays as it is until the server accepts the name the player typed (pending).
-  let handlers = null, guest = guestIdentity(), pending = null, taken = false;
+  let handlers = null, guest = guestIdentity(), pending = null;
   form.addEventListener('submit', e => {
     e.preventDefault();
-    const name = user.value.trim();
-    // A new name is a new account, so it gets a new password. The same name keeps its password, or the one the player typed.
-    const password = taken || name.toLowerCase() === guest.username.toLowerCase() ? pass.value : randomPassword();
-    pending = { username: name, password, named: true };
-    pass.value = password; // credentials() reads the fields, so they must hold what the server will see
-    taken = false;
+    pending = { username: user.value.trim(), named: true };
     const h = handlers;
     form.hidden = true; canvas.inert = false; canvas.focus();
     h?.ready();
   });
-  cancel.addEventListener('click', () => { const h = handlers; pending = null; taken = false; ui.stopLogin(); h?.cancel(); });
+  cancel.addEventListener('click', () => { const h = handlers; pending = null; ui.stopLogin(); h?.cancel(); });
   form.addEventListener('keydown', e => { if (e.key === 'Escape') cancel.click(); e.stopPropagation(); });
   const ui = {
     startLogin(ready, cancelled) {
       handlers = { ready, cancel: cancelled };
-      if (taken) pass.value = ''; // the name field keeps the name the server rejected
-      else {
-        user.value = guest.username; pass.value = guest.password;
-        if (guest.named) { ready(); return; }
-      }
-      field.hidden = note.hidden = !taken;
+      user.value = guest.username;
+      if (guest.named) { ready(); return; }
       form.hidden = false; canvas.inert = true;
-      (taken ? pass : user).focus();
+      user.focus();
     },
     stopLogin() { form.hidden = true; canvas.inert = false; handlers = null; canvas.focus(); },
     visible: () => !form.hidden,
     attempting() {},
     accepted() { if (pending) { guest = pending; saveGuest(guest); pending = null; } },
-    rejected(badLogin) { pending = null; taken = badLogin; },
-    credentials: () => ({ username: user.value.trim(), password: pass.value }),
+    rejected() { pending = null; },
+    credentials: () => ({ username: user.value.trim(), password: '' }),
     name: () => guest.named ? guest.username : '',
     forget() { delete guest.named; saveGuest(guest); },
   };

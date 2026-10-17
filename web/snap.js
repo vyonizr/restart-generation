@@ -22,7 +22,7 @@ export const startRoom = d => d.length >= 9 && d[0] === 7 && d[1] === 0 && d[2] 
   ? (d[5] | d[6] << 8 | d[7] << 16 | d[8] << 24) >>> 0 : null;
 
 export class SnapClient {
-  // ui: { startLogin(onReady, onCancel), stopLogin(), attempting(), rejected(badLogin), accepted() (optional), credentials() -> {username, password} }
+  // ui: { startLogin(onReady, onCancel), stopLogin(), attempting(), rejected(), accepted() (optional), credentials() -> {username, password} }
   constructor({ url = 'snap', ui, log = () => {} }) {
     this.url = url; this.ui = ui; this.log = log;
     this.rid = 1000 + Math.floor(Math.random() * 1e6); // request ids must not collide with other clients
@@ -117,7 +117,7 @@ export class SnapClient {
       const presence = b64(utf8('SM2.0.1,'));
       const r = await this.request(1, { 1: username, 2: b64(scramble(utf8(password), this.key)), 5: 42713, 9: 1, 10: presence, 11: 0, 13: 'en_US' }, { sessionless: true });
       if (this.loginCancelled || this.logoutQueued) return;
-      if (this.serverError(r.code, r.message)) { this.ui.rejected(this.loginErrorState === 1); this.events.push(() => this.native('onArenaLoginCancelled@8')); return; }
+      if (this.serverError(r.code, r.message)) { this.ui.rejected(); this.events.push(() => this.native('onArenaLoginCancelled@8')); return; }
       const [sid, , , uid] = r.lines[0].split('|');
       this.session = sid; this.userId = uid; this.username = username;
       this.ui.accepted?.();
