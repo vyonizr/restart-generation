@@ -63,7 +63,7 @@ node server/gateway.js
 
 The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](#play-on-other-devices)). To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in `data/accounts.json`.
 
-To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and the server ends a phase only after 3 minutes if someone stops playing. Ranked matches keep the 20 s limit.
+To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and the server ends a phase only after 3 minutes (1 minute for cannon shots) if someone stops playing. Ranked matches keep the 20 s limit.
 
 If `RG_GAME` is set, the server can also fill friendly matches with bots, players the server controls. A player alone in their room who presses **Start** gets a bot in every empty seat. With 2 or 3 people in the room, the page asks "Fill the empty seats with CPU players?" when someone presses **Start**. That player answers with Select (Yes) or Back (No), or clicks a button. The game still lets only a player with at least one friend create a room. Each bot runs the game in a worker thread on the server and starts when the match does, which takes about 15 seconds. Ranked matches never get bots, and the Java client gets no question and starts with people only.
 

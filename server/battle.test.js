@@ -106,7 +106,31 @@ assert.equal(trio.phase, 5);
 send(c, 1, 7, gm.TYPE.FIRE_CANNON, 2, 5);
 assert.deepEqual([trio.turn, trio.phase], [3, 2]);
 
-// A relaxed table sends no phase time limits and forces the end of a phase only after 3 minutes.
+// A bot that stays silent is defeated: its table stops waiting for it after 15 s, in phases 2 and 5.
+const cpuTable = battle.createTable(2, api);
+const person = client('person'), cpu = { ...client('CPU_1'), account: { bot: true } };
+inbox.set(cpu, []);
+for (const s of [person, cpu]) { battle.seat(cpuTable, s, api); fromClient(cpuTable, s, join(s.name)); }
+const act = (s, sender, seq, type, phase, n = 1) => { for (let i = 0; i < n; i++) fromClient(cpuTable, s, { seq: seq + i, type, sender, turn: 1, phase,
+  body: Buffer.from(new Int32Array([3, 4]).buffer) }); };
+act(person, 1, 1, gm.TYPE.PLACE_TILE, 2);
+battle.tick(cpuTable, api);
+assert.equal(cpuTable.phase, 2, 'stopped waiting for a bot that may still be acting');
+cpuTable.phaseStart = Date.now() - 16000;
+battle.tick(cpuTable, api);
+assert.equal(cpuTable.phase, 4);
+fromClient(cpuTable, person, { seq: 2, type: gm.TYPE.END_TURN_REQUEST, sender: 1, turn: 1, phase: 4 });
+assert.equal(cpuTable.phase, 4, 'the silent bot is still owed its turn in phase 4');
+cpuTable.phaseStart = Date.now() - 16000; // clients skip the defeated bot and move to phase 5 on their own
+act(person, 1, 3, gm.TYPE.FIRE_CANNON, 5, 2);
+assert.equal(cpuTable.phase, 5);
+battle.tick(cpuTable, api);
+assert.equal(cpuTable.phase, 5, 'the bot just had its phase 5 start');
+cpuTable.phaseStart = Date.now() - 16000;
+battle.tick(cpuTable, api);
+assert.deepEqual([cpuTable.turn, cpuTable.phase], [2, 2]);
+
+// A relaxed table sends no phase time limits and forces the end of a phase only after 3 minutes (1 minute in phase 5).
 const calm = battle.createTable(2, api, true);
 const [e, f] = [client('e'), client('f')];
 for (const s of [e, f]) {
@@ -123,4 +147,13 @@ calm.phaseStart = Date.now() - 181000;
 battle.tick(calm, api);
 assert.equal(calm.phase, 4);
 assert.deepEqual(take(e).map(m => [m.type, m.turn, m.phase]), [[gm.TYPE.END_TURN, 1, 2]]);
+// Phase 5 is forced after 1 minute: a stalled cannon phase would otherwise hold the table for 3.
+for (const [s, sender] of [[e, 1], [f, 2]]) fromClient(calm, s, { seq: 9, type: gm.TYPE.END_TURN_REQUEST, sender, turn: 1, phase: 4 });
+assert.equal(calm.phase, 5);
+calm.phaseStart = Date.now() - 59000;
+battle.tick(calm, api);
+assert.equal(calm.phase, 5, 'forced the end of phase 5 before 1 minute');
+calm.phaseStart = Date.now() - 61000;
+battle.tick(calm, api);
+assert.deepEqual([calm.turn, calm.phase], [2, 2]);
 console.log('battle host ok');

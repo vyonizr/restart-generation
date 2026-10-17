@@ -13,6 +13,8 @@ const TEMPLATES = path.join(__dirname, '..', 'data', 'templates');
 const START_DEADLINE_MS = 40000;  // Mac FUN_000cd7ee
 const OVERTIME_MS = 30000;        // forced EndTurn this long after the phase limit (FUN_1000ddf0)
 const RELAXED_MS = 180000;        // forced EndTurn this long after a phase starts on a relaxed table
+const RELAXED_CANNON_MS = 60000;  // same for phase 5, where a shot count the server can't know stalls the table
+const BOT_IDLE_MS = 15000;        // a live bot acts about 4 s into a phase; a bot silent this long is defeated
 const ORDERS = new Set([gm.TYPE.MOVE_UNIT, gm.TYPE.FIRE_CANNON, gm.TYPE.PLACE_TILE, gm.TYPE.ATTACK,
   gm.TYPE.POINT, gm.TYPE.SPECIAL_SKILL]);
 
@@ -62,7 +64,7 @@ function createTable(seats, api, relaxed = false) {
     deadline: Date.now() + START_DEADLINE_MS,
     turn: 0, phase: 0, phaseStart: 0, done: new Set(), ended4: new Set(),
     cannons: cannonCount(t.game), fired: new Map(), // team -> FireCannon count this phase
-    forceAfter: limits.map(l => l === -1 ? -1 : relaxed ? RELAXED_MS : l + OVERTIME_MS), // ms, per phase
+    forceAfter: limits.map((l, phase) => l === -1 ? -1 : relaxed ? (phase === 5 ? RELAXED_CANNON_MS : RELAXED_MS) : l + OVERTIME_MS), // ms, per phase
     losers: [], lastOrderTeam: 0, finished: false,
   };
 }
@@ -82,7 +84,7 @@ const alive = table => table.players.filter(p => p.state === 'playing' && !table
 // Handshake step 1, after the SEAT_TAKE response (lobby FUN_100ebed0 waits for this).
 function seat(table, s, api) {
   if (table.players.some(p => p.s === s) || table.players.length >= table.seats) return;
-  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, 2) };
+  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, 2), bot: Boolean(s.account?.bot) };
   table.players.push(p);
   sendMsg(table, p, { seq: 1, type: gm.TYPE.INIT, body: initBody(Buffer.concat([table.game, i32(1)])) }, api);
 }
@@ -145,7 +147,10 @@ const step = (turn, phase) => turn * 10 + phase;
 // phase 4 every client still decides whose turn it is, so the server keeps waiting there.
 // ponytail: guesses defeats; an idle living player is skipped too. A headless witness engine would be exact.
 const silent = (table, p) => step(table.turn, table.phase) - p.seen >= 10;
-const allDone = table => alive(table).every(p => table.done.has(p.team) || silent(table, p));
+// A bot never thinks for long, so one that hasn't acted by now is defeated: don't wait for it, and don't wait
+// for the whole-turn silence above.
+const idleBot = (table, p) => p.bot && Date.now() - table.phaseStart > BOT_IDLE_MS;
+const allDone = table => alive(table).every(p => table.done.has(p.team) || silent(table, p) || idleBot(table, p));
 
 function onEndTurnRequest(table, p, m, api) {
   p.seen = step(table.turn, table.phase);
@@ -216,6 +221,7 @@ function result(table) {
 
 function tick(table, api) {
   if (!table.started) return maybeBegin(table, api);
+  if ((table.phase === 2 || table.phase === 5) && !table.finished && alive(table).length && allDone(table)) return endTurn(table, api);
   const limit = table.forceAfter[table.phase] ?? -1;
   if (limit === -1 || table.finished) return;
   if (Date.now() - table.phaseStart > limit) {
