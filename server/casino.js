@@ -172,6 +172,18 @@ function startWithBots(c, players, api) {
   }, e => { api.log(e.stack); fail([]); });
 }
 
+// What the page does when a member presses Start in room c (web/snap.js): 'gone' drops the Start because the
+// room can't start, 'ask' puts the bot question to the player when 2 or 3 people are listed, 'go' sends it on.
+function botChoice(c, canFill) {
+  if (!c || c.starting) return 'gone';
+  const n = c.lobby.length;
+  return canFill && n > 1 && n < MAX_SEATS ? 'ask' : 'go';
+}
+
+// A player alone always gets bots; with others listed, only if the starter said yes to the question.
+const fillsWithBots = (n, answeredYes, canFill) => canFill && n >= 1 && n < MAX_SEATS && (n === 1 || answeredYes);
+const canFillWithBots = () => bots.available() && battle.seatCounts().has(MAX_SEATS);
+
 function closeFriendly(c, api) {
   friendly.delete(c.id);
   friendlyAnnounce(c, A.FRIENDLY_LEFT, api);
@@ -258,8 +270,8 @@ function onCasino(s, type, kind, action, body, api) {
     case A.FRIENDLY_START: { // any listed member may start (no host check in the client)
       const c = friendly.get(body.readUInt32LE(0));
       const players = c && !c.starting ? c.lobby.slice(0, MAX_SEATS) : [];
-      // Bots fill the room of a host who has the switch on and starts the match.
-      const withBots = c?.host === s && s.fillBots && players.length < MAX_SEATS && bots.available() && battle.seatCounts().has(MAX_SEATS);
+      const withBots = fillsWithBots(players.length, c && s.fillBots === c.id, canFillWithBots());
+      s.fillBots = 0; // the answer is for this start only
       if (!players.length || (!withBots && (players.length < 2 || !battle.seatCounts().has(players.length)))) {
         return send(s, api, type, Buffer.concat([header(RESPONSE, action), u8(1), u32(0)])); // MATCHMAKING_FAILED
       }
@@ -348,6 +360,8 @@ function onMessage(s, msg, api) {
 }
 
 module.exports = {
+  botChoice, fillsWithBots,
+  botQuestion: id => botChoice(friendly.get(id), canFillWithBots()),
   onPacket(s, data, api) {
     s.mtRead ??= createReader();
     for (const msg of s.mtRead(data)) onMessage(s, msg, api);

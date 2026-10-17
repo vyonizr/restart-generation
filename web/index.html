@@ -71,8 +71,6 @@
   .login button { font-size: 18px; padding: 12px 20px; }
 
   .sub { font: 15px/1.6 var(--mono); color: var(--light-2); text-align: center; }
-  .bots { display: flex; align-items: center; justify-content: center; gap: 10px; font: 14px/1.4 var(--body); color: var(--light-2); cursor: pointer; }
-  .bots input { width: 18px; height: 18px; margin: 0; accent-color: var(--red); cursor: pointer; }
   .keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; margin: 0; font: 14px/1 var(--body); color: var(--light-2); }
   .keys div { display: flex; align-items: center; gap: 6px; }
   .keys dt { display: flex; align-items: center; gap: 6px; margin-right: 2px; }
@@ -179,6 +177,10 @@
         <p id="login-note" hidden>That name is taken. If it's yours, enter its password.</p>
         <div class="row"><button type="button" class="secondary" id="login-cancel">Cancel</button><button type="submit" id="login-ok">Play online</button></div>
       </form>
+      <div class="login" id="bots-ask" role="dialog" aria-modal="true" aria-labelledby="bots-title" hidden>
+        <h2 class="bar" id="bots-title">Fill the empty seats with CPU players?</h2>
+        <div class="row"><button type="button" class="secondary" id="bots-no">No</button><button type="button" id="bots-yes">Yes</button></div>
+      </div>
     </div>
     <div class="pad">
       <div class="cross">
@@ -201,7 +203,6 @@
     <video id="wake" class="wake" src="wake.mp4" playsinline preload="none" aria-hidden="true"></video>
     <p class="slow" id="slow" role="status" hidden><span id="slow-text"></span><button id="slow-close" class="secondary">Dismiss</button></p>
     <p class="sub">The original 2009 game, right in your browser (again)</p>
-    <label class="bots" id="bots" hidden><input type="checkbox" id="bots-on"> Fill empty seats with CPU players</label>
     <dl class="keys" aria-label="Controls">
       <div><dt>
         <kbd><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 6H2M5 2.5 1.5 6 5 9.5"/></svg><span class="vh">Left</span></kbd>

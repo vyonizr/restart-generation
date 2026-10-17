@@ -138,9 +138,11 @@ function handle(req, s, send) {
   if (!s) return send(err(702, 'InvalidSession'));
   switch (req.cmd) {
     case 2: case 104: dropSession(s); return send(ok());
-    case 900: // this server's own: P1 1 fills the empty seats of friendly matches this player starts with bots
-      s.fillBots = String(p[1]) === '1';
+    case 900: // this server's own: P1 1 fills the empty seats of friendly room P2 with bots, when this player starts it
+      s.fillBots = String(p[1]) === '1' ? Number(p[2]) : 0;
       return send(ok());
+    case 901: // this server's own: what Start in friendly room P1 does about bots: ask, go or gone (casino.botQuestion)
+      return send(ok([[gameServer.botQuestion(Number(p[1]))]]));
     case 3: case 311: case 130: { // retrieveAllEvents: long poll
       if (s.poll) flushPoll(s);
       s.poll = { send, timer: setTimeout(() => flushPoll(s), s.events.length ? 0 : POLL_HOLD_MS) };

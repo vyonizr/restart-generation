@@ -154,11 +154,12 @@ function stayAwake() {
   wake.play().catch(() => {});
 }
 
-function bindPad(game, input, audio) {
+function bindPad(game, input, audio, botQuestion) {
   const pad = document.querySelector('.pad');
   const presses = new Map(), fingers = new Map(); // data-key -> press count, pointerId -> data-key
   const button = k => pad.querySelector(`[data-key="${k}"]`);
   const press = k => {
+    if (botQuestion.pad(k)) return;
     presses.set(k, (presses.get(k) || 0) + 1);
     if (presses.get(k) > 1) return;
     input.push(() => game.key(true, PAD[k], 0xffff, 1));
@@ -166,6 +167,7 @@ function bindPad(game, input, audio) {
     navigator.vibrate?.(8);
   };
   const release = k => {
+    if (!presses.has(k)) return; // a press the bot question took never reached the game
     if (presses.get(k) > 1) { presses.set(k, presses.get(k) - 1); return; }
     presses.delete(k);
     input.push(() => game.key(false, PAD[k], 0xffff, 1));
@@ -300,18 +302,40 @@ function loginUI() {
   return ui;
 }
 
-// The bot switch: the server fills the empty seats of a friendly match this player starts with bots.
-// It appears only if the server can run bots; the choice is kept in this browser and sent at each login.
-// Returns whether the server can run bots.
-async function botSwitch(snap) {
-  const box = document.getElementById('bots'), on = document.getElementById('bots-on');
-  try { if (!(await (await fetch('bots')).json()).available) return false; } catch { return false; }
-  try { on.checked = localStorage.getItem('rg:bots') === '1'; } catch {}
-  snap.fillBots = on.checked;
-  on.onchange = () => { try { localStorage.setItem('rg:bots', on.checked ? '1' : '0'); } catch {} snap.setFillBots(on.checked); };
-  box.hidden = false;
-  return true;
+// The question at a friendly Start with 2 or 3 people in the room: should bots fill the empty seats?
+// Select answers Yes and Back answers No, as in the game; the buttons work too.
+function botPrompt() {
+  const box = document.getElementById('bots-ask'), yes = document.getElementById('bots-yes'), no = document.getElementById('bots-no');
+  let done = null;
+  const finish = answer => { if (!done) return; const d = done; done = null; box.hidden = true; canvas.inert = false; canvas.focus(); d(answer); };
+  yes.onclick = () => finish(true);
+  no.onclick = () => finish(false);
+  // Captured at the window, so wherever focus is, no key reaches the game's listeners while the box is open.
+  // Key-ups still pass, which lets go of the Select that pressed Start.
+  addEventListener('keydown', e => {
+    if (!done) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (e.repeat) return;
+    if (e.key === 'Enter' || e.key === 'Control') finish(true);
+    else if (e.key === 'Shift' || e.key === 'Escape') finish(false);
+  }, true);
+  return {
+    // answer resolves with true, false, or null if close() ends the question
+    ask() {
+      box.hidden = false; canvas.inert = true; yes.focus();
+      return { answer: new Promise(r => { done = r; }), close: () => finish(null) };
+    },
+    // The touch pad while the question is open: Select and Back answer it, and no pad key reaches the game.
+    pad(key) {
+      if (!done) return false;
+      if (key === 'select') finish(true); else if (key === 'back') finish(false);
+      return true;
+    },
+  };
 }
+
+// Whether the server can run bots (GET /bots).
+const botsAvailable = () => fetch('bots').then(r => r.json()).then(b => b.available, () => false);
 
 // "Online as <name> · Change name" under Start, once the player has set a name.
 function onlineAs(login) {
@@ -326,7 +350,9 @@ async function main() {
   status.textContent = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
   const login = loginUI(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
-  const patches = [...UNLOCKS, ...(await botSwitch(snap) ? LONE_START : [])];
+  const botQuestion = botPrompt(), bots = await botsAvailable();
+  if (bots) snap.bots = botQuestion;
+  const patches = [...UNLOCKS, ...(bots ? LONE_START : [])];
   const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches });
   snap.attach(game);
   try {
@@ -373,7 +399,7 @@ async function main() {
   });
   addEventListener('blur', () => { held.clear(); input.push(() => game.releaseAll()); });
   canvas.addEventListener('pointerdown', () => canvas.focus());
-  if (touch) bindPad(game, input, audio);
+  if (touch) bindPad(game, input, audio, botQuestion);
 
   // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
   const saveNow = () => { for (const f of game.dirtyFiles()) store.set(f.name, f.data); };

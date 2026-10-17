@@ -14,7 +14,12 @@ const rotr = (b, n) => ((b >> n) | (b << (8 - n))) & 0xff;
 const scramble = (bytes, k) => bytes.map((b, i) => { const key = KEYS[k][i % 32]; return rotr(b, key & 7) ^ key; });
 const VALID_NAME = /^[A-Za-z0-9_]{1,15}$/;
 const STATE = { NONE: 0, UNCONFIRMED: 1, REQUESTED: 2, ONLINE: 3, AWAY: 4, OFFLINE: 5 };
-const FILL_BOTS = 900; // not a SNAP Mobile command: this server's own, P1 1 or 0 (server/gateway.js)
+// Not SNAP Mobile commands: this server's own (server/gateway.js).
+const FILL_BOTS = 900;  // P1 1 or 0, P2 room id: fill the empty seats when this player starts that room
+const BOT_CHOICE = 901; // P1 room id; replies ask, go or gone for a Start in that room
+// The room id in the engine's FRIENDLY_CASINO_START (one MT frame: 07 00 header, 11 00 1c, u32 id), or null for any other packet.
+export const startRoom = d => d.length >= 9 && d[0] === 7 && d[1] === 0 && d[2] === 0x11 && d[3] === 0 && d[4] === 0x1c
+  ? (d[5] | d[6] << 8 | d[7] << 16 | d[8] << 24) >>> 0 : null;
 
 export class SnapClient {
   // ui: { startLogin(onReady, onCancel), stopLogin(), attempting(), rejected(badLogin), accepted() (optional), credentials() -> {username, password} }
@@ -30,12 +35,22 @@ export class SnapClient {
     this.events = [];   // native callbacks to run between ticks
     this.actions = []; this.busy = false;
     this.polling = false;
-    this.fillBots = false; // fill empty seats with bots in the friendly matches this player starts
+    this.bots = null;   // set if the server can run bots: { ask() -> { answer, close } }, the question for the player
   }
   attach(host) { this.host = host; }
-  setFillBots(on) {
-    this.fillBots = on;
-    this.addAction(() => this.request(FILL_BOTS, { 1: on ? 1 : 0 }), false);
+
+  // A friendly Start waits here while the player decides whether bots fill the empty seats. Resolves with
+  // whether to send the Start on: not if another member's Start closed the room meanwhile.
+  async askBots(room) {
+    const query = async () => (await this.request(BOT_CHOICE, { 1: room })).lines[0];
+    let state = await query();
+    if (state !== 'ask') return state !== 'gone';
+    const question = this.bots.ask();
+    const watch = setInterval(async () => { const s = await query(); if (s !== 'ask') { state = s; question.close(); } }, 2000);
+    const yes = await question.answer; // null once the room changed
+    clearInterval(watch);
+    if (yes !== null) await this.request(FILL_BOTS, { 1: yes ? 1 : 0, 2: room });
+    return state !== 'gone';
   }
 
   // ---- transport ----
@@ -111,7 +126,6 @@ export class SnapClient {
       if (!lobby) return;
       this.lobbyID = lobby[0];
       await this.request(109, { 1: this.lobbyID });
-      if (this.fillBots) await this.request(FILL_BOTS, { 1: 1 });
       this.credentialsOK = true;
       this.loggedIn = true;
       this.ui.stopLogin();
@@ -231,8 +245,9 @@ export class SnapClient {
       joinRoom: name => { this.numJoinRetries = 0; this.addAction(() => this.joinWithRetry(v(name)), false); },
       logout: () => { this.logoutQueued = this.loggedIn; this.addAction(() => this.logoutInternal(true), true); this.loginCancelled = true; this.ui.stopLogin(); this.loggingIn = false; },
       send: len => {
-        const data = this.host.readNet(len);
+        const data = this.host.readNet(len), room = this.bots ? startRoom(data) : null;
         this.addAction(async () => {
+          if (room !== null && !(await this.askBots(room))) return; // holds the actions behind it, so the order stays
           const r = await this.request(133, { 1: b64(data) });
           if (r.code !== 200 && this.loggedIn && !this.logoutQueued) this.handleError(0);
         }, false);
