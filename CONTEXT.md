@@ -134,6 +134,10 @@ _Avoid_: private match, custom game
 One step of a battle turn in which players act: tile placement (all at once), player turns (one at a time), or cannons (all at once).
 _Avoid_: round, stage
 
+**Defeated player**:
+A player who can no longer win the battle: their castle or princess was captured, or they quit or dropped out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
+_Avoid_: eliminated player, knocked-out player
+
 **Phase time limit**:
 The countdown each player sees during a phase; when it runs out, the phase ends for that player.
 _Avoid_: turn timer, player timeout

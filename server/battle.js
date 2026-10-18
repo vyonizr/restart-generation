@@ -15,6 +15,7 @@ const OVERTIME_MS = 30000;        // forced EndTurn this long after the phase li
 const RELAXED_MS = 180000;        // forced EndTurn this long after a phase starts on a relaxed table
 const RELAXED_CANNON_MS = 60000;  // same for phase 5, where a shot count the server can't know stalls the table
 const BOT_IDLE_MS = 15000;        // a live bot acts about 4 s into a phase; a bot silent this long is defeated
+const SUSPECT_MS = 30000;         // a person who sat out the previous phase, or was skipped in phase 4, is presumed defeated this far into a phase
 const ORDERS = new Set([gm.TYPE.MOVE_UNIT, gm.TYPE.FIRE_CANNON, gm.TYPE.PLACE_TILE, gm.TYPE.ATTACK,
   gm.TYPE.POINT, gm.TYPE.SPECIAL_SKILL]);
 
@@ -96,7 +97,8 @@ function createTable(seats, api, relaxed = false) {
     players: [],        // { s, index, team, state, lastSeq, seen }
     history: [],        // raw reliable GameMessages, replayed to late joiners (handshake step 4)
     seq: 3, started: false, // server seq continues after the handshake messages (1-3)
-    deadline: Date.now() + START_DEADLINE_MS,
+    now: api.now ?? Date.now, // the clock, injectable so tests can run a battle in simulated time
+    deadline: (api.now ?? Date.now)() + START_DEADLINE_MS,
     turn: 0, phase: 0, phaseStart: 0, done: new Set(), ended4: new Set(),
     cannons: cannonCount(t.game), fired: new Map(), // team -> FireCannon count this phase
     forceAfter: limits.map((l, phase) => l === -1 ? -1 : relaxed ? (phase === 5 ? RELAXED_CANNON_MS : RELAXED_MS) : l + OVERTIME_MS), // ms, per phase
@@ -119,7 +121,7 @@ const alive = table => table.players.filter(p => p.state === 'playing' && !table
 // Handshake step 1, after the SEAT_TAKE response (lobby FUN_100ebed0 waits for this).
 function seat(table, s, api) {
   if (table.players.some(p => p.s === s) || table.players.length >= table.seats) return;
-  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, 2), bot: Boolean(s.account?.bot) };
+  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, 2), skipped: 0, fired5: 0, bot: Boolean(s.account?.bot) };
   table.players.push(p);
   sendMsg(table, p, { seq: 1, type: gm.TYPE.INIT, body: initBody(Buffer.concat([table.game, i32(1)])) }, api);
 }
@@ -147,7 +149,7 @@ function maybeBegin(table, api) {
   if (table.started) return;
   const joined = table.players.filter(p => p.state === 'playing');
   const waiting = table.players.length < table.seats || table.players.some(p => p.state === 'joining');
-  if (waiting && Date.now() < table.deadline) return;
+  if (waiting && table.now() < table.deadline) return;
   if (joined.length < 2) return; // a lone player would win at once; the timer cancels the table instead
   table.started = true;
   broadcast(table, serverMsg(table, gm.TYPE.BATTLE_BEGIN), api);
@@ -155,7 +157,7 @@ function maybeBegin(table, api) {
 }
 
 function enterPhase(table, turn, phase) {
-  table.turn = turn; table.phase = phase; table.phaseStart = Date.now();
+  table.turn = turn; table.phase = phase; table.phaseStart = table.now();
   table.done.clear(); table.fired.clear();
   if (phase === 2) table.ended4.clear();
 }
@@ -168,7 +170,7 @@ function endTurn(table, api) {
   if (phase === 2) return enterPhase(table, turn, 4);
   if (phase === 4) {
     const left = alive(table).filter(p => !table.ended4.has(p.team));
-    if (left.length) { table.phaseStart = Date.now(); return; }
+    if (left.length) { table.phaseStart = table.now(); return; }
     return enterPhase(table, turn, 5);
   }
   return enterPhase(table, turn + 1, 2);
@@ -177,21 +179,30 @@ function endTurn(table, api) {
 // (turn, phase) as one ascending number; p.seen is the step of the team's last order or EndTurnRequest.
 const step = (turn, phase) => turn * 10 + phase;
 // Clients stop sending after their castle or princess is captured, which the server can't see
-// (docs/re/re_rules.md section 5). A team silent for a whole turn counts as done in phases 2 and 5. In
-// phase 4 every client still decides whose turn it is, so the server keeps waiting there.
-// ponytail: guesses defeats; an idle living player is skipped too. A headless witness engine would be exact.
-const silent = (table, p) => step(table.turn, table.phase) - p.seen >= 10;
-// A bot never thinks for long, so one that hasn't acted by now is defeated: don't wait for it, and don't wait
-// for the whole-turn silence above.
-const idleBot = (table, p) => p.bot && Date.now() - table.phaseStart > BOT_IDLE_MS;
-const allDone = table => alive(table).every(p => table.done.has(p.team) || silent(table, p) || idleBot(table, p));
+// (docs/re/re_rules.md section 5), so silence is the only sign of a defeat. From weakest to strongest:
+// ponytail: all guesses; a live idle player is treated the same. A headless witness engine would be exact.
+// - lapsed: nothing for a whole turn. Counts as done in phases 2 and 5 at once, and in phase 4 after a wait.
+const lapsed = (table, p) => step(table.turn, table.phase) - p.seen >= 10;
+// - A bot never thinks for long, so one that hasn't acted `ms` into the phase is defeated.
+const waited = (table, ms) => table.now() - table.phaseStart > ms;
+// - A person who left the previous tile or cannon phase unfinished (no order, or shots still owed), or whom
+//   the clients skipped in this turn's phase 4 (the way they skip a defeated player), is presumed defeated
+//   after a longer wait. A defeat costs one forced phase at most: the first one, where nothing yet shows it.
+const suspect = (table, p) => {
+  if (table.phase === 5) return p.seen < step(table.turn, 2) || p.skipped === table.turn;
+  return table.phase === 2 && (p.seen < step(table.turn - 1, 5) || (table.cannons > 0 && table.turn > 1 && p.fired5 !== table.turn - 1));
+};
+// In phase 4 every client still decides whose turn it is, so the server only stops waiting for a team that
+// has lapsed, or a bot, after a wait. Waiting for no one at all ends the phase at once (lose).
+const gone = (table, p) => lapsed(table, p) || (p.bot && waited(table, BOT_IDLE_MS)) || (suspect(table, p) && waited(table, SUSPECT_MS));
+const allDone = table => alive(table).every(p => table.done.has(p.team) || gone(table, p));
 
 function onEndTurnRequest(table, p, m, api) {
   p.seen = step(table.turn, table.phase);
   if (m.turn !== table.turn || m.phase !== table.phase) return;
   if (table.phase === 4) {
     if (table.ended4.has(p.team)) return;
-    for (const o of alive(table)) if (o.team < p.team) table.ended4.add(o.team); // skipped players
+    for (const o of alive(table)) if (o.team < p.team && !table.ended4.has(o.team)) { table.ended4.add(o.team); o.skipped = table.turn; } // skipped players
     table.ended4.add(p.team);
     return endTurn(table, api);
   }
@@ -223,14 +234,17 @@ function onGame(table, p, data, api) {
   if (table.phase === 5 && m.type === gm.TYPE.FIRE_CANNON && table.cannons > 0) {
     const n = (table.fired.get(p.team) ?? 0) + 1;
     table.fired.set(p.team, n);
-    if (n >= table.cannons) { table.done.add(p.team); if (allDone(table)) endTurn(table, api); }
+    if (n >= table.cannons) { p.fired5 = table.turn; table.done.add(p.team); if (allDone(table)) endTurn(table, api); }
   }
 }
 
 function lose(table, p, api) {
   if (!table.losers.includes(p)) table.losers.push(p);
   table.ended4.delete(p.team);
-  if (table.started && (table.phase === 2 || table.phase === 5) && allDone(table)) endTurn(table, api);
+  if (!table.started || table.finished) return;
+  if (table.phase === 2 || table.phase === 5) { if (allDone(table)) endTurn(table, api); return; }
+  // Phase 4: if the leaver held the last turn, every client has moved on to phase 5 by itself (re_rules.md section 3).
+  if (table.phase === 4 && alive(table).length && alive(table).every(o => table.ended4.has(o.team))) enterPhase(table, table.turn, 5);
 }
 
 // A player left the table room: tell the others he disconnected (sender = leaver, as the original did).
@@ -256,9 +270,14 @@ function result(table) {
 function tick(table, api) {
   if (!table.started) return maybeBegin(table, api);
   if ((table.phase === 2 || table.phase === 5) && !table.finished && alive(table).length && allDone(table)) return endTurn(table, api);
+  if (table.phase === 4 && !table.finished) {
+    // Everyone left to move has lapsed: the clients skipped them all and are already in phase 5.
+    const left = alive(table).filter(p => !table.ended4.has(p.team));
+    if (left.length && waited(table, BOT_IDLE_MS) && left.every(p => lapsed(table, p))) return enterPhase(table, table.turn, 5);
+  }
   const limit = table.forceAfter[table.phase] ?? -1;
   if (limit === -1 || table.finished) return;
-  if (Date.now() - table.phaseStart > limit) {
+  if (table.now() - table.phaseStart > limit) {
     if (table.phase === 4) {
       // Turns run in ascending seat number, and players don't join in seat order.
       const cur = alive(table).filter(p => !table.ended4.has(p.team)).sort((x, y) => x.team - y.team)[0];

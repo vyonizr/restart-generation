@@ -223,4 +223,54 @@ for (let n = 0; n < 40; n++) {
 }
 assert.deepEqual([...firstSeats].sort(), [1, 2], 'the first player to join always got the same seat');
 
+// Phase 4: when the player holding the last turn leaves, every client is already in phase 5, so the host follows.
+const left4 = battle.createTable(3, api);
+left4.freeSeats = [1, 2, 3]; // these tables seat players in join order, so m1 plays first
+const [m1, m2, m3] = ['m1', 'm2', 'm3'].map(client);
+let mseq = 0;
+const say = (table, s, sender, type, turn, phase) => fromClient(table, s, { seq: ++mseq, type, sender, turn, phase, body: Buffer.from(new Int32Array([3, 4]).buffer) });
+for (const s of [m1, m2, m3]) { battle.seat(left4, s, api); fromClient(left4, s, join(s.name)); }
+[m1, m2, m3].forEach((s, i) => say(left4, s, i + 1, gm.TYPE.PLACE_TILE, 1, 2));
+say(left4, m1, 1, gm.TYPE.END_TURN_REQUEST, 1, 4); say(left4, m2, 2, gm.TYPE.END_TURN_REQUEST, 1, 4);
+assert.equal(left4.phase, 4, 'm3 still holds the turn');
+battle.leave(left4, left4.players[2], api);
+assert.deepEqual([left4.turn, left4.phase], [1, 5]);
+
+// Phase 4: a team that was silent for a whole turn is skipped by every client, so the host stops waiting for it
+// after a moment instead of holding the table in phase 4 until the forced EndTurn.
+const gap = battle.createTable(3, api);
+gap.freeSeats = [1, 2, 3];
+const [n1, n2, n3] = ['n1', 'n2', 'n3'].map(client);
+for (const s of [n1, n2, n3]) { battle.seat(gap, s, api); fromClient(gap, s, join(s.name)); }
+[n1, n2, n3].forEach((s, i) => say(gap, s, i + 1, gm.TYPE.PLACE_TILE, 1, 2)); // n3 is defeated right after its tile
+say(gap, n1, 1, gm.TYPE.END_TURN_REQUEST, 1, 4); say(gap, n2, 2, gm.TYPE.END_TURN_REQUEST, 1, 4);
+for (const n of [1, 2]) for (let i = 0; i < 2; i++) say(gap, [n1, n2][n - 1], n, gm.TYPE.FIRE_CANNON, 1, 5);
+assert.deepEqual([gap.turn, gap.phase], [1, 5], 'n3 may still owe shots: nothing shows it is defeated yet');
+gap.phaseStart = Date.now() - 51000; battle.tick(gap, api);
+assert.deepEqual([gap.turn, gap.phase], [2, 2]);
+say(gap, n1, 1, gm.TYPE.PLACE_TILE, 2, 2); say(gap, n2, 2, gm.TYPE.PLACE_TILE, 2, 2);
+assert.equal(gap.phase, 4, 'n3 has been silent for a whole turn');
+say(gap, n1, 1, gm.TYPE.END_TURN_REQUEST, 2, 4); say(gap, n2, 2, gm.TYPE.END_TURN_REQUEST, 2, 4);
+battle.tick(gap, api);
+assert.equal(gap.phase, 4, 'n3 just had its turn start');
+gap.phaseStart = Date.now() - 16000; battle.tick(gap, api);
+assert.deepEqual([gap.turn, gap.phase], [2, 5]);
+
+// A person who left turn 1's cannon phase unfinished is presumed defeated, and phase 2 stops waiting for them
+// after 30 s: 3 minutes on a relaxed table would look like a hang.
+const dropout = battle.createTable(3, api, true);
+dropout.freeSeats = [1, 2, 3];
+const [r1, r2, r3] = ['r1', 'r2', 'r3'].map(client);
+for (const s of [r1, r2, r3]) { battle.seat(dropout, s, api); fromClient(dropout, s, join(s.name)); }
+[r1, r2, r3].forEach((s, i) => say(dropout, s, i + 1, gm.TYPE.PLACE_TILE, 1, 2));
+[r1, r2, r3].forEach((s, i) => say(dropout, s, i + 1, gm.TYPE.END_TURN_REQUEST, 1, 4));
+for (const [s, n] of [[r1, 1], [r2, 2]]) for (let i = 0; i < 2; i++) say(dropout, s, n, gm.TYPE.FIRE_CANNON, 1, 5);
+say(dropout, r3, 3, gm.TYPE.FIRE_CANNON, 1, 5); // r3's castle falls to r2's shots after its first
+dropout.phaseStart = Date.now() - 61000; battle.tick(dropout, api);
+assert.deepEqual([dropout.turn, dropout.phase], [2, 2]);
+say(dropout, r1, 1, gm.TYPE.PLACE_TILE, 2, 2); say(dropout, r2, 2, gm.TYPE.PLACE_TILE, 2, 2);
+dropout.phaseStart = Date.now() - 29000; battle.tick(dropout, api);
+assert.equal(dropout.phase, 2, 'waited less than 30 s for r3');
+dropout.phaseStart = Date.now() - 31000; battle.tick(dropout, api);
+assert.equal(dropout.phase, 4, 'r3 is presumed defeated');
 console.log('battle host ok');
