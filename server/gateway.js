@@ -17,7 +17,7 @@ const POLL_HOLD_MS = 15000; // client gives up on long requests after ~40 s
 // POLL_HOLD_MS and the Java client's 40 s resend timeout.
 const IDLE_MS = 45000;
 const DATA_DIR = path.join(__dirname, '..', 'data');
-const ACCOUNTS = path.join(DATA_DIR, 'accounts.json');
+const ACCOUNTS = process.env.RG_ACCOUNTS || path.join(DATA_DIR, 'accounts.json'); // tools/selfplay.mjs keeps its throwaway accounts out of the real file
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 
@@ -291,8 +291,10 @@ const HTTP_PORT = Number(process.env.HTTP_PORT || 8080);
 const WEB_DIR = path.join(__dirname, '..', 'web');
 // RG_GAME: the ResetGeneration folder or the standalone .zip. Without it the page asks players for their own files.
 let gameFiles = {};
-if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => { gameFiles = f; log(`game files from ${process.env.RG_GAME}`); },
-  e => log(`RG_GAME: ${e.message}`));
+if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => {
+  require('./aiprofiles').apply(f); // a bot-ai.json key the game's XML doesn't have stops the server here
+  gameFiles = f; log(`game files from ${process.env.RG_GAME}`);
+}).catch(e => { log(`RG_GAME: ${e.message}`); if (/bot-ai\.json/.test(e.message)) process.exit(1); });
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
 
 http.createServer((req, res) => {

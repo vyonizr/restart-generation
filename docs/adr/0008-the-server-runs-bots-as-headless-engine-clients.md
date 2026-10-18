@@ -8,6 +8,8 @@ In-memory patches (ADR 0007) apply to the bot's engine copy too. Three of them m
 - The battle doesn't end when every player is an AI player, which is what the bot sees right after its own seat joins.
 - The game never reports itself busy. Its busy check waits for visual events that only a local player's battle screen plays back, and the AI doesn't act while the game is busy.
 
+A bot's engine can also run retuned AI profiles, as data in its own copy of `gameplay.pak`; ADR 0010 covers that.
+
 The browser client also gets two patches when the server can run bots: the friendly lobby shows and accepts **Start** for a player alone in the room, who gets bots in every empty seat without being asked. When 2 or 3 people are listed, the page holds the engine's start message, asks "Fill the empty seats with CPU players?" in a box over the game, and sends the answer before the start message goes on. Select answers Yes and Back answers No. Any member who presses **Start** can answer, not only the host. The server tells the page whether to ask, and the page drops the held start if another member started the match meanwhile. With 4 people listed, or on a server that can't run bots, **Start** works as before. The game still lets only a player with at least one friend create a room.
 
 ## Considered options
