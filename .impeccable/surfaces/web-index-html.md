@@ -17,7 +17,7 @@ Decided in "Choose the visual direction": direction B, Stage, dark only.
 
 THESIS: The engine's own 240 × 320 screen is the hero, centred at the largest size that fits one viewport. It refuses the category default: a landing page with a banner, feature cards, and a play button below the fold.
 
-OWN-WORLD: A dark stage, dark only. Ground `#181c26`, footer strip `#282b35`, white text, `#c6cad7` secondary. One crimson, `#a50034`, for fills, buttons, and the 4 px bar under the title, never as body text. Anton uppercase display at line height 0.9, Raleway body, Roboto Mono for the header tag, hero line, and footer. Square corners. Buttons invert to white on hover over 0.2 s. A huge 1 px outlined "RESET GENERATION" ghost sits behind the screen at about 12% opacity.
+OWN-WORLD: A dark stage, dark only. Ground `#181c26`, footer strip `#282b35`, white text, `#c6cad7` secondary. One crimson, `#a50034`, for fills, buttons, and the 4 px bar under the title, never as body text. Anton uppercase display at line height 0.9, Raleway body, Roboto Mono for the header tag, hero line, and footer. Square corners. Buttons invert to white on hover over 0.2 s. A huge 1 px outlined "RESTART GENERATION" ghost sits behind the screen at about 12% opacity.
 
 STORY: A player sees the name, brings their own copy or presses **Start**, and plays without scrolling. The key legend stays in view while they play. The footer says plainly that this is an unofficial fan revival, that the files stay in the browser, and that online play needs a replacement Arena server.
 

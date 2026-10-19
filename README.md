@@ -1,4 +1,4 @@
-# Reset Generation revival server
+# Restart Generation server
 
 A replacement for the dead Nokia N-Gage Arena (SNAP Mobile) backend used by the standalone Java build of Reset Generation (RedLynx, 2009).
 

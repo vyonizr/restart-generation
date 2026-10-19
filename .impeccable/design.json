@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-15T00:00:00Z",
-  "title": "Design System: Reset Generation",
+  "title": "Design System: Restart Generation",
   "extensions": {
     "colorMeta": {
       "crimson": {
@@ -282,7 +282,7 @@
       "kind": "nav",
       "refersTo": "wordmark",
       "description": "Anton wordmark left, mono tag right; no navigation links.",
-      "html": "<header class=\"ds-header\"><span class=\"ds-name\">Reset Generation</span><span class=\"ds-tag\">Unofficial fan revival</span></header>",
+      "html": "<header class=\"ds-header\"><span class=\"ds-name\">Restart Generation</span><span class=\"ds-tag\">Unofficial fan revival</span></header>",
       "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-header{height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:0 48px;background:var(--ink-1);color:#fff;}.ds-name{font:400 26px/1 var(--display);letter-spacing:.02em;text-transform:uppercase;}.ds-tag{font:500 13px/1 var(--mono);color:var(--light-3);}"
     },
     {
@@ -290,7 +290,7 @@
       "kind": "custom",
       "refersTo": "footer",
       "description": "Ink-2 strip with the disclaimer left and notes right, in small mono.",
-      "html": "<footer class=\"ds-footer\"><p><strong>Reset Generation &copy; 2009 RedLynx.</strong> This is an unofficial fan revival.</p><p class=\"ds-notes\">Your files stay in this browser.</p></footer>",
+      "html": "<footer class=\"ds-footer\"><p><strong>Restart Generation</strong> is an unofficial fan revival of Reset Generation &copy; 2009 RedLynx.</p><p class=\"ds-notes\">Your files stay in this browser.</p></footer>",
       "css": ":host{--ink-0:#11141b;--ink-1:#181c26;--ink-2:#282b35;--ink-3:#373b49;--red:#a50034;--light-2:#e2e4ec;--light-3:#c6cad7;--display:'Anton','Arial Narrow',sans-serif;--body:'Raleway',system-ui,sans-serif;--mono:'Roboto Mono',ui-monospace,monospace;}.ds-footer{display:grid;grid-template-columns:1fr auto;gap:48px;align-items:center;padding:16px 48px;background:var(--ink-2);}.ds-footer p{margin:0;font:12px/1.7 var(--mono);color:var(--light-3);}.ds-footer strong{font-weight:500;color:var(--light-2);}.ds-notes{text-align:right;}"
     }
   ],
