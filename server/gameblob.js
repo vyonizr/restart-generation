@@ -151,14 +151,16 @@ function game(s, o) {
   if (s.R) o.f188 = [];
   for (let i = 0; i < 4; i++) s.ints(o.f188, i, i % 2 ? o.mapHeight : o.mapWidth);
   s.bytes(o, 'triggers', s.u32({ n: s.R ? 0 : o.triggers.length }, 'n')); // +0x1c0 "Triggers" data, < 50000
-  // RNG FUN_100f31a0 (read FUN_100f3230 requires the 11): i, j, 11, 11 x u32 lagged-Fibonacci state.
-  s.obj(o, 'rng', r => {
-    s.i32(r, 'i'); s.i32(r, 'j');
-    if (s.i32({ n: 11 }, 'n') !== 11) throw new Error('bad rng size');
-    if (s.R) r.state = [];
-    for (let i = 0; i < 11; i++) s.u32(r.state, i);
-  });
+  s.obj(o, 'rng', r => rngFields(s, r));
   return o;
+}
+
+// RNG FUN_100f31a0 (read FUN_100f3230 requires the 11): i, j, 11, 11 x u32 lagged-Fibonacci state.
+function rngFields(s, r) {
+  s.i32(r, 'i'); s.i32(r, 'j');
+  if (s.i32({ n: 11 }, 'n') !== 11) throw new Error('bad rng size');
+  if (s.R) r.state = [];
+  for (let i = 0; i < 11; i++) s.u32(r.state, i);
 }
 
 const HERO_IDS = { HEDGEHOG: 0, PLUMBER: 1, CYBORG: 2, LEVEL_50_ELF: 3, BABE_GUNNER: 4, MONSTER_TRAINER: 5,
@@ -180,6 +182,9 @@ function seedRng(seed) {
   for (let k = 0; k < 9; k++) rngNext(r);
   return r;
 }
+
+// An RNG as the Game and the snapshot both store it.
+const rngBytes = r => { const s = stream(); rngFields(s, r); return s.done(); };
 
 // Returns the Game object; .size = bytes consumed (buf may hold trailing junk).
 function parseGame(buf) {
@@ -218,4 +223,4 @@ const writeJoinInfo = o => { const s = stream(); joinInfo(s, o); return s.done()
 const writeString = v => { const s = stream(); s.str({ v }, 'v'); return s.done(); };
 
 module.exports = { parseGame, writeGame, parseSnapshot, writeSnapshot, parseJoinInfo, writeJoinInfo, writeHero, writeString,
-  HERO_IDS, hash, seedRng, rngNext };
+  HERO_IDS, hash, seedRng, rngNext, rngBytes };

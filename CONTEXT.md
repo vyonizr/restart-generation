@@ -89,3 +89,11 @@ _Avoid_: turn timer, player timeout
 **Battle template**:
 The starting state of a battle for one level and player count, captured from the engine.
 _Avoid_: map file, level data
+
+**Battle seed**:
+The number that fixes a battle's random events: piece order, item spawns and the choices of bots. Every battle gets its own, so two battles from one battle template don't play out alike.
+_Avoid_: random seed, the seed
+
+**Seat**:
+One player's position in a battle. It fixes the castle, the colour and the place in the turn order, and a battle hands them out at random.
+_Avoid_: slot, player number, team

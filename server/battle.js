@@ -27,21 +27,51 @@ const cannonCount = game => rule(game, 'bools', 'IsNumCannonsEqualToNumPrincesse
   ? -1 : rule(game, 'ints', 'NumberOfCannonsInCastle') ?? -1;
 
 // Templates are rgtrace captures (tools/rgtrace): <name>.game + <name>.snap with one castle per player.
+// The snapshot is opaque except for its copy of the Game's RNG, which every table must reseed too. It is found
+// by its bytes; a template without exactly one such copy isn't understood and is skipped.
+function snapshotRngAt(game, snapshot) {
+  const rng = g.rngBytes(game.rng);
+  const at = snapshot.battlefield.indexOf(rng);
+  if (at < 0 || snapshot.battlefield.indexOf(rng, at + 1) >= 0) throw new Error('the snapshot does not hold the Game RNG exactly once');
+  return at;
+}
+
 function loadTemplates() {
   if (!fs.existsSync(TEMPLATES)) return [];
-  return fs.readdirSync(TEMPLATES).filter(f => f.endsWith('.game')).map(f => {
+  return fs.readdirSync(TEMPLATES).filter(f => f.endsWith('.game')).flatMap(f => {
     const name = f.slice(0, -5);
-    const game = g.parseGame(fs.readFileSync(path.join(TEMPLATES, f)));
-    return { name, game, snap: fs.readFileSync(path.join(TEMPLATES, `${name}.snap`)), seats: game.castles.length };
+    try {
+      const game = g.parseGame(fs.readFileSync(path.join(TEMPLATES, f)));
+      const snapshot = g.parseSnapshot(fs.readFileSync(path.join(TEMPLATES, `${name}.snap`)));
+      return [{ name, game, snapshot, rngAt: snapshotRngAt(game, snapshot), seats: game.castles.length }];
+    } catch (e) {
+      console.warn(`battle template ${name} skipped: ${e.message}`);
+      return [];
+    }
   });
 }
 
-// Game for a fresh online table: no join infos yet (players arrive through the handshake), new seed.
-function tableGame(t, timeLimit) {
+// The Game and snapshot for a fresh online table: no join infos yet (players arrive through the handshake)
+// and a new battle seed, written into both copies of the RNG.
+function tableState(t, timeLimit) {
   const seed = crypto.randomBytes(4).readInt32LE();
   const rng = g.seedRng(seed);
   g.rngNext(rng); // captures hold the seeded state plus one draw
-  return g.writeGame({ ...t.game, timeLimit, randomSeed: seed, rng, playerSlots: t.seats + 1, players: [], slotHeroes: [] });
+  const battlefield = Buffer.from(t.snapshot.battlefield);
+  g.rngBytes(rng).copy(battlefield, t.rngAt);
+  return {
+    seed,
+    game: g.writeGame({ ...t.game, timeLimit, randomSeed: seed, rng, playerSlots: t.seats + 1, players: [], slotHeroes: [] }),
+    snap: g.writeSnapshot({ ...t.snapshot, battlefield }),
+  };
+}
+
+// The seat numbers 1..n in random order. A seat number fixes the castle, the colour (the client uses
+// (team - 1) % 6) and the place in the turn order.
+function shuffledSeats(n) {
+  const seats = Array.from({ length: n }, (_, i) => i + 1);
+  for (let i = n - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [seats[i], seats[j]] = [seats[j], seats[i]]; }
+  return seats;
 }
 
 // ponytail: templates load once; restart the server after importing new ones.
@@ -54,10 +84,12 @@ function createTable(seats, api, relaxed = false) {
   const fit = (templates ??= loadTemplates()).filter(t => t.seats === seats);
   if (!fit.length) { api.log(`no battle template for ${seats} players in data/templates`); return null; }
   const t = fit[crypto.randomInt(fit.length)];
-  api.log(`table uses template ${t.name}${relaxed ? ' without phase time limits' : ''}`);
   const limits = t.game.timeLimit;
+  const { seed, game, snap } = tableState(t, relaxed ? limits.map(() => -1) : limits);
+  api.log(`table uses template ${t.name}, seed ${seed}${relaxed ? ' without phase time limits' : ''}`);
   return {
-    seats, template: t.name, game: tableGame(t, relaxed ? limits.map(() => -1) : limits), snap: t.snap,
+    seats, template: t.name, game, snap,
+    freeSeats: shuffledSeats(seats), // handed out in this order as players send their join info
     players: [],        // { s, index, team, state, lastSeq, seen }
     history: [],        // raw reliable GameMessages, replayed to late joiners (handshake step 4)
     seq: 3, started: false, // server seq continues after the handshake messages (1-3)
@@ -91,9 +123,8 @@ function seat(table, s, api) {
 
 function onJoinInfo(table, p, body, api) {
   const info = g.parseJoinInfo(body.subarray(4));
-  // Step 3: index and team are the lowest free values from 1 (FUN_10023f40, FUN_10024c60).
-  const used = new Set(table.players.map(o => o.team));
-  for (let t = 1; t <= 4; t++) if (!used.has(t)) { p.index = p.team = t; break; }
+  // Step 3: index and team are the next free seat number (FUN_10023f40, FUN_10024c60 hand out the lowest).
+  p.index = p.team = table.freeSeats.shift();
   sendMsg(table, p, { seq: 2, type: gm.TYPE.INIT, body: initBody(Buffer.concat([i32(p.index), i32(p.team)])) }, api);
   // Step 4: snapshot taken before anyone joined, then every reliable message since.
   sendMsg(table, p, { seq: 3, type: gm.TYPE.INIT,
@@ -226,7 +257,8 @@ function tick(table, api) {
   if (limit === -1 || table.finished) return;
   if (Date.now() - table.phaseStart > limit) {
     if (table.phase === 4) {
-      const cur = alive(table).find(p => !table.ended4.has(p.team));
+      // Turns run in ascending seat number, and players don't join in seat order.
+      const cur = alive(table).filter(p => !table.ended4.has(p.team)).sort((x, y) => x.team - y.team)[0];
       if (cur) table.ended4.add(cur.team);
     }
     endTurn(table, api);
