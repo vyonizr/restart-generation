@@ -1,5 +1,5 @@
 ---
-name: Reset Generation
+name: Restart Generation
 description: The original 2009 game, right in your browser (again).
 colors:
   crimson: "#a50034"
@@ -118,7 +118,7 @@ components:
     padding: "16px 48px"
 ---
 
-# Design System: Reset Generation
+# Design System: Restart Generation
 
 ## Overview
 

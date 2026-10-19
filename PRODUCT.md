@@ -39,8 +39,8 @@ The page moves through these states: loading the files, choosing the files, **St
 
 ## Brand Commitments
 
-- Name: Reset Generation. The page is an unofficial fan revival.
-- Required footer text: "Reset Generation © 2009 RedLynx. This is an unofficial fan revival, not affiliated with or endorsed by RedLynx or Ubisoft. Bring your own copy of the game." Plus a credit line for vyonizr and, once it exists, a link to the GitHub repository.
+- Name: Restart Generation. The page is an unofficial fan revival of Reset Generation (RedLynx, 2009); the game keeps its own name.
+- Required footer text: "Restart Generation is an unofficial fan revival of Reset Generation © 2009 RedLynx. It is not affiliated with or endorsed by RedLynx or Ubisoft. Bring your own copy of the game." Plus a credit line for vyonizr and, once it exists, a link to the GitHub repository.
 - No RedLynx or Ubisoft logos, and nothing that reads as an official RedLynx or Ubisoft site.
 
 ## Evidence on Hand
