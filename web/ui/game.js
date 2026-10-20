@@ -50,11 +50,10 @@ export const pressStart = () => onStart?.();
 async function main(canvas) {
   const server = await serverStatus();
   page.server = server;
-  page.ownCopy = !server?.servesGame;
+  page.ownCopy = !server?.servesGame; // set once and kept: a copy this browser stored earlier doesn't bring the notice back
   const accounts = server?.accounts ? createAccounts() : null;
   const accountReady = accounts?.start();
   const files = await loadFiles();
-  page.ownCopy = source !== 'server';
   await accountReady;
   page.status = 'Starting the engine…';
   await new Promise(r => setTimeout(r));

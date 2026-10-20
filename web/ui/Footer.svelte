@@ -1,5 +1,5 @@
-<!-- The disclaimer. "Bring your own copy of the game" and the note about the files appear only where the player brings them: not on a
-     server that sends the game files itself (RG_GAME set), and again if the player ends up with a copy of their own after all. -->
+<!-- The disclaimer. "Bring your own copy of the game" and the note about the files appear only where the player brings them: never on a
+     server that sends the game files itself (RG_GAME set), whatever this browser has stored. -->
 <script>
   import { page } from './page.svelte.js';
 </script>
