@@ -11,7 +11,7 @@ const CAPTURE = path.join(__dirname, '..', 'data', 'capture.log');
 const RANKED_CASINO = 0x12;   // MT type of ranked-casino messages
 const FRIENDLY_CASINO = 0x13; // MT type of friendly-casino messages
 const MAX_SEATS = 4;         // SM_GROOM_MAX_NUM_USERS
-const GATHER_MS = 15000;     // how long a smaller table waits for more players
+const GATHER_MS = Number(process.env.RG_GATHER_MS || 15000); // how long a smaller table waits for more players (tools/selfplay.mjs shortens it)
 const RELAXED_FRIENDLY = process.env.RG_RELAXED_FRIENDLY === '1' || process.argv.includes('--relaxed'); // friendly tables without phase time limits
 
 // Casino action ids (FUN_100994e0).
@@ -152,7 +152,7 @@ function lockPlayer(s, lock, api) {
 // A friendly start with the bot switch on: bots fill every empty seat up to four. The players wait on
 // GAME_STARTING while the bots start, about 15 s. The room closes only once the table starts; if it can't,
 // the players are unlocked back into it.
-function startWithBots(c, players, api) {
+function startWithBots(c, players, level, api) {
   c.starting = true;
   for (const p of players) lockPlayer(p, true, api);
   const fail = list => {
@@ -161,7 +161,7 @@ function startWithBots(c, players, api) {
     for (const b of list) bots.stop(b);
     for (const p of players) if (api.sessions.has(p.sid)) lockPlayer(p, false, api);
   };
-  bots.spawn(MAX_SEATS - players.length, api.log).then(list => {
+  bots.spawn(MAX_SEATS - players.length, api.log, level).then(list => {
     const humans = players.filter(p => api.sessions.has(p.sid)), seated = [...humans, ...list];
     if (!humans.length || seated.length < 2 || !battle.seatCounts().has(seated.length)) return fail(list);
     closeFriendly(c, api);
@@ -170,14 +170,16 @@ function startWithBots(c, players, api) {
 }
 
 // What the page does when a member presses Start in room c (web/snap.js): 'gone' drops the Start because the
-// room can't start, 'ask' puts the bot question to the player when 2 or 3 people are listed, 'go' sends it on.
+// room can't start, 'ask' puts the bot question (no, CPU or Expert) to the player when 2 or 3 people are listed, 'level'
+// asks a player alone which level fills the seats, and 'go' sends the Start on.
 function botChoice(c, canFill) {
   if (!c || c.starting) return 'gone';
   const n = c.lobby.length;
-  return canFill && n > 1 && n < MAX_SEATS ? 'ask' : 'go';
+  if (!canFill || n >= MAX_SEATS) return 'go';
+  return n > 1 ? 'ask' : 'level';
 }
 
-// A player alone always gets bots; with others listed, only if the starter said yes to the question.
+// A player alone always gets bots (CPU level unless the page asked for Expert); with others listed, only if the starter said yes.
 const fillsWithBots = (n, answeredYes, canFill) => canFill && n >= 1 && n < MAX_SEATS && (n === 1 || answeredYes);
 const canFillWithBots = () => bots.available() && battle.seatCounts().has(MAX_SEATS);
 
@@ -263,14 +265,15 @@ function onCasino(s, type, kind, action, body, api) {
     case A.FRIENDLY_START: { // any listed member may start (no host check in the client)
       const c = friendly.get(body.readUInt32LE(0));
       const players = c && !c.starting ? c.lobby.slice(0, MAX_SEATS) : [];
-      const withBots = fillsWithBots(players.length, c && s.fillBots === c.id, canFillWithBots());
+      const answered = Boolean(c) && s.fillBots === c.id, level = answered ? s.botLevel : 'cpu';
+      const withBots = fillsWithBots(players.length, answered, canFillWithBots());
       s.fillBots = 0; // the answer is for this start only
       if (!players.length || (!withBots && (players.length < 2 || !battle.seatCounts().has(players.length)))) {
         return send(s, api, type, Buffer.concat([header(RESPONSE, action), u8(1), u32(0)])); // MATCHMAKING_FAILED
       }
       reply();
-      api.log(`friendly arena ${c.id} starts with ${players.map(p => p.name).join(', ')}${withBots ? ' and bots' : ''}`);
-      if (withBots) return startWithBots(c, players, api);
+      api.log(`friendly arena ${c.id} starts with ${players.map(p => p.name).join(', ')}${withBots ? ` and ${level} bots` : ''}`);
+      if (withBots) return startWithBots(c, players, level, api);
       closeFriendly(c, api);
       return startTable(players, FRIENDLY_CASINO, api);
     }

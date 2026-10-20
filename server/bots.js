@@ -1,11 +1,20 @@
 // Bots for the empty seats of a friendly match (CONTEXT.md "Bot", docs/adr/0008).
 // Each one runs server/bot.mjs in a worker thread and logs in through this server's own HTTP SNAP endpoint
 // with a password only this process knows. Bot accounts live in memory and are never saved.
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { Worker } = require('worker_threads');
 
 const KEY = crypto.randomBytes(12).toString('hex');
+
+// The heroes Expert Bots choose from: [{ hero: 0 to 9, name, why }], the hero's step along the lobby's list (server/bot.mjs).
+function loadHeroes(file = path.join(__dirname, 'bot-heroes.json')) {
+  const list = JSON.parse(fs.readFileSync(file, 'utf8'));
+  for (const h of list) if (!Number.isInteger(h.hero) || h.hero < 0 || h.hero > 9 || !h.why) throw new Error(`bot-heroes.json: ${JSON.stringify(h)} needs a hero from 0 to 9 and a why`);
+  return list;
+}
+const HEROES = loadHeroes();
 const READY_MS = 60000; // a bot that isn't waiting in Quick Match by then is given up
 // ponytail: fixed cap; each bot holds 350 to 410 MB. Make it a setting if hosts differ in memory.
 const MAX_RUNNING = 6;
@@ -26,13 +35,14 @@ function account(name, password) {
 }
 
 // Starts bots named CPU_1..CPU_n, fewer if MAX_RUNNING would be passed. Resolves with the session of each one
-// that reached Quick Match in time.
-function spawn(n, log) {
+// that reached Quick Match in time. The 'expert' level runs the AI profiles of server/bot-ai.json and picks heroes from
+// server/bot-heroes.json (docs/adr/0012); 'cpu' runs the game's own profiles with a random hero.
+function spawn(n, log, level = 'cpu') {
   if (workers.size + n > MAX_RUNNING) log(`${MAX_RUNNING} bots running at most: starting ${Math.max(0, MAX_RUNNING - workers.size)} of ${n}`);
   n = Math.max(0, Math.min(n, MAX_RUNNING - workers.size));
   return Promise.all(Array.from({ length: n }, (_, i) => new Promise(resolve => {
     const id = nextId++, name = `CPU_${i + 1}`;
-    const worker = new Worker(path.join(__dirname, 'bot.mjs'), { workerData: { name, password: `${KEY}:${id}`, url } });
+    const worker = new Worker(path.join(__dirname, 'bot.mjs'), { workerData: { name, password: `${KEY}:${id}`, url, deltas: level === 'expert' ? undefined : [], pool: level === 'expert' ? HEROES.map(h => h.hero) : undefined } });
     workers.set(id, worker);
     const done = s => { clearTimeout(timer); waiting.delete(id); resolve(s); };
     const timer = setTimeout(() => { log(`${name} didn't reach Quick Match`); workers.get(id)?.terminate(); done(null); }, READY_MS);
@@ -47,4 +57,4 @@ const ready = s => waiting.get(idOf(s))?.(s);
 // Stops a bot after its battle, or when it's no longer needed.
 const stop = s => workers.get(idOf(s))?.terminate();
 
-module.exports = { configure, available, account, spawn, ready, stop };
+module.exports = { configure, available, account, spawn, ready, stop, loadHeroes };

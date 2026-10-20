@@ -302,30 +302,39 @@ function loginUI() {
 // The question at a friendly Start with 2 or 3 people in the room: should bots fill the empty seats?
 // Select answers Yes and Back answers No, as in the game; the buttons work too.
 function botPrompt() {
-  const box = document.getElementById('bots-ask'), yes = document.getElementById('bots-yes'), no = document.getElementById('bots-no');
+  const box = document.getElementById('bots-ask'), title = document.getElementById('bots-title');
+  const buttons = { none: document.getElementById('bots-no'), cpu: document.getElementById('bots-cpu'), expert: document.getElementById('bots-expert') };
+  const open = () => Object.values(buttons).filter(b => !b.hidden);
   let done = null;
   const finish = answer => { if (!done) return; const d = done; done = null; box.hidden = true; canvas.inert = false; canvas.focus(); d(answer); };
-  yes.onclick = () => finish(true);
-  no.onclick = () => finish(false);
+  for (const [answer, b] of Object.entries(buttons)) b.onclick = () => finish(answer);
+  // Left and right move between the buttons and Select presses the one in focus, which starts on CPU.
+  const move = step => { const list = open(), i = list.indexOf(document.activeElement); list[Math.max(0, Math.min(list.length - 1, (i < 0 ? list.indexOf(buttons.cpu) : i) + step))].focus(); };
+  const choose = () => (open().includes(document.activeElement) ? document.activeElement : buttons.cpu).click();
   // Captured at the window, so wherever focus is, no key reaches the game's listeners while the box is open.
   // Key-ups still pass, which lets go of the Select that pressed Start.
   addEventListener('keydown', e => {
     if (!done) return;
     e.preventDefault(); e.stopImmediatePropagation();
     if (e.repeat) return;
-    if (e.key === 'Enter' || e.key === 'Control') finish(true);
-    else if (e.key === 'Shift' || e.key === 'Escape') finish(false);
+    if (e.key === 'Enter' || e.key === 'Control') choose();
+    else if (e.key === 'Shift' || e.key === 'Escape') finish('none');
+    else if (e.key === 'ArrowLeft') move(-1);
+    else if (e.key === 'ArrowRight') move(1);
   }, true);
   return {
-    // answer resolves with true, false, or null if close() ends the question
-    ask() {
-      box.hidden = false; canvas.inert = true; yes.focus();
+    // answer resolves with 'none', 'cpu' or 'expert', or null if close() ends the question. A player alone has no 'none' button,
+    // and Back there drops the Start.
+    ask(alone = false) {
+      title.textContent = alone ? 'Choose the CPU level' : 'Fill the empty seats with CPU players?';
+      buttons.none.hidden = alone;
+      box.hidden = false; canvas.inert = true; buttons.cpu.focus();
       return { answer: new Promise(r => { done = r; }), close: () => finish(null) };
     },
-    // The touch pad while the question is open: Select and Back answer it, and no pad key reaches the game.
+    // The touch pad while the question is open: Select, Back, Left and Right answer it, and no pad key reaches the game.
     pad(key) {
       if (!done) return false;
-      if (key === 'select') finish(true); else if (key === 'back') finish(false);
+      if (key === 'select') choose(); else if (key === 'back') finish('none'); else if (key === 'left') move(-1); else if (key === 'right') move(1);
       return true;
     },
   };

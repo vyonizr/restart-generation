@@ -80,6 +80,15 @@ export class GameHost {
   }
   get time() { return this.m.win.now - this.clock0; }
 
+  // Calls fn(cpu) each time the guest reaches the original address `va`, then runs the instruction there as
+  // usual. It only reads: nothing in the engine changes (ADR 0007's patch rules are about writes). Call it
+  // after boot().
+  watch(va, fn) {
+    const cpu = this.m.cpu, at = this.m.addr(va), step = cpu.decode(at);
+    cpu.traps.set(at, c => { fn(c); return step(); });
+    cpu.codeCache[at - cpu.codeBase] = undefined;
+  }
+
   key(down, code, ch = 0xffff, location = 1) {
     const name = down ? '_Java_rg_natives_NativeInputEventListener_onKeyPressed@24' : '_Java_rg_natives_NativeInputEventListener_onKeyReleased@24';
     this.call(name, this.jni.ref(this.input), this.m.win.now | 0, code, ch, location);
