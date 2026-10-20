@@ -19,3 +19,8 @@ export const page = $state({
   onlineName: '',   // "Online as <name>" under Start, once the player has set a name
   dialogs: 0,       // dialogs open; the game screen can't be reached while one is
 });
+
+// What the touch pad drives once the game runs: { game, input, audio, botQuestion }. Raw, so the emulator and its input queue are
+// never wrapped in reactive proxies.
+class Slot { current = $state.raw(null); }
+export const padSession = new Slot();
