@@ -319,7 +319,7 @@ if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame())
   require('./aiprofiles').apply(f); // a bot-ai.json key the game's XML doesn't have stops the server here
   gameFiles = f; log(`game files from ${process.env.RG_GAME}`);
 }).catch(e => { log(`RG_GAME: ${e.message}`); if (/bot-ai\.json/.test(e.message)) process.exit(1); });
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
 
 http.createServer((req, res) => {
   const parsed = new URL(req.url, 'http://x');
@@ -352,7 +352,7 @@ http.createServer((req, res) => {
   }
   let file;
   if (url === '/') file = path.join(DIST_DIR, 'index.html');
-  else if (/^\/(?:[\w-]+\/)*[\w.-]+\.(?:js|css|html|woff2|mp4|svg)$/.test(url)) file = path.join(DIST_DIR, url);
+  else if (/^\/(?:[\w-]+\/)*[\w.-]+\.(?:js|css|html|woff2|mp4|svg|png|ico)$/.test(url)) file = path.join(DIST_DIR, url);
   if (url === '/' && !fs.existsSync(file)) { res.writeHead(503, { 'Content-Type': 'text/plain' }); return res.end('The page is not built yet. Run `npm run build` (after `npm install`), then reload.'); }
   if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
   // Build output under assets/ has a hash in its name, so it never changes; everything else is checked on every load.
