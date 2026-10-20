@@ -31,7 +31,6 @@
   .page { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; overflow: clip; }
   header { position: relative; z-index: 1; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 48px; }
   .name { font: 400 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
-  .tag { font: 500 13px/1 var(--mono); color: var(--light-3); }
   .ghost { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 400 23vw/.82 var(--display); text-transform: uppercase; text-align: center;
     color: transparent; -webkit-text-stroke: 1px rgb(255 255 255 / 12%); white-space: nowrap; pointer-events: none; user-select: none; }
   main { position: relative; min-height: 0; display: grid; place-content: center; justify-items: center; gap: 18px; padding: 0 48px 24px; }
@@ -96,7 +95,6 @@
   }
   @media (max-width: 759px) {
     header { height: 64px; padding: 0 16px; }
-    .tag { display: none; }
     .ghost { font-size: 34vw; }
     main { padding: 24px 16px 48px; }
     footer { grid-template-columns: 1fr; gap: 12px; padding: 32px 16px; }
@@ -148,7 +146,7 @@
 </head>
 <body>
 <div class="page">
-  <header><h1 class="name">Restart Generation</h1><span class="tag">Unofficial fan revival</span></header>
+  <header><h1 class="name">Restart Generation</h1></header>
   <span class="ghost" aria-hidden="true">Restart<br>Generation</span>
   <main>
     <div class="screen">
