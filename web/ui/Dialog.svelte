@@ -16,7 +16,7 @@
       // Once the game screen is reachable again (it is inert while a dialog is open).
       tick().then(() => {
         if (returnTo && returnTo !== document.body && returnTo.isConnected && !returnTo.closest('[hidden]')) returnTo.focus();
-        else document.getElementById(document.getElementById('overlay').hidden ? 'screen' : 'start').focus();
+        else document.getElementById(page.overlay ? 'start' : 'screen').focus();
       });
     };
   });

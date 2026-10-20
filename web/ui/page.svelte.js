@@ -1,5 +1,14 @@
 // What the components draw. Plain code (the account, the game loop) changes these fields; the components never fetch or decide.
 export const page = $state({
+  status: 'Loading game files…', // the overlay's line: what the page is doing
+  overlay: true,    // the overlay covers the game screen until Start, and again after a failure
+  pick: false,      // asking the player for their game files
+  start: false,     // the Start button is ready
+  recover: false,   // a failure: offer Reload
+  forgettable: false, // and, if the stored copy may be at fault, a different copy
+  playing: false,   // the game is running
+  ownCopy: false,   // the player brings their own game files (the footer says so)
+  slow: null,       // text of the slow-device notice, once shown
   server: null,     // GET /status, or null on a static host
   who: null,        // { name, member, level } once the account is open
   notice: null,     // { text, actions: [{ label, run, secondary }] }: the line under the screen
