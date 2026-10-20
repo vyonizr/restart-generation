@@ -126,7 +126,11 @@ BIND=127.0.0.1
 # RG_PUBLIC_URL=https://play.example.com
 ```
 
-Then run `docker compose up -d --build` and open `http://localhost:8080/`. The container keeps accounts and battle templates in `./data`, so create that folder and put your captured templates in it before the first start.
+Then run `docker compose up -d --build` and open `http://localhost:8080/`. The container keeps accounts and battle templates in `./data`, so create that folder and put your captured templates in it before the first start: without one the container exits with a message (see [Battle templates](#battle-templates)), and `restart: unless-stopped` then keeps retrying. The folder is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. On a Linux host, create it yourself and make it writable by the container's user (uid 1000), or Docker creates it owned by root and the server stops with `EACCES: permission denied, mkdir '/app/data'`:
+
+```sh
+mkdir -p data && sudo chown 1000:1000 data
+```
 
 - **Local or LAN:** set `RG_GAME_PATH`. The server serves the game files and runs bots. For LAN play, set `BIND=0.0.0.0`.
 - **Public:** set `BIND=0.0.0.0`. With `RG_GAME_PATH` empty, the server serves no game files, so each player chooses their own copy (see [Host the page without the game files](#host-the-page-without-the-game-files)); that is the project's default (ADR 0001). If you set `RG_GAME_PATH`, the server sends that copy to every visitor, which is your decision and your risk. A public server never runs bots, with or without it.
@@ -135,7 +139,7 @@ The container serves plain HTTP. For a public server, put a reverse proxy or tun
 
 ## Battle templates
 
-Online battles don't work without templates. The server hosts every battle from a level template captured from the game engine, stored in `data/templates/` as `<name>.game` and `<name>.snap` pairs. Matchmaking waits until a template with one castle per seat exists, and the server logs `no battle template for N players in data/templates`. The templates stay out of the repository and the Docker image because they derive from the game (ADR 0001), so a fresh clone, a rebuilt container or a new server has none until you restore or capture them.
+Online battles don't work without templates. A `--public` server (which the Docker image runs) refuses to start when `data/templates/` holds no usable template, and prints why. Any other server starts and warns, since the page and single-player play don't need them. Whatever the mode, the server also warns for each player count (2, 3 or 4) that has no template: matches of that size won't start, and without a 4-player template CPU players can't fill a room. The server hosts every battle from a level template captured from the game engine, stored in `data/templates/` as `<name>.game` and `<name>.snap` pairs. Matchmaking waits until a template with one castle per seat exists, and the server logs `no battle template for N players in data/templates`. The templates stay out of the repository and the Docker image because they derive from the game (ADR 0001), so a fresh clone, a rebuilt container or a new server has none until you restore or capture them.
 
 To capture one on Windows:
 

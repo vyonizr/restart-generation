@@ -273,6 +273,17 @@ const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, li
 module.exports = { staleSessions, lanAddresses, handle, db };
 if (require.main !== module) return; // tests import the module without starting the servers
 
+// Online battles are hosted from captured templates (ADR 0006). A public server without one would let players queue for matches
+// that never start, so it refuses to start. Any other server only warns: the page and single-player play don't need templates.
+const seatCounts = require('./battle').seatCounts();
+if (!seatCounts.size) {
+  const why = 'no usable battle template in data/templates, so no online battle can start (README: "Battle templates")';
+  if (MODE.public) { console.error(`Refusing to start a --public server: ${why}`); process.exitCode = 1; return; }
+  log(`Warning: ${why}`);
+} else {
+  for (const n of [2, 3, 4]) if (!seatCounts.has(n)) log(`No battle template for ${n} players: ${n}-player matches won't start${n === 4 ? ", and CPU players can't fill empty seats" : ''}`);
+}
+
 net.createServer(sock => {
   const addr = `${sock.remoteAddress}:${sock.remotePort}`;
   log('connect', addr);
