@@ -32,7 +32,7 @@ const setup = (over = {}) => {
   const live = new Set(), removed = [];
   const who = { id: 'd1', username: 'Cool User!' };
   const auth = createAuth({
-    store, config, fameLevel: acc => 1 + Math.floor(acc.stats.fame / 100), now: () => clock,
+    store, config, now: () => clock,
     busy: id => live.has(id), remove: acc => removed.push(acc.name),
     discord: { authorizeUrl: s => `https://discord.test/authorize?state=${s}`, identify: async () => who },
   });
@@ -209,7 +209,7 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
   assert.deepStrictEqual(store.saves(packed), []);
 
   // Without a Discord application there is no /auth at all.
-  const off = createAuth({ store: open(':memory:'), config: configFrom({}), fameLevel: () => 1, busy: () => false, remove() {} });
+  const off = createAuth({ store: open(':memory:'), config: configFrom({}), busy: () => false, remove() {} });
   assert.strictEqual((await call(off, 'POST', '/auth/guest')).code, 404);
   assert.strictEqual(off.enabled, false);
 

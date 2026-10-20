@@ -39,7 +39,7 @@ function notice(text, actions = []) {
 }
 const dismiss = [['Dismiss', null, true]];
 
-const render = () => { page.who = { name: account.name, member: account.member, level: account.level }; };
+const render = () => { page.who = { name: account.name, member: account.member }; };
 
 export const actions = {
   async signin() {
@@ -100,7 +100,7 @@ async function start() {
   else if (returned) await finishSignIn(returned[2]); // the account must be final before the saved game is settled
 }
 
-// While the engine runs: keep the header's level current, and after a guest earns fame offer them the account, once a day.
+// While the engine runs: refresh the account, and after a guest earns fame offer them the account, once a day.
 function watch() {
   playing = true;
   let seen = account.fame;

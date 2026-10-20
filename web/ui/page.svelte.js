@@ -11,7 +11,7 @@ export const page = $state({
   slow: null,       // text of the slow-device notice, once shown
   server: null,     // GET /status, or null on a static host
   online: null,     // players online, or null when there is no server to ask
-  who: null,        // { name, member, level } once the account is open
+  who: null,        // { name, member } once the account is open
   notice: null,     // { text, actions: [{ label, run, secondary }] }: the line under the screen
   nameDialog: null, // { value, error }: the member's name, after Discord sends them back
   confirm: null,    // { title, text, yes, no }: a yes/no question over the game screen

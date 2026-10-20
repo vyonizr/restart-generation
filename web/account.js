@@ -13,7 +13,7 @@ export class AccountError extends Error {
 export class Account {
   constructor({ fetch: fetchFn = (...a) => fetch(...a), storage = localStorage } = {}) {
     this.fetch = fetchFn; this.storage = storage;
-    this.name = ''; this.token = ''; this.kind = 'guest'; this.fame = 0; this.level = 1;
+    this.name = ''; this.token = ''; this.kind = 'guest'; this.fame = 0;
   }
 
   get member() { return this.kind === 'member'; }
@@ -33,7 +33,7 @@ export class Account {
     return { status: res.status, json };
   }
 
-  #adopt({ name, kind, fame, level }) { Object.assign(this, { name, kind, fame, level }); }
+  #adopt({ name, kind, fame }) { Object.assign(this, { name, kind, fame }); }
 
   // The account this browser holds: the saved one if the server still knows it, otherwise a new guest.
   async open() {
@@ -55,11 +55,11 @@ export class Account {
     if (r.status !== 200) throw new AccountError('failed');
     this.token = r.json.token;
     this.#write({ name: r.json.name, token: r.json.token });
-    this.#adopt({ name: r.json.name, kind: 'guest', fame: 0, level: 1 });
+    this.#adopt({ name: r.json.name, kind: 'guest', fame: 0 });
     return this;
   }
 
-  // Reads fame and level again, e.g. after a match. False if the server no longer knows the account.
+  // Reads fame again, e.g. after a match. False if the server no longer knows the account.
   async refresh() {
     const r = await this.#call('GET', '/auth/me');
     if (r.status !== 200) return false;

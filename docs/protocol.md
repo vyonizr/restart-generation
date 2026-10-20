@@ -257,7 +257,7 @@ With Discord sign-in on (otherwise `/auth/*` is 404), a token travels as `Author
 | Request | Reply |
 | --- | --- |
 | `POST /auth/guest` | `{ name, token }` for a new guest. 429 when the client address made too many in the last hour, 503 when the server holds its cap. |
-| `GET /auth/me` | `{ name, kind, fame, level }`, 401 for an unknown or expired token. Using a member's token pushes its expiry out to 90 days. |
+| `GET /auth/me` | `{ name, kind, fame }`, 401 for an unknown or expired token. Using a member's token pushes its expiry out to 90 days. |
 | `POST /auth/discord/start` | `{ url }`, the Discord page. A guest's token binds that guest to the sign-in. |
 | `GET /auth/discord/callback` | Where Discord returns. Redirects to `/#signin=<code>` or `/#signin-error=<reason>`. |
 | `POST /auth/exchange { code }` | `{ status: 'name', suggested }`, `{ status: 'confirm', name, guestFame }`, or `{ status: 'done', name, token }`. 404 when the code is unknown or older than 10 minutes. |

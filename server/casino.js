@@ -356,7 +356,7 @@ function onMessage(s, msg, api) {
 }
 
 module.exports = {
-  botChoice, fillsWithBots, fameLevel,
+  botChoice, fillsWithBots,
   waiting: () => queue.length, // players waiting in the ranked Quick Match
   botQuestion: id => botChoice(friendly.get(id), canFillWithBots()),
   onPacket(s, data, api) {
