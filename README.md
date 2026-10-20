@@ -7,11 +7,11 @@ Status: the game runs in the browser. The original engine (a 32-bit Windows DLL)
 ## Play in the browser
 
 1. Set `RG_GAME` to your copy of the game: either `ResetGeneration-Standalone.zip` or the extracted `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files).
-2. Run `node server/gateway.js`.
+2. Run `npm install` once, then `npm start`. The first start builds the page into `web/dist` (ADR 0013); after you change anything in `web/`, rebuild it with `npm run build`.
 3. Open `http://localhost:8080/` and press **Start**.
 
 ```sh
-RG_GAME="D:/Downloads/ResetGeneration-Standalone.zip" node server/gateway.js
+RG_GAME="D:/Downloads/ResetGeneration-Standalone.zip" npm start
 ```
 
 If you don't set `RG_GAME`, the page asks for the game files instead, as described in [Host the page without the game files](#host-the-page-without-the-game-files). The dev tools in `web/tools` read the game from `RG_GAME` too.
@@ -22,7 +22,7 @@ The server sends the game files to the browser, so serve only a copy you own. To
 
 ### Host the page without the game files
 
-If the page's host has no game files at `game/` (for example, `web/` deployed to a static host), the page asks each player to choose their own copy of the game: `ResetGeneration-Standalone.zip`, or the extracted `ResetGeneration` folder or the folder above it. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser. The files never leave the player's computer.
+If the page's host has no game files at `game/` (for example, `web/dist/`, from `npm run build`, deployed to a static host), the page asks each player to choose their own copy of the game: `ResetGeneration-Standalone.zip`, or the extracted `ResetGeneration` folder or the folder above it. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser. The files never leave the player's computer.
 
 Players need the files of the Windows standalone build. The emulator runs `ResetGeneration-Win32-Web.dll` and can't run the Mac library `libResetGenerationMacApplet.dylib`, but it runs in any desktop browser on any operating system.
 
@@ -33,7 +33,7 @@ A phone, tablet or other computer on the same network can play the game that you
 1. Run the server with `--lan`:
 
    ```sh
-   RG_GAME="D:/Downloads/ResetGeneration-Standalone.zip" node server/gateway.js --lan
+   RG_GAME="D:/Downloads/ResetGeneration-Standalone.zip" npm run start:lan
    ```
 
    The server prints one `http://<address>:8080/` line per network address, labelled with the network's name.
@@ -53,9 +53,17 @@ Phones and tablets play in portrait, with a touch pad under the game screen; a k
 
 ## Run the server
 
-Requires Node.js 22.13 or later, for the built-in `node:sqlite`. The project has no npm dependencies, on purpose, so there's nothing to install.
+Requires Node.js 22.13 or later, for the built-in `node:sqlite`. The server and the emulator have no npm dependencies, on purpose, so they run with nothing installed. Only building the page needs `npm install` (Vite and Svelte, ADR 0013). The built page is `web/dist`, which the server serves and a static host can take as it is.
 
-To use npm scripts instead, put `RG_GAME=<path>` in a `.env` file in the repo root, then run `npm start` (or `npm run start:lan` for `--lan`), `npm run dev` to restart on file changes, and `npm test` for the self-checks that need no local data.
+Run `npm install` once, put `RG_GAME=<path>` in a `.env` file in the repo root, then use these npm scripts:
+
+- `npm start`, or `npm run start:lan` for `--lan`: starts the server. If `web/dist` is missing it builds the page first, and if Vite is not installed it tells you to run `npm install`.
+- `npm run build`: rebuilds the page after you change anything in `web/`.
+- `npm run dev:web`: serves the page with hot reload while a gateway runs. It forwards `/snap`, `/status`, `/auth`, `/bots` and `/game` to port 8080 (or `HTTP_PORT`).
+- `npm run dev`: restarts the server on file changes.
+- `npm test`: the self-checks that need no local data and no built page.
+
+To start the server alone, once the page is built:
 
 ```sh
 node server/gateway.js
@@ -105,7 +113,7 @@ The page also shows how many players are online and waiting for a match (`GET /s
 
 ## Run in Docker
 
-`compose.yaml` builds and runs the server in a container. The image doesn't contain the game files (ADR 0001). To set it up, create a `.env` file in the repo root:
+`compose.yaml` builds and runs the server in a container. The image doesn't contain the game files (ADR 0001), and it builds the page in a first build stage, so it holds no `node_modules`. To set it up, create a `.env` file in the repo root:
 
 ```sh
 # Your copy of the game: the .zip or the extracted folder. Start a relative path with ./
