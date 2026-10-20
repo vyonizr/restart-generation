@@ -2,8 +2,9 @@
      Keyboard and Fullscreen icons (DESIGN.md, "One thumb"). Shown on touch devices only. pad.js does the pointer handling once the
      game is running. The hidden typing field raises the system keyboard; the hidden video keeps the screen on (wake.js). -->
 <script>
-  import { padSession } from './page.svelte.js';
+  import { page, padSession } from './page.svelte.js';
   import { bindPad, canFullscreen, toggleFullscreen } from './pad.js';
+  import { toggleFinish } from './finish.js';
   import { wakeVideo } from './wake.js';
 
   let pad = $state(), typing = $state(), typeButton = $state();
@@ -25,6 +26,7 @@
     <button data-key="select" class="select" aria-label="Select, hold to drop">Select</button>
     <button data-key="back" class="back" aria-label="Back">Back</button>
     <button id="type" class="small" aria-label="Keyboard" bind:this={typeButton}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM6.5 9.5h1M10.5 9.5h1M14.5 9.5h1M17.5 9.5h.5M6.5 12.5h1M10.5 12.5h1M14.5 12.5h1M17.5 12.5h.5M8 15.5h8"/></svg></button>
+    <button id="finish" class="small finish" aria-label="Soft screen" aria-pressed={page.finish === 'soft'} onclick={toggleFinish}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM9.33 4v16M14.67 4v16M4 9.33h16M4 14.67h16"/></svg></button>
     <button id="fullscreen" class="small" aria-label="Fullscreen" hidden={!canFullscreen() || !padSession.current} onclick={toggleFullscreen}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
   </div>
   <p class="pad-hint">Hold Select to drop a block</p>

@@ -66,6 +66,10 @@ _Avoid_: applet, launcher
 The web page that runs the original engine in an emulator and connects it to Arena.
 _Avoid_: web version, port
 
+**Screen finish**:
+How the browser client shows the game screen: soft, with the pixels smoothed and a faint pixel grid like a 2008 phone's display, or sharp, as the engine drew them. It's on by default and a player's choice, kept in their browser. It changes only how the screen looks, never what the engine draws.
+_Avoid_: filter, shader, CRT mode, retro mode
+
 **Touch device**:
 A phone or tablet whose main input is a finger; it plays the browser client with the touch pad.
 _Avoid_: mobile, handheld
