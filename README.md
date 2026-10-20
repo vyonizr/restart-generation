@@ -16,7 +16,7 @@ RG_GAME="D:/Downloads/ResetGeneration-Standalone.zip" node server/gateway.js
 
 If you don't set `RG_GAME`, the page asks for the game files instead, as described in [Host the page without the game files](#host-the-page-without-the-game-files). The dev tools in `web/tools` read the game from `RG_GAME` too.
 
-Controls: arrow keys move, **Ctrl** or **Enter** selects (hold to drop a block), **Shift** goes back, **Esc** opens the menu. On a phone or tablet, the touch pad under the game screen does the same: the D-pad moves, **Select** selects (hold to drop a block), **Back** goes back, **Menu** opens the menu, and **Keyboard** raises the device's keyboard for typing. To play online, choose **Online** in the main menu. The first time you go online, the page asks you to set your name. It starts as a random guest name (such as `Guest123456`), and a new name is registered on first login. The page keeps your name in the browser's local storage, so your stats carry over between visits. There are no passwords: to keep your stats in another browser, enter the same name. Anyone can enter any name, and a second login with a name drops the first. To pick another name, choose **Change name** under **Start**; a new name starts with fresh stats. Names such as `CPU_1` are reserved for bots. Settings and achievements are also kept in local storage.
+Controls: arrow keys move, **Ctrl** or **Enter** selects (hold to drop a block), **Shift** goes back, **Esc** opens the menu. On a phone or tablet, the touch pad under the game screen does the same: the D-pad moves, **Select** selects (hold to drop a block), **Back** goes back, **Menu** opens the menu, and **Keyboard** raises the device's keyboard for typing. To play online, choose **Quick Match** or **Online** in the main menu. On a server with Discord sign-in you play as a guest at once, with no form (see [Guests and members](#guests-and-members)). On any other server, such as a local or LAN one, the first time you go online the page asks you to set your name. It starts as a random guest name (such as `Guest123456`), and a new name is registered on first login. The page keeps your name in the browser's local storage, so your stats carry over between visits. There are no passwords: to keep your stats in another browser, enter the same name. Anyone can enter any name, and a second login with a name drops the first. To pick another name, choose **Change name** under **Start**; a new name starts with fresh stats. Names such as `CPU_1` are reserved for bots. Settings and achievements are also kept in local storage.
 
 The server sends the game files to the browser, so serve only a copy you own. To let other devices and people play, run the server with `--lan`, as described in [Play on other devices](#play-on-other-devices).
 
@@ -53,15 +53,15 @@ Phones and tablets play in portrait, with a touch pad under the game screen; a k
 
 ## Run the server
 
-Requires Node.js 18 or later. The project has no npm dependencies, on purpose, so there's nothing to install.
+Requires Node.js 22.13 or later, for the built-in `node:sqlite`. The project has no npm dependencies, on purpose, so there's nothing to install.
 
-To use npm scripts instead, put `RG_GAME=<path>` in a `.env` file in the repo root, then run `npm start` (or `npm run start:lan` for `--lan`), `npm run dev` to restart on file changes, and `npm test` for the self-checks that need no local data. The npm scripts need Node.js 22.9 or later.
+To use npm scripts instead, put `RG_GAME=<path>` in a `.env` file in the repo root, then run `npm start` (or `npm run start:lan` for `--lan`), `npm run dev` to restart on file changes, and `npm test` for the self-checks that need no local data.
 
 ```sh
 node server/gateway.js
 ```
 
-The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](#play-on-other-devices)). To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in `data/accounts.json`.
+The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](#play-on-other-devices)). To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in `data/accounts.db`, a SQLite database (ADR 0010). A `data/accounts.json` from an older version is not read, and its players register again. To back up the database while the server runs, use `sqlite3 data/accounts.db "VACUUM INTO 'backup.db'"`; copying the file mid-write is not safe.
 
 To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and the server ends a phase only after 3 minutes (1 minute for cannon shots) if someone stops playing. Ranked matches keep the 20 s limit.
 
@@ -71,13 +71,37 @@ Self-checks:
 
 ```sh
 node server/snap.test.js
+node server/store.test.js
+node server/auth.test.js
 node server/gateway.test.js
+node server/gateway.auth.test.js
 node server/bots.test.js
 node server/battle.test.js
 node server/gameblob.test.js
 ```
 
 `battle.test.js` needs a battle template, and `gameblob.test.js` needs raw captures in `RG_CAPTURES`.
+
+## Guests and members
+
+By default a name is the whole identity (ADR 0009), which suits a local or LAN server. A public server can turn on guests and members (ADR 0011) by registering a Discord application at <https://discord.com/developers/applications>, adding `<RG_PUBLIC_URL>/auth/discord/callback` as its redirect, and setting these environment variables (they all go in `.env` for `npm start` and Docker):
+
+| Variable | Meaning |
+| --- | --- |
+| `RG_DISCORD_CLIENT_ID`, `RG_DISCORD_CLIENT_SECRET` | The Discord application. Sign-in asks for the `identify` scope only. |
+| `RG_PUBLIC_URL` | The address players use, such as `https://play.example.com`, with no path. All three above are needed. |
+| `RG_DISCORD_INVITE` | Optional. Your community's `https://discord.gg/...` link, which the page shows as "Join the Discord". |
+| `RG_TRUST_PROXY` | Set to `1` behind one reverse proxy, so the limit on new guests uses the client address the proxy appends to `X-Forwarded-For`. Leave it unset otherwise: anyone can forge that header. |
+| `RG_GUESTS_PER_IP_HOUR` | New guests one address can make per hour. Default 10. |
+| `RG_GUEST_CAP` | Guest accounts the server holds at once. Default 5000. |
+
+With all three set, every player is a guest or a member:
+
+- A **guest** is created on the first visit, with no form, and holds a secret token in the browser. It is wiped 24 hours after its last activity, together with its fame, stats and friends. Guests play everything, ranked included, but only members appear in the rankings.
+- A **member** signs in with Discord, picks an in-game name once (letters, numbers and `_`, up to 15; it can't be changed), and keeps the account until they choose **Delete my account**. A guest who signs in keeps what it earned. If the Discord account already has a player, that player wins and the guest's progress is dropped, after a confirmation. The server stores the Discord ID and the name, never an email.
+- The Java client can't send a token, so on such a server it is refused. It still works on servers without Discord sign-in.
+
+The page also shows how many players are online and waiting for a match (`GET /status`). A public server runs no bots (see below), so a quiet server means a wait.
 
 ## Run in Docker
 
@@ -88,6 +112,10 @@ node server/gameblob.test.js
 RG_GAME_PATH=./ResetGeneration-Standalone.zip
 # Who can connect. 127.0.0.1 (default) is this PC only; 0.0.0.0 is your network or the internet.
 BIND=127.0.0.1
+# Optional: guests and members (see Guests and members). Leave them out for name-only login.
+# RG_DISCORD_CLIENT_ID=
+# RG_DISCORD_CLIENT_SECRET=
+# RG_PUBLIC_URL=https://play.example.com
 ```
 
 Then run `docker compose up -d --build` and open `http://localhost:8080/`. The container keeps accounts and battle templates in `./data`, so create that folder and put your captured templates in it before the first start.
@@ -95,7 +123,7 @@ Then run `docker compose up -d --build` and open `http://localhost:8080/`. The c
 - **Local or LAN:** set `RG_GAME_PATH`. The server serves the game files and runs bots. For LAN play, set `BIND=0.0.0.0`.
 - **Public:** leave `RG_GAME_PATH` empty and set `BIND=0.0.0.0`. The server then serves no game files and runs no bots, so each player chooses their own copy (see [Host the page without the game files](#host-the-page-without-the-game-files)).
 
-The container serves plain HTTP. For a public server, put a reverse proxy or tunnel in front of port 8080 that provides HTTPS, which the page needs for features such as screen wake lock, and that waits more than 15 s for a response, because the server holds `retrieveAllEvents` requests for up to 15 s (ADR 0004). Anyone can log in as any name and drop that player's session (ADR 0009). Each bot needs about 400 MB of memory.
+The container serves plain HTTP. For a public server, put a reverse proxy or tunnel in front of port 8080 that provides HTTPS, which the page needs for features such as screen wake lock, and that waits more than 15 s for a response, because the server holds `retrieveAllEvents` requests for up to 15 s (ADR 0004). Without Discord sign-in, anyone can log in as any name and drop that player's session (ADR 0009), so turn it on for a public server (see [Guests and members](#guests-and-members)). Each bot needs about 400 MB of memory.
 
 ## Battle templates
 

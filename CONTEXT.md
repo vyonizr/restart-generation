@@ -10,6 +10,24 @@ A revival of Reset Generation (RedLynx, 2009) that restores its shut-down online
 The revival as the public sees it, named Restart Generation. The game it revives stays Reset Generation, including in the copyright line and wherever the page names RedLynx's 2009 title.
 _Avoid_: Reset Generation (for the site), the port, the app
 
+### Players
+
+**Account**:
+The record the server keeps for one player: name, fame, stats, achievements and friends. Every online player has one.
+_Avoid_: profile, user, login
+
+**Guest**:
+A player with a temporary account and no sign-in. The account is wiped 24 hours after its last activity, taking its fame, stats and friends with it, and the name is freed. A guest plays everything a member does but stays out of the global rankings.
+_Avoid_: anonymous user, unregistered user, visitor
+
+**Member**:
+A player whose account is tied to a sign-in and stays.
+_Avoid_: registered user, logged-in user, account holder
+
+**Fame**:
+The score a player earns by winning ranked matches. Its level, the fame level, is what the game shows beside a name.
+_Avoid_: XP, rating, points
+
 ### Online services
 
 **Arena**:

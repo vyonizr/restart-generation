@@ -9,6 +9,8 @@ const crypto = require('crypto');
 const { FRAME, readFrames, frame, parseRequest, ok, err, b64 } = require('./snap');
 const gameServer = require('./casino');
 const bots = require('./bots');
+const store = require('./store');
+const { configFrom, createAuth } = require('./auth');
 
 const PORT = Number(process.env.PORT || 8976);
 const HOST = process.argv.includes('--lan') ? undefined : '127.0.0.1';
@@ -17,14 +19,12 @@ const POLL_HOLD_MS = 15000; // client gives up on long requests after ~40 s
 // POLL_HOLD_MS and the Java client's 40 s resend timeout.
 const IDLE_MS = 45000;
 const DATA_DIR = path.join(__dirname, '..', 'data');
-const ACCOUNTS = path.join(DATA_DIR, 'accounts.json');
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 
-// ponytail: accounts in one JSON file, move to SQLite if the player count grows.
+// Accounts (ADR 0010). RG_DB overrides the file; tests use ':memory:'.
 fs.mkdirSync(DATA_DIR, { recursive: true });
-const accounts = fs.existsSync(ACCOUNTS) ? JSON.parse(fs.readFileSync(ACCOUNTS, 'utf8')) : {};
-const saveAccounts = () => fs.writeFileSync(ACCOUNTS, JSON.stringify(accounts, null, 1));
+const db = store.open(process.env.RG_DB || path.join(DATA_DIR, 'accounts.db'));
 
 const LOBBY = { id: '1', name: 'resgen' };
 const sessions = new Map(); // sid -> session
@@ -34,32 +34,41 @@ let nextRoomId = 1;
 rooms.set('0', { id: '0', name: 'CasinoSystem', max: 100000, members: new Set(), permanent: true });
 const replies = new Map();  // "<S|addr>:<R>" -> cached response, for client retransmits
 
-// A name is the whole identity: no password. Anyone can log in as any name, and that drops the name's other session.
+const authConfig = configFrom(process.env);
+const auth = createAuth({
+  store: db, config: authConfig, fameLevel: gameServer.fameLevel, log,
+  busy: id => [...sessions.values()].some(s => s.userId === id),
+  remove: acc => { for (const s of [...sessions.values()]) if (s.userId === acc.id) dropSession(s); },
+});
+
+// Without Discord a name is the whole identity: no password. Anyone can log in as any name, and that drops the name's other
+// session (ADR 0009). With Discord, the password slot carries the guest's or member's token (ADR 0011).
+// Returns null when the login is refused.
 function login(name, password) {
-  const key = name.toLowerCase();
-  let acc = bots.account(name, password) || accounts[key]; // a bot's account is never saved
-  if (!acc) { // First login registers the name, as the original web sign-up page did.
-    acc = accounts[key] = { id: String(Object.keys(accounts).length + 1), name };
-    saveAccounts();
-    log('registered', name);
+  let acc = bots.account(name, password); // a bot's account is never saved
+  if (!acc && auth.enabled) acc = auth.login(name, password);
+  else if (!acc) { // First login registers the name, as the original web sign-up page did.
+    acc = db.byName(name);
+    if (!acc) { acc = db.create(name, 'named', Date.now()); log('registered', name); }
   }
+  if (!acc) return null;
+  db.touch(acc, Date.now());
   for (const s of sessions.values()) if (s.userId === acc.id) dropSession(s); // ANOTHER_LOGIN
   const s = { sid: crypto.randomBytes(12).toString('hex'), userId: acc.id, name: acc.name, account: acc, room: null, events: [], poll: null, lastSeen: Date.now() };
   sessions.set(s.sid, s);
   return s;
 }
 
-// Buddy list (SNAP IMPS). acc.friends maps a lowercased name to 'to' (we asked), 'from' (they asked)
+// Buddy list (SNAP IMPS). A link says what one account sees of another: 'to' (it asked), 'from' (it was asked)
 // or 'both'. The client turns 302 rows and 307 presence events into its friend list (FriendListCache).
-const accountOf = name => accounts[String(name).toLowerCase()];
+const accountOf = name => db.byName(String(name));
 const online = acc => [...sessions.values()].find(o => o.account === acc);
-function setLink(a, b, v) { (a.friends ??= {})[b.name.toLowerCase()] = v; if (v === undefined) delete a.friends[b.name.toLowerCase()]; }
 function presenceTo(target, s, avail) {
   pushEvent(target, `307|${s.userId}|${s.name}|${avail}|42713|${s.userId}|${LOBBY.id}||0|0|0|0|${b64(s.presence || ' ')}`);
 }
 function announce(s, avail) {
-  for (const [name, v] of Object.entries(s.account.friends || {})) {
-    const o = v === 'both' && online(accountOf(name));
+  for (const { account, state } of db.friends(s.account)) {
+    const o = state === 'both' && online(account);
     if (o) presenceTo(o, s, avail);
   }
 }
@@ -69,6 +78,7 @@ function dropSession(s) {
   leaveRoom(s);
   flushPoll(s);
   sessions.delete(s.sid);
+  db.touch(s.account, Date.now()); // a guest's day of idling starts when its session ends
   gameServer.onLogout?.(s, api);
 }
 
@@ -106,7 +116,7 @@ function joinRoom(s, room) {
 
 // What casino.js uses to talk back to clients.
 const api = {
-  sessions, rooms, log, accounts, saveAccounts,
+  sessions, rooms, log, save: db.save, link: db.linkState, ranking: db.ranking, rank: db.rank,
   createRoom(name, max) {
     const room = { id: String(nextRoomId++), name, max, members: new Set() };
     rooms.set(room.id, room);
@@ -126,6 +136,7 @@ function handle(req, s, send) {
       const password = String(p[2] || '');
       if (/^CPU_\d+$/i.test(user) && !bots.account(user, password)) return send(err(965, 'AuthenticationFailed')); // CPU_n is a bot's name
       const ns = login(user, password);
+      if (!ns) return send(err(965, 'AuthenticationFailed'));
       log(`login ${user} (gameclass ${p[5]})`);
       announce(ns, 'available'); // the native client never calls setPresence itself
       return send(ok([[ns.sid, ns.sid, ns.sid, ns.userId]]));
@@ -173,8 +184,7 @@ function handle(req, s, send) {
       return send(ok(list.map(m => [m.userId, m.name, ''])));
     }
     case 129: { // findUsers
-      const q = String(p[1] || '').toLowerCase();
-      const found = Object.values(accounts).filter(a => a.name.toLowerCase().startsWith(q)).slice(0, Number(p[2]) || 10);
+      const found = db.findByPrefix(String(p[1] || ''), Number(p[2]) || 10);
       return send(ok(found.map(a => [a.id, a.name, LOBBY.id, '', ''])));
     }
     case 132: // sendGamePacket: relay to the room as event 116
@@ -184,16 +194,13 @@ function handle(req, s, send) {
       gameServer.onPacket(s, p[1] || Buffer.alloc(0), api);
       return send(ok());
     case 302: { // getBuddyList: rows id|name|status, then presence for friends online
-      const rows = Object.entries(s.account.friends || {}).map(([name, v]) => {
-        const acc = accountOf(name);
-        return [acc.id, acc.name, v];
-      });
-      send(ok(rows));
+      const friends = db.friends(s.account);
+      send(ok(friends.map(({ account, state }) => [account.id, account.name, state])));
       // The native friend list handler (FUN_10096b70) recreates every friend as offline, so
       // presence sent together with the list is lost.
       setTimeout(() => {
-        for (const [name, v] of Object.entries(s.account.friends || {})) {
-          const o = v === 'both' && online(accountOf(name));
+        for (const { account, state } of friends) {
+          const o = state === 'both' && online(account);
           if (o && sessions.has(s.sid)) presenceTo(s, o, 'available');
         }
       }, 1000);
@@ -206,19 +213,18 @@ function handle(req, s, send) {
     case 306: { // requestBuddy: P1 name, P2 message
       const acc = accountOf(p[1]);
       if (!acc || acc === s.account) return send(ok()); // an error code would log the client out (processServerError)
-      const mine = s.account.friends?.[acc.name.toLowerCase()];
+      const mine = db.linkState(s.account, acc);
       if (mine === 'from') return handle({ ...req, cmd: 307 }, s, send); // they already asked: accept
-      if (!mine) { setLink(s.account, acc, 'to'); setLink(acc, s.account, 'from'); saveAccounts(); }
+      if (!mine) db.setLinks(s.account, acc, 'to', 'from');
       const o = online(acc);
       if (o) pushEvent(o, `308|${s.userId}|${s.name}|${b64(String(p[2] || ' '))}`);
       return send(ok());
     }
     case 307: case 308: { // accept / decline a request: P1 name
       const acc = accountOf(p[1]);
-      if (!acc || s.account.friends?.[acc.name.toLowerCase()] !== 'from') return send(ok());
+      if (!acc || db.linkState(s.account, acc) !== 'from') return send(ok());
       const accept = req.cmd === 307;
-      setLink(s.account, acc, accept ? 'both' : undefined); setLink(acc, s.account, accept ? 'both' : undefined);
-      saveAccounts();
+      db.setLinks(s.account, acc, accept ? 'both' : null, accept ? 'both' : null);
       const o = online(acc);
       if (o) {
         pushEvent(o, `309|${s.userId}|${s.name}|${accept ? 1 : 0}|${b64(' ')}`);
@@ -229,7 +235,7 @@ function handle(req, s, send) {
     case 309: { // removeBuddy: P1 name
       const acc = accountOf(p[1]);
       if (acc) {
-        setLink(s.account, acc, undefined); setLink(acc, s.account, undefined); saveAccounts();
+        db.setLinks(s.account, acc, null, null);
         const o = online(acc);
         if (o) pushEvent(o, `311|${s.userId}|${s.name}`);
       }
@@ -260,7 +266,7 @@ function processRequest(text, addr, reply) {
 const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, list]) =>
   list.filter(a => a.family === 'IPv4' && !a.internal).map(a => [name, a.address]));
 
-module.exports = { staleSessions, lanAddresses, handle };
+module.exports = { staleSessions, lanAddresses, handle, db };
 if (require.main !== module) return; // tests import the module without starting the servers
 
 net.createServer(sock => {
@@ -284,6 +290,7 @@ gameServer.start?.(api);
 setInterval(() => {
   for (const s of staleSessions(sessions, Date.now(), IDLE_MS)) { log(`idle timeout ${s.name}`); dropSession(s); }
 }, 5000);
+if (auth.enabled) { auth.sweep(); setInterval(auth.sweep, 60000); }
 
 // ---- browser client: serves web/ and the player's own copy of the game files ----
 const http = require('http');
@@ -296,7 +303,8 @@ if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame())
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
 
 http.createServer((req, res) => {
-  const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  const parsed = new URL(req.url, 'http://x');
+  const url = decodeURIComponent(parsed.pathname);
   if (url === '/snap' && req.method === 'POST') { // the browser's SNAP connection: one request per POST
     const chunks = [];
     req.on('data', c => chunks.push(c));
@@ -308,6 +316,14 @@ http.createServer((req, res) => {
   if (url === '/bots') { // whether the page shows the bot switch
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
     return res.end(JSON.stringify({ available: bots.available() }));
+  }
+  if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({ accounts: auth.enabled, invite: authConfig.invite, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
+  }
+  if (url.startsWith('/auth/')) {
+    auth.http(req, res, parsed).catch(e => { log(`${url}: ${e.message}`); res.destroy(); });
+    return;
   }
   if (url.startsWith('/game/')) {
     const data = Object.hasOwn(gameFiles, url.slice(6)) && gameFiles[url.slice(6)];

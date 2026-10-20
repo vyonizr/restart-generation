@@ -49,7 +49,7 @@ const header = (kind, action) => Buffer.from([kind, action]);
 const response = (action, ...parts) => Buffer.concat([header(RESPONSE, action), u8(0), u32(0), ...parts]);
 const event = (action, subject, ...parts) => Buffer.concat([header(EVENT, action), str(subject), ...parts]);
 
-// Player stats live on the SNAP account record (data/accounts.json).
+// Player stats live on the account (server/store.js).
 function stats(acc) {
   acc.stats ??= { fame: 0, matches: 0, wins: 0, rescues: 0, favouriteHero: -1 };
   return acc.stats;
@@ -58,9 +58,6 @@ function statsRecord(acc, rank) {
   const st = stats(acc);
   return Buffer.concat([str(acc.name), i32(fameLevel(acc)), i32(st.fame), i32(0), i32(rank),
     i32(st.matches), i32(st.wins), i32(st.rescues), i32(st.favouriteHero), i32(st.highestFame ?? st.fame), list([], i32), list([], i32)]); // last i32 shows as Highest Fame (inferred)
-}
-function ranking(api) {
-  return Object.values(api.accounts).sort((a, b) => stats(b).fame - stats(a).fame);
 }
 
 const ranked = new Set();    // sessions inside the ranked casino
@@ -82,8 +79,8 @@ function finishMatch(host, api) {
     st.matches++;
     if (p === winner) { st.wins++; st.fame += 10; }
     st.highestFame = Math.max(st.highestFame ?? 0, st.fame);
+    api.save(p.s.account);
   }
-  api.saveAccounts();
 }
 
 const fameLevel = acc => 1 + Math.floor(stats(acc).fame / 100);
@@ -193,12 +190,12 @@ function closeFriendly(c, api) {
 const friendly = new Map();  // id -> { id, name, host, members: Set, lobby: [] }
 let nextFriendly = 2;        // id 1 is the ranked casino
 const friendlyInfo = c => ({ type: 2, id: c.id, name: c.name, inLobby: c.members.size, waiting: c.lobby.length, playing: 0 });
-const buddies = (a, b) => a.account.friends?.[b.name.toLowerCase()] === 'both';
-const visibleTo = (s, c) => c.host !== s && buddies(c.host, s);
+const buddies = (a, b, api) => api.link(a.account, b.account) === 'both';
+const visibleTo = (s, c, api) => c.host !== s && buddies(c.host, s, api);
 
 function friendlyAnnounce(c, action, api) {
   for (const o of api.sessions.values()) {
-    if (visibleTo(o, c) && !c.members.has(o)) {
+    if (visibleTo(o, c, api) && !c.members.has(o)) {
       send(o, api, T.CASINO, event(action, c.host.userId, casinoInfo(friendlyInfo(c)), str(c.name)));
     }
   }
@@ -228,27 +225,23 @@ function onCasino(s, type, kind, action, body, api) {
     case A.LOGOUT:
       leaveCasino(s, api);
       return reply();
-    case A.STATISTICS: {
-      const rank = ranking(api).indexOf(s.account) + 1;
-      return reply(statsRecord(s.account, rank));
-    }
-    case A.RANKINGS: { // three lists: top 10, friends, near you
-      const all = ranking(api);
-      const me = all.indexOf(s.account);
-      const rec = acc => statsRecord(acc, all.indexOf(acc) + 1);
-      const near = all.slice(Math.max(0, me - 2), me + 3);
-      return reply(list(all.slice(0, 10), rec), list([s.account], rec), list(near, rec));
+    case A.STATISTICS:
+      return reply(statsRecord(s.account, api.rank(s.account)));
+    case A.RANKINGS: { // three lists: top 10, friends, near you. Guests are not ranked, so a guest sees the place it would hold.
+      const rec = acc => statsRecord(acc, api.rank(acc));
+      const near = api.ranking(Math.max(0, api.rank(s.account) - 3), 5);
+      return reply(list(api.ranking(0, 10), rec), list([s.account], rec), list(near, rec));
     }
     case A.ACHIEVEMENTS: { // client uploads 12 u32 counters, gets all 50 back
       const blob = Buffer.alloc(200);
       if (s.account.achievements) Buffer.from(s.account.achievements, 'base64').copy(blob);
       body.subarray(0, 48).copy(blob);
       s.account.achievements = blob.toString('base64');
-      api.saveAccounts();
+      api.save(s.account);
       return reply(blob);
     }
     case A.FRIENDLY_LIST: { // answered with F_CASINO, which replaces the client's whole list
-      const list = [...friendly.values()].filter(c => visibleTo(s, c));
+      const list = [...friendly.values()].filter(c => visibleTo(s, c, api));
       return send(s, api, type, response(A.F_CASINO, u8(list.length), ...list.map(c => casinoInfo(friendlyInfo(c)))));
     }
     case A.REGISTER_FRIENDS: case A.FRIEND_ADD: case A.FRIEND_REMOVE:
@@ -360,7 +353,8 @@ function onMessage(s, msg, api) {
 }
 
 module.exports = {
-  botChoice, fillsWithBots,
+  botChoice, fillsWithBots, fameLevel,
+  waiting: () => queue.length, // players waiting in the ranked Quick Match
   botQuestion: id => botChoice(friendly.get(id), canFillWithBots()),
   onPacket(s, data, api) {
     s.mtRead ??= createReader();

@@ -1,3 +1,7 @@
+---
+status: superseded by ADR 0011 on servers that configure Discord sign-in; still in force on all others
+---
+
 # A name is the whole identity
 
 A player logs in with a name only. The server ignores the password in SNAP `extendedLogin` (`C=1`, P2), so the browser client sends none and the Java client's `-password` has no effect. The first login with a name registers it, and every later login with that name, from any browser, gets the same account: stats, rankings, achievements and friends. A second login drops the name's first session (`ANOTHER_LOGIN`). Names matching `CPU_<n>` are refused for people, because bots log in under them (ADR 0008).
