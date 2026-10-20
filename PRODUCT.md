@@ -25,7 +25,9 @@ The page is a single static page (`web/index.html`, `web/main.js`) that is serve
 - **By a game server with `RG_GAME` set:** the server sends the player's copy of the files, and the player goes straight to **Start**.
 - **By a static host without the files:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
 
-The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the name dialog (shown at the first online login, and again if the server rejects the saved name), and errors (missing files, unreadable files, not enough memory, the emulator stopping). Online play uses a name the player sets at the first online login, which starts as a random guest name (such as `Guest123456`). The name and a generated password are kept in local storage, so stats carry over between visits. **Change name** under **Start** clears the name, and a new name starts with fresh stats. Settings and achievements are also kept in local storage.
+The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the dialogs described below, and errors (missing files, unreadable files, not enough memory, the emulator stopping).
+
+Online play depends on the server. On a server with Discord sign-in (ADR 0011), the page makes a guest on the first visit, keeps its name and a secret token in local storage, and logs the engine in with no form. The header (a line under the buttons on a touch device) shows the name and **Sign in with Discord**; a member sees their level and an **Account** menu with **Sign out** and **Delete my account**. Coming back from Discord, a dialog asks a new member to choose a name, or asks an existing member's guest to confirm that its progress is discarded. After a guest earns fame, a one-line offer to sign in appears under the screen, at most once a day. The hero line also says how many players are online and waiting. On any other server (local, LAN), the name dialog appears at the first online login, the name is kept in local storage with no password, and **Change name** under **Start** clears it; a new name starts with fresh stats. Settings and achievements are also kept in local storage.
 
 ## Capabilities and Constraints
 
@@ -34,7 +36,7 @@ The page moves through these states: loading the files, choosing the files, **St
 - Phones and tablets (touch devices) play over the LAN: a PC runs the server with `--lan`, and the device opens the page it serves in current Android Chrome or iOS and iPadOS Safari. The game plays in portrait with a touch pad under the game screen: a D-pad, **Select** (hold to drop), **Back**, **Menu**, **Keyboard** for typing, and **Fullscreen** where the browser supports it. Online modes work as on desktop. Nothing has been tested on a real device yet.
 - The game screen is drawn by the engine at 240 × 320; the page frames it and never redraws it.
 - Plain HTML, CSS and JavaScript modules with no build step and no dependencies.
-- There is no public game server yet. Online play works only against a server someone runs, so the page must not claim that a public server is live.
+- A public server is planned (`.scratch/accounts-and-joining/spec.md`) but not live. Until one is, online play works only against a server someone runs, so the page must not claim that a public server is live.
 - Undecided: whether most players arrive through a static host or a server that serves the files. The page must handle both equally.
 
 ## Brand Commitments

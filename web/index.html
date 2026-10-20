@@ -58,16 +58,42 @@
   #start { font-size: 34px; padding: 18px 56px; }
   #online-as button { font-size: 13px; padding: 4px 8px; }
 
+  /* Who you are: the header on a desktop, a line under Start on a touch device */
+  .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .who-name { font: 500 13px/1 var(--mono); color: #fff; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who-level { font: 13px/1 var(--mono); color: var(--light-3); white-space: nowrap; }
+  .who button { font-size: 13px; padding: 6px 12px; white-space: nowrap; }
+  .menu { position: relative; }
+  .menu summary { list-style: none; cursor: pointer; padding: 6px 12px; border: 1px solid var(--light-3); font: 400 13px/1 var(--display); text-transform: uppercase;
+    letter-spacing: .01em; color: var(--light-2); transition: color .2s, border-color .2s; }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu summary:hover, .menu[open] summary { color: #fff; border-color: #fff; }
+  .menu-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 2; display: grid; gap: 8px; padding: 12px; background: var(--ink-2); box-shadow: 0 2px 16px rgb(0 0 0 / 50%); white-space: nowrap; }
+  .menu-panel button { font-size: 13px; padding: 8px 12px; }
+  #who-touch { align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 12px; }
+  #who-touch .who-name { font: 600 13px/1.6 var(--body); max-width: none; }
+  #who-touch .who-level { font: 13px/1.6 var(--body); }
+  #who-touch .menu-panel { position: static; display: flex; padding: 8px 0 0; background: none; box-shadow: none; }
+  #who-touch .menu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  /* The line under the screen: notices, and the offer to sign in */
+  .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; max-width: 70ch; font: 15px/1.6 var(--body); color: var(--light-2); text-align: center; }
+  .nudge-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  .nudge button { font-size: 16px; padding: 8px 14px; }
+  .strip a { color: var(--light-2); text-underline-offset: 3px; }
+  .strip a:hover { color: #fff; }
+
   /* Arena login dialog, over the screen */
-  .login { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(320px, 86%); display: grid; gap: 14px; padding: 24px;
+  .login { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(320px, 86%); max-height: calc(100% - 12px); overflow-y: auto; display: grid; gap: 14px; padding: 24px;
     background: var(--ink-2); box-shadow: 0 2px 16px rgb(0 0 0 / 50%); }
   .login h2 { font-size: 30px; }
   .login label { display: grid; gap: 6px; font: 500 13px/1 var(--body); color: var(--light-3); }
   .login input { font: 15px/1.4 var(--body); padding: 10px 12px; border: 1px solid var(--light-3); border-radius: 0; background: var(--ink-1); color: #fff; caret-color: #fff; }
   .login input:focus-visible { outline-offset: 2px; }
   .login p { font: 13px/1.6 var(--body); color: var(--light-3); }
-  .login .row { display: flex; gap: 10px; justify-content: flex-end; }
-  .login button { font-size: 18px; padding: 12px 20px; }
+  .login .row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+  .login button { font-size: 18px; padding: 12px 18px; white-space: nowrap; }
+  .login .error { font-weight: 600; color: #fff; }
 
   .sub { font: 15px/1.6 var(--mono); color: var(--light-2); text-align: center; }
   .keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; margin: 0; font: 14px/1 var(--body); color: var(--light-2); }
@@ -95,6 +121,7 @@
   }
   @media (max-width: 759px) {
     header { height: 64px; padding: 0 16px; }
+    .who .long, .who-level { display: none; }
     .ghost { font-size: 34vw; }
     main { padding: 24px 16px 48px; }
     footer { grid-template-columns: 1fr; gap: 12px; padding: 32px 16px; }
@@ -107,6 +134,7 @@
     header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
     .page { grid-template-rows: 1fr auto; }
     .touch-only { display: inline; }
+    #who-touch { display: flex; }
     html, body { overscroll-behavior: none; }
     main { grid-template-columns: 100%; align-content: start; gap: 12px; padding: 0 16px 16px; }
     .screen { height: auto; width: var(--w); }
@@ -133,7 +161,7 @@
     @container (width < 120px) { .acts small { display: none; } }
     .util { grid-area: util; display: flex; justify-content: center; gap: 10px; }
 
-    .slow { display: flex; align-items: center; justify-content: center; gap: 12px; width: var(--w); justify-self: center;
+    .slow, .nudge { display: flex; align-items: center; justify-content: center; gap: 12px; width: var(--w); justify-self: center;
       font: 13px/1.6 var(--body); color: var(--light-2); }
     .slow button { flex: none; font-size: 16px; padding: 6px 12px; }
   }
@@ -146,7 +174,7 @@
 </head>
 <body>
 <div class="page">
-  <header><h1 class="name">Restart Generation</h1></header>
+  <header><h1 class="name">Restart Generation</h1><div class="who" id="who" hidden></div></header>
   <span class="ghost" aria-hidden="true">Restart<br>Generation</span>
   <main>
     <div class="screen">
@@ -163,6 +191,7 @@
         <input id="pick-input" type="file" webkitdirectory multiple hidden>
         <button id="start" hidden>Start</button>
         <p class="hint" id="online-as" hidden>Online as <b id="online-name"></b> · <button id="change-name" class="secondary">Change name</button></p>
+        <p class="hint touch-only who" id="who-touch" hidden></p>
         <div id="recover" hidden>
           <button id="reload">Reload</button>
           <button id="forget" class="secondary" hidden>Use a different copy</button>
@@ -176,6 +205,18 @@
       <div class="login" id="bots-ask" role="dialog" aria-modal="true" aria-labelledby="bots-title" hidden>
         <h2 class="bar" id="bots-title">Fill the empty seats with CPU players?</h2>
         <div class="row"><button type="button" class="secondary" id="bots-no">No</button><button type="button" id="bots-yes">Yes</button></div>
+      </div>
+      <form class="login" id="member" role="dialog" aria-modal="true" aria-labelledby="member-title" hidden>
+        <h2 class="bar" id="member-title">Choose your name</h2>
+        <label>Player name <input id="member-name" name="username" autocomplete="off" maxlength="15" pattern="[A-Za-z0-9_]{1,15}" title="Letters, numbers and _, up to 15" required></label>
+        <p class="error" id="member-error" role="alert" hidden></p>
+        <p>This is the name other players see. You can't change it later.</p>
+        <div class="row"><button type="button" class="secondary" id="member-cancel">Cancel</button><button type="submit">Save</button></div>
+      </form>
+      <div class="login" id="confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+        <h2 class="bar" id="confirm-title"></h2>
+        <p id="confirm-text"></p>
+        <div class="row"><button type="button" class="secondary" id="confirm-no">Cancel</button><button type="button" id="confirm-yes"></button></div>
       </div>
     </div>
     <div class="pad">
@@ -198,7 +239,8 @@
     <input id="typing" class="typing" aria-label="Type into the game" autocapitalize="off" autocomplete="off" spellcheck="false" value=" ">
     <video id="wake" class="wake" src="wake.mp4" playsinline preload="none" aria-hidden="true"></video>
     <p class="slow" id="slow" role="status" hidden><span id="slow-text"></span><button id="slow-close" class="secondary">Dismiss</button></p>
-    <p class="sub">The original 2009 game, right in your browser (again)</p>
+    <p class="nudge" id="nudge" role="status" hidden><span id="nudge-text"></span><span class="nudge-actions" id="nudge-actions"></span></p>
+    <p class="sub">The original 2009 game, right in your browser (again)<span class="strip" id="strip" hidden></span></p>
     <dl class="keys" aria-label="Controls">
       <div><dt>
         <kbd><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 6H2M5 2.5 1.5 6 5 9.5"/></svg><span class="vh">Left</span></kbd>
@@ -213,7 +255,7 @@
   </main>
   <footer>
     <p class="disclaimer"><strong>Restart Generation</strong> is an unofficial fan revival of Reset Generation © 2009 RedLynx. It is not affiliated with or endorsed by RedLynx or Ubisoft. Bring your own copy of the game.<br>Made by vyonizr.</p>
-    <p class="notes">Windows standalone build only. Your files stay in this browser.<br>Online play needs a replacement N-Gage Arena server.</p>
+    <p class="notes">Windows standalone build only. Your files stay in this browser.</p>
   </footer>
 </div>
 <script type="module" src="main.js"></script>

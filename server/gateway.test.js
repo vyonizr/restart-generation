@@ -1,5 +1,6 @@
 // Self-check for idle session expiry and LAN addresses: node server/gateway.test.js
 const assert = require('assert');
+process.env.RG_DB = ':memory:';
 const { staleSessions, lanAddresses, handle } = require('./gateway');
 
 const now = 100000;
@@ -21,3 +22,11 @@ assert.match(reply, /^965 /);
 handle({ cmd: 1, params: { 1: 'cpu_12', 2: '' } }, null, r => { reply = r; });
 assert.match(reply, /^965 /);
 console.log('gateway bot names ok');
+
+// Without Discord, a name is the whole identity: the first login registers it and a second login drops the first session.
+const names = [];
+for (let i = 0; i < 2; i++) handle({ cmd: 1, params: { 1: 'Alice', 2: '' } }, null, r => names.push(r));
+assert.match(names[0], /^200 /);
+assert.match(names[1], /^200 /);
+assert.notStrictEqual(names[0].split('\n')[1], names[1].split('\n')[1]); // a new session each time
+console.log('gateway name login ok');

@@ -22,6 +22,8 @@ From `rg.ResetGeneration`:
 
 Usernames must match `^[A-Za-z0-9_]{1,15}$` (`SMArenaValidator`).
 
+On a server with Discord sign-in (ADR 0011) the password of `extendedLogin` carries the guest's or member's token, and the login is refused (error 965) unless the token belongs to the account named in P1. Without Discord sign-in the password is ignored (ADR 0009). A bot logs in with its own in-process key in the same slot (ADR 0008).
+
 ## TCP framing (class `ah`, `q`, `e`)
 
 Every frame has a 20-byte big-endian header:
@@ -240,3 +242,25 @@ When every seat is filled, or 40 s have passed with at least 2 players, the serv
 ### Level templates
 
 The server can't build a Game or snapshot from the level files yet, so it uses captures from the engine. `tools/rgtrace` attaches to a running client, makes `ServerBattleLogic` serialize its Game during an Arcade battle, and dumps the Game and the snapshot. `tools/rgtrace/import-template.js` turns a capture into `data/templates/<name>.game` and `.snap`. A table uses a random template with one castle per seat. Each table gets a new battle seed, written into the RNG of the Game blob and into the snapshot's copy of it (the 56 bytes `s32 i, s32 j, s32 11, 11 x u32`, found in the snapshot's battlefield section by its bytes). A template whose snapshot doesn't hold that RNG exactly once is skipped at load. Each table also gets a random `Environment` (the Game's `s32` at +0x120: 0 space, 1 clouds and grass, 2 speedball, 3 soccer, 4 racetrack). The map files name none, so the engine draws one, and a capture only holds the draw it got. The snapshot holds nothing of it: captures with different environments have the same snapshot apart from the RNG.
+
+## Browser endpoints
+
+Besides SNAP at `POST /snap`, the HTTP server answers these, which only this server's own page uses.
+
+| Request | Reply |
+| --- | --- |
+| `GET /status` | `{ accounts, invite, online, waiting }`: whether Discord sign-in is on, the operator's Discord invite link, players online (bots excluded) and waiting in the ranked Quick Match. |
+| `GET /bots` | `{ available }`: whether the server can run bots. |
+
+With Discord sign-in on (otherwise `/auth/*` is 404), a token travels as `Authorization: Bearer <token>`:
+
+| Request | Reply |
+| --- | --- |
+| `POST /auth/guest` | `{ name, token }` for a new guest. 429 when the client address made too many in the last hour, 503 when the server holds its cap. |
+| `GET /auth/me` | `{ name, kind, fame, level }`, 401 for an unknown or expired token. Using a member's token pushes its expiry out to 90 days. |
+| `POST /auth/discord/start` | `{ url }`, the Discord page. A guest's token binds that guest to the sign-in. |
+| `GET /auth/discord/callback` | Where Discord returns. Redirects to `/#signin=<code>` or `/#signin-error=<reason>`. |
+| `POST /auth/exchange { code }` | `{ status: 'name', suggested }`, `{ status: 'confirm', name, guestFame }`, or `{ status: 'done', name, token }`. 404 when the code is unknown or older than 10 minutes. |
+| `POST /auth/finish { code, name?, confirm? }` | `{ name, token }`. 422 `invalid`, `reserved` or `taken` for a name, 409 `confirm` when a guest with progress would be dropped. |
+| `POST /auth/signout` | 204, and the token stops working. |
+| `POST /auth/delete` | 204, and the account, its links and its tokens are gone. |

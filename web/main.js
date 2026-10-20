@@ -3,6 +3,7 @@
 import { GameHost, WIDTH, HEIGHT, VK, UNLOCKS, LONE_START } from './emu/host.js';
 import { SnapClient } from './snap.js';
 import { gameFromZip } from './zip.js';
+import { createAccountUI, startStrip } from './accountui.js';
 
 const GAME_URL = 'game/';   // served by server/gateway.js from the user's own copy of the game
 const FILES = ['ResetGeneration-Win32-Web.dll', 'settings.cfg', 'achievements.dat', 'base.pak', 'fonts.pak', 'story.pak',
@@ -333,11 +334,26 @@ function onlineAs(login) {
   show();
 }
 
+// What the server says about itself (GET /status): whether it has accounts, and who is online. Null on a static host with no server.
+const serverStatus = () => fetch('status', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(s => (typeof s?.accounts === 'boolean' ? s : null), () => null);
+
+// With accounts the engine logs in as the page's guest or member, with no dialog: the token goes in the password slot (ADR 0011).
+function accountLogin(accounts) {
+  const { account } = accounts;
+  return { startLogin(ready) { ready(); }, stopLogin() {}, visible: () => false, attempting() {}, rejected() { accounts.rejected(); },
+    credentials: () => ({ username: account.name, password: account.token }), name: () => '', forget() {} };
+}
+
 async function main() {
+  const server = await serverStatus();
+  const accounts = server?.accounts ? createAccountUI({ canvas, overlay }) : null;
+  const accountReady = accounts?.start();
+  if (server) startStrip(server);
   const files = await loadFiles();
+  await accountReady;
   status.textContent = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
-  const login = loginUI(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
+  const login = accounts ? accountLogin(accounts) : loginUI(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
   const botQuestion = botPrompt(), bots = await botsAvailable();
   if (bots) snap.bots = botQuestion;
   const patches = [...UNLOCKS, ...(bots ? LONE_START : [])];
@@ -364,13 +380,14 @@ async function main() {
   overlay.hidden = true;
   canvas.tabIndex = 0;
   canvas.focus();
+  accounts?.watch();
 
   const held = new Set();
   const input = []; // applied at the start of each tick
-  // Keys go to the game wherever focus is on the page, except in the login dialog or the overlay's buttons.
+  // Keys go to the game wherever focus is on the page, except in a dialog or the overlay's buttons.
   addEventListener('keydown', e => {
     const k = javaKey(e);
-    if (!k || e.target.closest?.('#login, #overlay')) return;
+    if (!k || e.target.closest?.('.login, #overlay')) return;
     e.preventDefault();
     if (held.has(e.code)) return;      // the Java listener ignored auto-repeat too
     held.add(e.code);
@@ -379,7 +396,7 @@ async function main() {
   });
   addEventListener('keyup', e => {
     const k = javaKey(e);
-    if (!k || e.target.closest?.('#login, #overlay')) return;
+    if (!k || e.target.closest?.('.login, #overlay')) return;
     e.preventDefault();
     held.delete(e.code);
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
