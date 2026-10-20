@@ -12,13 +12,15 @@ const { createReader, frames, T } = require('./mt');
 const inbox = new Map();
 const api = { log() {}, send(s, data) { inbox.get(s).push(...s.read(data)); } };
 const client = name => { const s = { name, read: createReader() }; inbox.set(s, []); return s; };
+// The scenarios below drive a table in seat order, so they join players in seat order 1, 2, ...
+const inSeatOrder = table => { table?.freeSeats.sort((x, y) => x - y); return table; };
 const take = s => inbox.get(s).splice(0).map(m => { assert.equal(m[0], T.GAME); return gm.unpack(m.subarray(1)); });
 const fromClient = (host, s, m) => {
   const raw = Buffer.concat(frames(T.GAME, gm.pack(m)));
   battle.onGame(host, host.players.find(p => p.s === s), raw.subarray(3), api); // one frame, strip hdr + type
 };
 
-const host = battle.createTable(2, api);
+const host = inSeatOrder(battle.createTable(2, api));
 assert(host, 'no 2-player template');
 const [a, b] = [client('a'), client('b')];
 const hero = g.parseGame(fs.readFileSync(path.join(__dirname, '..', 'data', 'templates', `${host.template}.game`))).heroes[1];
@@ -75,7 +77,7 @@ assert.deepEqual(take(b).at(-1).type, gm.TYPE.END_TURN);
 assert.deepEqual([host.turn, host.phase], [2, 2]);
 
 // A 3-seat table with 2 players waits for the third until the start deadline.
-const trio = battle.createTable(3, api);
+const trio = inSeatOrder(battle.createTable(3, api));
 assert(trio, 'no 3-player template');
 const [c, d] = [client('c'), client('d')];
 for (const s of [c, d]) { battle.seat(trio, s, api); fromClient(trio, s, join(s.name)); }
@@ -107,7 +109,7 @@ send(c, 1, 7, gm.TYPE.FIRE_CANNON, 2, 5);
 assert.deepEqual([trio.turn, trio.phase], [3, 2]);
 
 // A bot that stays silent is defeated: its table stops waiting for it after 15 s, in phases 2 and 5.
-const cpuTable = battle.createTable(2, api);
+const cpuTable = inSeatOrder(battle.createTable(2, api));
 const person = client('person'), cpu = { ...client('CPU_1'), account: { bot: true } };
 inbox.set(cpu, []);
 for (const s of [person, cpu]) { battle.seat(cpuTable, s, api); fromClient(cpuTable, s, join(s.name)); }
@@ -131,7 +133,7 @@ battle.tick(cpuTable, api);
 assert.deepEqual([cpuTable.turn, cpuTable.phase], [2, 2]);
 
 // A relaxed table sends no phase time limits and forces the end of a phase only after 3 minutes (1 minute in phase 5).
-const calm = battle.createTable(2, api, true);
+const calm = inSeatOrder(battle.createTable(2, api, true));
 const [e, f] = [client('e'), client('f')];
 for (const s of [e, f]) {
   battle.seat(calm, s, api);
@@ -156,4 +158,69 @@ assert.equal(calm.phase, 5, 'forced the end of phase 5 before 1 minute');
 calm.phaseStart = Date.now() - 61000;
 battle.tick(calm, api);
 assert.deepEqual([calm.turn, calm.phase], [2, 2]);
+// Seats are random, so the first player to join may play second. A forced end of phase 4 skips the player whose
+// turn it is, the one in the lowest seat, not the first to join.
+const late = battle.createTable(2, api);
+late.freeSeats = [2, 1];
+const [g2, g1] = [client('g2'), client('g1')]; // g2 joins first and sits in seat 2
+for (const s of [g2, g1]) { battle.seat(late, s, api); fromClient(late, s, join(s.name)); }
+for (const [s, sender] of [[g2, 2], [g1, 1]]) fromClient(late, s, { seq: 1, type: gm.TYPE.END_TURN_REQUEST, sender, turn: 1, phase: 2 });
+assert.equal(late.phase, 4);
+late.phaseStart = 0;
+battle.tick(late, api); // seat 1 ran out of time
+fromClient(late, g2, { seq: 2, type: gm.TYPE.END_TURN_REQUEST, sender: 2, turn: 1, phase: 4 });
+assert.equal(late.phase, 5, 'seat 2 could not end its turn after seat 1 was forced');
+
+const templateDir = path.join(__dirname, '..', 'data', 'templates');
+// A table picks its environment (the look of the playfield, 0 to 4) at random, as the engine does when a map names
+// none, whatever environment the template was captured with; everything else stays as captured.
+const environments = new Map(); // template -> environments its tables got
+for (let n = 0; n < 80; n++) {
+  const table = battle.createTable(2, api);
+  const game = g.parseGame(table.game);
+  assert(Number.isInteger(game.environment) && game.environment >= 0 && game.environment <= 4, `environment ${game.environment}`);
+  if (!environments.has(table.template)) environments.set(table.template, []);
+  environments.get(table.template).push(game.environment);
+  const was = g.parseGame(fs.readFileSync(path.join(templateDir, `${table.template}.game`)));
+  assert.deepEqual(game.blocks, was.blocks);
+  assert.deepEqual(game.castles, was.castles);
+}
+for (const [name, list] of environments) assert(new Set(list).size > 1, `every table from ${name} got environment ${list[0]}`);
+
+// Every table gets its own battle seed, in the Game and in the snapshot's copy of the RNG; the rest of the
+// template reaches the clients unchanged. The expected bytes are built here from the RNG layout (i, j, 11, then
+// the 11 state words), not by the host's code.
+const rngLayout = r => Buffer.concat([new Int32Array([r.i, r.j, 11]), new Uint32Array(r.state)].map(a => Buffer.from(a.buffer)));
+const seen = new Set();
+for (let n = 0; n < 12; n++) {
+  const table = battle.createTable(2, api);
+  const rng = rngLayout(g.parseGame(table.game).rng);
+  const bf = g.parseSnapshot(table.snap).battlefield;
+  const at = bf.indexOf(rng);
+  assert(at >= 0 && bf.indexOf(rng, at + 1) < 0, 'the snapshot carries the table\'s RNG exactly once');
+  seen.add(rng.toString('hex'));
+  const original = fs.readFileSync(path.join(templateDir, `${table.template}.snap`));
+  const was = g.parseSnapshot(original);
+  const wasRng = rngLayout(g.parseGame(fs.readFileSync(path.join(templateDir, `${table.template}.game`))).rng);
+  assert.equal(table.snap.length, original.length);
+  assert.deepEqual([...bf.subarray(0, at)], [...was.battlefield.subarray(0, at)]);
+  assert.deepEqual([...bf.subarray(at + rng.length)], [...was.battlefield.subarray(at + rng.length)]);
+  assert.equal(was.battlefield.indexOf(wasRng), at, 'the template holds its RNG where the table does');
+  assert.deepEqual([...g.parseSnapshot(table.snap).players], [...was.players]);
+  assert.deepEqual([...g.parseSnapshot(table.snap).third], [...was.third]);
+}
+assert.equal(seen.size, 12, 'two tables shared a battle seed');
+
+// Seats are handed out at random, each seat number once.
+const firstSeats = new Set();
+for (let n = 0; n < 40; n++) {
+  const table = battle.createTable(2, api);
+  const [x, y] = [client('x'), client('y')];
+  const seatOf = s => { battle.seat(table, s, api); fromClient(table, s, join(s.name)); return take(s)[1].body.readInt32LE(4); }; // [0] is the Game
+  const [sx, sy] = [seatOf(x), seatOf(y)];
+  assert.deepEqual([sx, sy].sort(), [1, 2], 'two players on a 2-seat table take seats 1 and 2');
+  firstSeats.add(sx);
+}
+assert.deepEqual([...firstSeats].sort(), [1, 2], 'the first player to join always got the same seat');
+
 console.log('battle host ok');

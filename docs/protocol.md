@@ -220,9 +220,9 @@ Header, all `s32` little-endian: `seq, reliable, type, sender, n, n x recipient,
 
 After the `SEAT_TAKE` response, per player:
 
-1. Server sends InitGameData: Game blob plus `s32 1`. The Game holds the level, rules, heroes, and RNG seed (`server/gameblob.js`). It must have no join infos.
+1. Server sends InitGameData: Game blob plus `s32 1`. The Game holds the level, rules, heroes, and the RNG state (`server/gameblob.js`). It must have no join infos.
 2. Client sends InitGameData: its JoinInfo (`s32 type, s32 slot, s32, s32, String name, u8 random, Hero`).
-3. Server sends InitGameData: `s32 index, s32 team`. Joiner k gets index k and team k.
+3. Server sends InitGameData: `s32 index, s32 team`. Index and team are equal: a seat number picked at random among the table's free ones, so a player's castle, colour (the client uses `(team - 1) % 6`) and place in the turn order vary from battle to battle.
 4. Server sends InitGameData: the pre-join snapshot (starts `0xDEADBEEF`), `u32 n`, then the `n` reliable messages sent so far.
 5. Server sends PlayerJoined for the new player to everyone.
 
@@ -239,4 +239,4 @@ When every seat is filled, or 40 s have passed with at least 2 players, the serv
 
 ### Level templates
 
-The server can't build a Game or snapshot from the level files yet, so it uses captures from the engine. `tools/rgtrace` attaches to a running client, makes `ServerBattleLogic` serialize its Game during an Arcade battle, and dumps the Game and the snapshot. `tools/rgtrace/import-template.js` turns a capture into `data/templates/<name>.game` and `.snap`. A table uses a random template with one castle per seat.
+The server can't build a Game or snapshot from the level files yet, so it uses captures from the engine. `tools/rgtrace` attaches to a running client, makes `ServerBattleLogic` serialize its Game during an Arcade battle, and dumps the Game and the snapshot. `tools/rgtrace/import-template.js` turns a capture into `data/templates/<name>.game` and `.snap`. A table uses a random template with one castle per seat. Each table gets a new battle seed, written into the RNG of the Game blob and into the snapshot's copy of it (the 56 bytes `s32 i, s32 j, s32 11, 11 x u32`, found in the snapshot's battlefield section by its bytes). A template whose snapshot doesn't hold that RNG exactly once is skipped at load. Each table also gets a random `Environment` (the Game's `s32` at +0x120: 0 space, 1 clouds and grass, 2 speedball, 3 soccer, 4 racetrack). The map files name none, so the engine draws one, and a capture only holds the draw it got. The snapshot holds nothing of it: captures with different environments have the same snapshot apart from the RNG.
