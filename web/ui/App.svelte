@@ -4,6 +4,9 @@
   import Strip from './Strip.svelte';
   import MemberDialog from './MemberDialog.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
+  import NameDialog from './NameDialog.svelte';
+  import BotsDialog from './BotsDialog.svelte';
+  import { changeName } from './login.svelte.js';
 </script>
 
 <div class="page">
@@ -23,23 +26,15 @@
         <input id="pick-zip-input" type="file" accept=".zip,application/zip" hidden>
         <input id="pick-input" type="file" webkitdirectory multiple hidden>
         <button id="start" hidden>Start</button>
-        <p class="hint" id="online-as" hidden>Online as <b id="online-name"></b> · <button id="change-name" class="secondary">Change name</button></p>
+        <p class="hint" id="online-as" hidden={!page.onlineName}>Online as <b id="online-name">{page.onlineName}</b> · <button id="change-name" class="secondary" onclick={changeName}>Change name</button></p>
         <p class="hint touch-only who" id="who-touch" hidden={!page.who}><Who /></p>
         <div id="recover" hidden>
           <button id="reload">Reload</button>
           <button id="forget" class="secondary" hidden>Use a different copy</button>
         </div>
       </div>
-      <form class="login" id="login" role="dialog" aria-modal="true" aria-labelledby="login-title" hidden>
-        <h2 class="bar" id="login-title">Set your name</h2>
-        <label>Player name <input id="username" name="username" autocomplete="username" maxlength="15" pattern={'[A-Za-z0-9_]{1,15}'} title="Letters, numbers and _, up to 15" required></label>
-        <div class="row"><button type="button" class="secondary" id="login-cancel">Cancel</button><button type="submit" id="login-ok">Play online</button></div>
-      </form>
-      <div class="login" id="bots-ask" role="dialog" aria-modal="true" aria-labelledby="bots-title" hidden>
-        <h2 class="bar" id="bots-title">Fill the empty seats with CPU players?</h2>
-        <p>Expert CPU players choose from the strongest heroes.</p>
-        <div class="row"><button type="button" class="secondary" id="bots-no">No</button><button type="button" id="bots-cpu">CPU</button><button type="button" id="bots-expert">Expert</button></div>
-      </div>
+      {#if page.nameLogin}<NameDialog />{/if}
+      <BotsDialog />
       {#if page.nameDialog}<MemberDialog />{/if}
       {#if page.confirm}<ConfirmDialog />{/if}
     </div>

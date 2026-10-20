@@ -5,6 +5,8 @@ import { SnapClient } from './snap.js';
 import { gameFromZip } from './zip.js';
 import { createAccounts } from './ui/accounts.svelte.js';
 import { page } from './ui/page.svelte.js';
+import { createNameLogin, showOnlineName } from './ui/login.svelte.js';
+import { botQuestion } from './ui/bots.svelte.js';
 
 const GAME_URL = 'game/';   // served by server/gateway.js from the user's own copy of the game
 const FILES = ['ResetGeneration-Win32-Web.dll', 'settings.cfg', 'achievements.dat', 'base.pak', 'fonts.pak', 'story.pak',
@@ -251,106 +253,8 @@ function draw(game) {
   ctx.putImageData(image, 0, 0);
 }
 
-// The player's online identity, kept in this browser: a name, with no password.
-// The name is a random GuestNNNNNN until the player sets one, which sets `named`. The server registers it on its first login.
-function guestIdentity() {
-  try {
-    const saved = JSON.parse(localStorage.getItem('rg:guest'));
-    if (saved) return saved;
-  } catch {}
-  const guest = { username: `Guest${crypto.getRandomValues(new Uint32Array(1))[0] % 1e6}` };
-  saveGuest(guest);
-  return guest;
-}
-
-function saveGuest(guest) { try { localStorage.setItem('rg:guest', JSON.stringify(guest)); } catch {} }
-
-// The Arena login dialog, used to set the player's name.
-// It appears at the first online login.
-function loginUI() {
-  const form = document.getElementById('login'), user = document.getElementById('username'), cancel = document.getElementById('login-cancel');
-  // The saved identity stays as it is until the server accepts the name the player typed (pending).
-  let handlers = null, guest = guestIdentity(), pending = null;
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    pending = { username: user.value.trim(), named: true };
-    const h = handlers;
-    form.hidden = true; canvas.inert = false; canvas.focus();
-    h?.ready();
-  });
-  cancel.addEventListener('click', () => { const h = handlers; pending = null; ui.stopLogin(); h?.cancel(); });
-  form.addEventListener('keydown', e => { if (e.key === 'Escape') cancel.click(); e.stopPropagation(); });
-  const ui = {
-    startLogin(ready, cancelled) {
-      handlers = { ready, cancel: cancelled };
-      user.value = guest.username;
-      if (guest.named) { ready(); return; }
-      form.hidden = false; canvas.inert = true;
-      user.focus();
-    },
-    stopLogin() { form.hidden = true; canvas.inert = false; handlers = null; canvas.focus(); },
-    visible: () => !form.hidden,
-    attempting() {},
-    accepted() { if (pending) { guest = pending; saveGuest(guest); pending = null; } },
-    rejected() { pending = null; },
-    credentials: () => ({ username: user.value.trim(), password: '' }),
-    name: () => guest.named ? guest.username : '',
-    forget() { delete guest.named; saveGuest(guest); },
-  };
-  return ui;
-}
-
-// The question at a friendly Start with 2 or 3 people in the room: should bots fill the empty seats?
-// Select answers Yes and Back answers No, as in the game; the buttons work too.
-function botPrompt() {
-  const box = document.getElementById('bots-ask'), title = document.getElementById('bots-title');
-  const buttons = { none: document.getElementById('bots-no'), cpu: document.getElementById('bots-cpu'), expert: document.getElementById('bots-expert') };
-  const open = () => Object.values(buttons).filter(b => !b.hidden);
-  let done = null;
-  const finish = answer => { if (!done) return; const d = done; done = null; box.hidden = true; canvas.inert = false; canvas.focus(); d(answer); };
-  for (const [answer, b] of Object.entries(buttons)) b.onclick = () => finish(answer);
-  // Left and right move between the buttons and Select presses the one in focus, which starts on CPU.
-  const move = step => { const list = open(), i = list.indexOf(document.activeElement); list[Math.max(0, Math.min(list.length - 1, (i < 0 ? list.indexOf(buttons.cpu) : i) + step))].focus(); };
-  const choose = () => (open().includes(document.activeElement) ? document.activeElement : buttons.cpu).click();
-  // Captured at the window, so wherever focus is, no key reaches the game's listeners while the box is open.
-  // Key-ups still pass, which lets go of the Select that pressed Start.
-  addEventListener('keydown', e => {
-    if (!done) return;
-    e.preventDefault(); e.stopImmediatePropagation();
-    if (e.repeat) return;
-    if (e.key === 'Enter' || e.key === 'Control') choose();
-    else if (e.key === 'Shift' || e.key === 'Escape') finish('none');
-    else if (e.key === 'ArrowLeft') move(-1);
-    else if (e.key === 'ArrowRight') move(1);
-  }, true);
-  return {
-    // answer resolves with 'none', 'cpu' or 'expert', or null if close() ends the question. A player alone has no 'none' button,
-    // and Back there drops the Start.
-    ask(alone = false) {
-      title.textContent = alone ? 'Choose the CPU level' : 'Fill the empty seats with CPU players?';
-      buttons.none.hidden = alone;
-      box.hidden = false; canvas.inert = true; buttons.cpu.focus();
-      return { answer: new Promise(r => { done = r; }), close: () => finish(null) };
-    },
-    // The touch pad while the question is open: Select, Back, Left and Right answer it, and no pad key reaches the game.
-    pad(key) {
-      if (!done) return false;
-      if (key === 'select') choose(); else if (key === 'back') finish('none'); else if (key === 'left') move(-1); else if (key === 'right') move(1);
-      return true;
-    },
-  };
-}
-
 // Whether the server can run bots (GET /bots).
 const botsAvailable = () => fetch('bots').then(r => r.json()).then(b => b.available, () => false);
-
-// "Online as <name> · Change name" under Start, once the player has set a name.
-function onlineAs(login) {
-  const line = document.getElementById('online-as');
-  const show = () => { line.hidden = !login.name(); document.getElementById('online-name').textContent = login.name(); };
-  document.getElementById('change-name').onclick = () => { login.forget(); show(); startButton.focus(); };
-  show();
-}
 
 // What the server says about itself (GET /status): whether it has accounts, and who is online. Null on a static host with no server.
 const serverStatus = () => fetch('status', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(s => (typeof s?.accounts === 'boolean' ? s : null), () => null);
@@ -377,8 +281,8 @@ async function main() {
   await accountReady;
   status.textContent = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
-  const login = accounts ? accountLogin(accounts) : loginUI(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
-  const botQuestion = botPrompt(), bots = await botsAvailable();
+  const login = accounts ? accountLogin(accounts) : createNameLogin(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
+  const bots = await botsAvailable();
   if (bots) snap.bots = botQuestion;
   const patches = [...UNLOCKS, ...(bots ? LONE_START : [])];
   const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches });
@@ -392,7 +296,7 @@ async function main() {
   status.textContent = 'Ready';
   startButton.hidden = false;
   startButton.focus();
-  onlineAs(login);
+  if (!accounts) showOnlineName();
   // Sound and the wake video must start inside the tap itself, or Safari blocks them.
   let audio;
   await new Promise(r => startButton.addEventListener('click', () => {

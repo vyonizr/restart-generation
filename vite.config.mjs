@@ -17,6 +17,7 @@ export default defineConfig({
     assetsInlineLimit: 0, // the wake video and the fonts stay files
   },
   server: {
-    proxy: Object.fromEntries(['/snap', '/status', '/auth', '/bots', '/game'].map(path => [path, gateway])),
+    // Exact paths: a plain '/snap' would also catch the page's own /snap.js.
+    proxy: Object.fromEntries(['^/(snap|status|bots)$', '^/(auth|game)/'].map(path => [path, gateway])),
   },
 });
