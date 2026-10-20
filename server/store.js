@@ -35,6 +35,12 @@ const SCHEMA = `
     state TEXT NOT NULL CHECK (state IN ('to', 'from', 'both')),
     PRIMARY KEY (a, b)
   ) WITHOUT ROWID;
+  CREATE TABLE IF NOT EXISTS saves (
+    account INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    data BLOB NOT NULL,
+    PRIMARY KEY (account, name)
+  ) WITHOUT ROWID;
 `;
 
 const hash = token => crypto.createHash('sha256').update(String(token)).digest('hex');
@@ -66,6 +72,10 @@ function open(file) {
   sql('link', 'SELECT state FROM friends WHERE a = ? AND b = ?');
   sql('setLink', 'INSERT INTO friends (a, b, state) VALUES (?, ?, ?) ON CONFLICT (a, b) DO UPDATE SET state = excluded.state');
   sql('clearLink', 'DELETE FROM friends WHERE a = ? AND b = ?');
+  sql('saves', 'SELECT name, data FROM saves WHERE account = ? ORDER BY name');
+  sql('putSave', 'INSERT INTO saves (account, name, data) VALUES (?, ?, ?) ON CONFLICT (account, name) DO UPDATE SET data = excluded.data');
+  sql('dropSave', 'DELETE FROM saves WHERE account = ? AND name = ?');
+  sql('saveUsage', 'SELECT COUNT(*) AS files, COALESCE(SUM(LENGTH(data)), 0) AS bytes FROM saves WHERE account = ? AND name != ?');
   sql('find', "SELECT * FROM accounts WHERE name LIKE ? ESCAPE '\\' ORDER BY id LIMIT ?");
   sql('window', "SELECT * FROM accounts WHERE kind != 'guest' ORDER BY fame DESC, id LIMIT ? OFFSET ?");
   sql('rankOf', "SELECT COUNT(*) AS n FROM accounts WHERE kind != 'guest' AND (fame > ? OR (fame = ? AND id < ?))");
@@ -142,6 +152,13 @@ function open(file) {
       const set = (x, y, state) => state ? q.setLink.run(Number(x.id), Number(y.id), state) : q.clearLink.run(Number(x.id), Number(y.id));
       transaction(() => { set(a, b, stateA); set(b, a, stateB); });
     },
+    // A member's saved game (ADR 0014): the engine's files, kept as the browser sent them and never read by the server.
+    // They go with the account when it is deleted.
+    saves: acc => q.saves.all(Number(acc.id)).map(r => ({ name: r.name, data: Buffer.from(r.data) })),
+    putSave: (acc, name, data) => { q.putSave.run(Number(acc.id), name, data); },
+    dropSave: (acc, name) => { q.dropSave.run(Number(acc.id), name); },
+    // How many files and bytes the account holds apart from `except`, the one a write is about to replace.
+    saveUsage: (acc, except) => q.saveUsage.get(Number(acc.id), except),
     findByPrefix: (prefix, limit) => q.find.all(like(prefix), limit).map(account),
     // Rankings list everyone but guests, by fame, oldest account first among equals.
     ranking: (offset, limit) => q.window.all(limit, Math.max(0, offset)).map(account),

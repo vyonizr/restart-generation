@@ -40,8 +40,8 @@ const setup = (over = {}) => {
 };
 
 // One request through auth.http: -> { code, body }.
-async function call(auth, method, path, { body, token, ip = '1.1.1.1', headers = {} } = {}) {
-  const req = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
+async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', headers = {} } = {}) {
+  const req = Readable.from(bytes ? [Buffer.from(bytes)] : body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
   Object.assign(req, { method, url: path, headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers }, socket: { remoteAddress: ip } });
   const out = { code: null, body: null, location: null };
   const res = {
@@ -174,6 +174,39 @@ async function call(auth, method, path, { body, token, ip = '1.1.1.1', headers =
   assert.strictEqual(fresh.store.byName(gx.name), null);
   assert.deepStrictEqual(fresh.removed, [gx.name]);
   assert.strictEqual((await call(fresh.auth, 'POST', '/auth/delete', { token: gx.token })).code, 401);
+
+  // A member's saved game (ADR 0014): the engine's files, kept per account, for members only.
+  ({ auth, store } = setup());
+  const sg = (await call(auth, 'POST', '/auth/guest')).body;
+  const saver = store.create('Saver', 'member', clock), saverToken = store.issueToken(saver);
+  const rival = store.create('Rival', 'member', clock), rivalToken = store.issueToken(rival);
+  const put = (name, bytes, token = saverToken) => call(auth, 'PUT', `/auth/saves/${name}`, { bytes, token });
+  assert.strictEqual((await call(auth, 'GET', '/auth/saves', { token: sg.token })).code, 403); // a guest keeps its files in the browser
+  assert.strictEqual((await put('single_player_game.save', [1], sg.token)).code, 403);
+  assert.strictEqual((await call(auth, 'GET', '/auth/saves', { token: 'nope' })).code, 401);
+  assert.deepStrictEqual((await call(auth, 'GET', '/auth/saves', { token: saverToken })).body, { files: {} });
+  assert.strictEqual((await put('single_player_game.save', [1, 2, 3])).code, 204);
+  assert.strictEqual((await put('single_player_game.save', [9, 8])).code, 204); // a second write replaces the first
+  assert.strictEqual((await put('settings.cfg', [])).code, 204); // an empty file is a file
+  assert.deepStrictEqual((await call(auth, 'GET', '/auth/saves', { token: saverToken })).body, { files: { 'settings.cfg': '', 'single_player_game.save': Buffer.from([9, 8]).toString('base64') } });
+  assert.deepStrictEqual((await call(auth, 'GET', '/auth/saves', { token: rivalToken })).body, { files: {} }); // one member's files are theirs alone
+  for (const name of ['noextension', '..%2Fx.save', 'a b.save', 'x.toolongext', '.save']) assert.strictEqual((await put(name, [1])).code, 400, name);
+  assert.strictEqual((await call(auth, 'DELETE', '/auth/saves/settings.cfg', { token: saverToken })).code, 204);
+  assert.deepStrictEqual(Object.keys((await call(auth, 'GET', '/auth/saves', { token: saverToken })).body.files), ['single_player_game.save']);
+
+  // Limits: 256 KB a file, 1 MB in all and 16 files; a write that is refused leaves what the member had.
+  assert.strictEqual((await put('big.save', Buffer.alloc(256 * 1024 + 1))).code, 413);
+  assert.strictEqual((await put('big.save', Buffer.alloc(256 * 1024))).code, 204);
+  for (const n of ['b', 'c', 'd']) assert.strictEqual((await put(`${n}.save`, Buffer.alloc(256 * 1024))).code, n === 'd' ? 413 : 204, n); // the fourth full file, with 2 bytes already held, passes 1 MB
+  assert.strictEqual((await put('single_player_game.save', Buffer.alloc(256 * 1024))).code, 204); // replacing a file counts only its new size
+  ({ auth, store } = setup());
+  const packed = store.create('Packed', 'member', clock), packedToken = store.issueToken(packed);
+  for (let i = 0; i < 16; i++) assert.strictEqual((await put(`f${i}.dat`, [i], packedToken)).code, 204);
+  assert.strictEqual((await put('f16.dat', [1], packedToken)).code, 413);
+  assert.strictEqual((await put('f3.dat', [7, 7], packedToken)).code, 204); // but a file it holds can still change
+  // Deleting the account takes its files with it.
+  assert.strictEqual((await call(auth, 'POST', '/auth/delete', { token: packedToken })).code, 204);
+  assert.deepStrictEqual(store.saves(packed), []);
 
   // Without a Discord application there is no /auth at all.
   const off = createAuth({ store: open(':memory:'), config: configFrom({}), fameLevel: () => 1, busy: () => false, remove() {} });

@@ -18,4 +18,5 @@ ADRs 0002 and 0003 keep the original engine unchanged. To unlock every story and
 ## Consequences
 
 - Only the browser client gets the unlocks. The Java client keeps the original locks.
+- The unlocks apply only when the server says so: `GET /status` carries `unlockAll`, true unless the server is `--public`. On a public server, and on a static host with no server to say so, every story and hero stays locked until the player earns it, and a member's saved game keeps that progress (ADR 0014). The headless bot (`server/bot.mjs`) always applies them, and bots run only on servers that aren't public.
 - A player's engine copy that doesn't match the expected bytes keeps the original locks.

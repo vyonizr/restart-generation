@@ -21,11 +21,12 @@ export class Account {
   #read() { try { return JSON.parse(this.storage.getItem(KEY)); } catch { return null; } }
   #write(v) { try { v ? this.storage.setItem(KEY, JSON.stringify(v)) : this.storage.removeItem(KEY); } catch { /* storage blocked: the account lasts until the page closes */ } }
 
-  async #call(method, path, { body, auth = true } = {}) {
+  async #call(method, path, { body, bytes, keepalive, auth = true } = {}) {
     const headers = {};
     if (auth && this.token) headers.Authorization = `Bearer ${this.token}`;
+    if (bytes) headers['Content-Type'] = 'application/octet-stream';
     let res;
-    try { res = await this.fetch(path, { method, headers, body: body && JSON.stringify(body) }); } catch { throw new AccountError('offline'); }
+    try { res = await this.fetch(path, { method, headers, body: bytes ?? (body && JSON.stringify(body)), keepalive }); } catch { throw new AccountError('offline'); }
     const text = await res.text();
     let json = null;
     try { json = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
@@ -93,6 +94,24 @@ export class Account {
   }
 
   #signedIn({ name, token }) { this.token = token; this.#write({ name, token }); }
+
+  // A member's saved game (ADR 0014), kept on the server: { file name: base64 }. Guests have none.
+  async saves() {
+    const r = await this.#call('GET', '/auth/saves');
+    if (r.status !== 200) throw new AccountError('failed');
+    return r.json.files;
+  }
+
+  // Stores one file of the saved game, or removes it. 'too_large' if the server's limits refuse it.
+  async putSave(name, bytes, keepalive = false) {
+    const r = await this.#call('PUT', `/auth/saves/${name}`, { bytes, keepalive });
+    if (r.status === 413) throw new AccountError('too_large');
+    if (r.status !== 204) throw new AccountError('failed');
+  }
+  async dropSave(name, keepalive = false) {
+    const r = await this.#call('DELETE', `/auth/saves/${name}`, { keepalive });
+    if (r.status !== 204) throw new AccountError('failed');
+  }
 
   // Back to a new guest. The server forgets this browser's token.
   async signOut() {

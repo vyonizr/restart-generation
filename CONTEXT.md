@@ -24,6 +24,10 @@ _Avoid_: anonymous user, unregistered user, visitor
 A player whose account is tied to a sign-in and stays.
 _Avoid_: registered user, logged-in user, account holder
 
+**Saved game**:
+The files the engine writes as a player progresses: story progress, the quick-match record, settings and achievements. A member's saved game is kept on the server and follows them across browsers; everyone else's stays in one browser.
+_Avoid_: save file, progress file, profile
+
 **Fame**:
 The score a player earns by winning ranked matches. Its level, the fame level, is what the game shows beside a name.
 _Avoid_: XP, rating, points
@@ -63,6 +67,10 @@ _Avoid_: mobile, handheld
 **Touch pad**:
 The on-screen controls under the game screen on a touch device: a D-pad, then Select and Back side by side to its right level with Up, and a Keyboard button below that.
 _Avoid_: virtual gamepad, on-screen keyboard
+
+**Open progression**:
+Every Story and Hero playable from the start, with nothing marked finished. It applies on any server that isn't public; on a public server they are earned and kept in the saved game.
+_Avoid_: cheat, unlock hack
 
 **Hero**:
 One of the ten playable characters a player picks for a battle.
