@@ -14,4 +14,5 @@ To start a battle, the server sends each client a Game blob and a state snapshot
 - The engine picks the map of a capture at random, so two templates for one player count can be different maps with the same castle positions. Variety needs more captures.
 - Capturing needs Windows, Visual Studio and the Java client, so the gateway keeps serving the Java client over TCP alongside the browser client.
 - Templates are derived from the game, so they stay out of the repository (see ADR 0001). Each server operator captures their own.
+- A `--public` server refuses to start with no usable template, because players would otherwise queue for matches that never start; a Docker container then exits and compose keeps retrying it. Other servers start and warn, since the page and single-player play don't need templates. Every server warns for each player count (2, 3, 4) with no template.
 - The emulator in `web/emu` runs the same engine, so templates could be captured without the Java client. That isn't built.
