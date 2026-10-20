@@ -1,0 +1,7 @@
+# Caddy in front of the gateway (compose.yaml). RG_DOMAIN is the public name, for example play.example.com; Caddy gets and
+# renews its certificate by itself, redirects http to https, and sets X-Forwarded-For to the client's address (the gateway's
+# RG_TRUST_PROXY reads it). It waits as long as the gateway's 15 s long polls need (ADR 0004).
+{$RG_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy rg:8080
+}

@@ -1,20 +1,43 @@
+# The public server: Caddy serves https://${RG_DOMAIN} with a certificate it gets and renews itself, and is the only way in.
+# The gateway publishes no port. For a private network use compose.lan.yaml instead. See "Run in Docker" in the README.
 services:
   rg:
     build: .
     restart: unless-stopped
-    ports:
-      - "${BIND:-127.0.0.1}:8080:8080"
-      - "${BIND:-127.0.0.1}:8976:8976"
+    expose:
+      - "8080"
     environment:
-      # Set only if RG_GAME_PATH is set: the server then sends that game copy to every visitor. The image runs --public, so it never runs bots.
+      # Set only if RG_GAME_PATH is set: the server then sends that game copy to every visitor. A public server never runs bots.
       RG_GAME: ${RG_GAME_PATH:+/game}
-      # Guests and members: all three are needed (see the README).
+      # Guests and members: all three are needed (see the README). The address defaults to the domain Caddy serves.
       RG_DISCORD_CLIENT_ID: ${RG_DISCORD_CLIENT_ID:-}
       RG_DISCORD_CLIENT_SECRET: ${RG_DISCORD_CLIENT_SECRET:-}
-      RG_PUBLIC_URL: ${RG_PUBLIC_URL:-}
+      RG_PUBLIC_URL: ${RG_PUBLIC_URL:-https://${RG_DOMAIN:?Set RG_DOMAIN in .env, for example play.example.com}}
       RG_DISCORD_INVITE: ${RG_DISCORD_INVITE:-}
-      RG_TRUST_PROXY: ${RG_TRUST_PROXY:-}
+      # One proxy (Caddy) sits in front, and nothing else can reach the gateway, so its X-Forwarded-For can be trusted.
+      RG_TRUST_PROXY: ${RG_TRUST_PROXY:-1}
     volumes:
       - ./data:/app/data
       # With no RG_GAME_PATH, this mounts an empty file that the server ignores.
       - ${RG_GAME_PATH:-/dev/null}:/game:ro
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - rg
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      RG_DOMAIN: ${RG_DOMAIN:?Set RG_DOMAIN in .env, for example play.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The certificates and Caddy's state. Losing them only means asking Let's Encrypt again.
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

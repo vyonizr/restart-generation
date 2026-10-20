@@ -55,7 +55,7 @@ Phones and tablets play in portrait, with a touch pad under the game screen; a k
 
 Requires Node.js 22.13 or later, for the built-in `node:sqlite`. The server and the emulator have no npm dependencies, on purpose, so they run with nothing installed. Only building the page needs `npm install` (Vite and Svelte, ADR 0013). The built page is `web/dist`, which the server serves and a static host can take as it is.
 
-Run `npm install` once, put `RG_GAME=<path>` in a `.env` file in the repo root, then use these npm scripts:
+Run `npm install` once, copy `.env.example` to `.env` in the repo root and set `RG_GAME=<path>` there, then use these npm scripts:
 
 - `npm start`, or `npm run start:lan` for `--lan`: starts the server. If `web/dist` is missing it builds the page first, and if Vite is not installed it tells you to run `npm install`.
 - `npm run build`: rebuilds the page after you change anything in `web/`.
@@ -114,29 +114,49 @@ The page also shows how many players are online, as "3 online" under the game sc
 
 ## Run in Docker
 
-`compose.yaml` builds and runs the server in a container. The image doesn't contain the game files (ADR 0001), and it builds the page in a first build stage, so it holds no `node_modules`. To set it up, create a `.env` file in the repo root:
+The image doesn't contain the game files (ADR 0001), and it builds the page in a first build stage, so it holds no `node_modules`. Two compose files run it: `compose.yaml` for the internet and `compose.lan.yaml` for a private network or this PC.
+
+### On the internet (Caddy)
+
+`compose.yaml` runs the server behind [Caddy](https://caddyserver.com), which gets and renews the HTTPS certificate by itself, redirects http to https, and forwards the client's address (the server's `RG_TRUST_PROXY`, on by default here, reads it). The server publishes no port of its own, so Caddy is the only way in. The page needs HTTPS for features such as the screen wake lock, and Discord needs an `https://` address.
+
+1. Point your domain's DNS `A` (and `AAAA`, if you have IPv6) record at the host, and open ports 80 and 443 (443 for UDP too, for HTTP/3) in its firewall. Nothing else on the host may use 80 or 443.
+2. Register the Discord application as described in [Guests and members](#guests-and-members), with `https://<your domain>/auth/discord/callback` as its redirect.
+3. Copy `.env.example` to `.env` in the repo root (it lists every setting, all empty) and fill in at least these:
+
+   ```sh
+   # The public name Caddy serves, for example the one this project is published on.
+   RG_DOMAIN=play.example.com
+   RG_DISCORD_CLIENT_ID=
+   RG_DISCORD_CLIENT_SECRET=
+   # Optional: your community link, shown as "Join the Discord" in the footer.
+   # RG_DISCORD_INVITE=https://discord.gg/...
+   # Optional, and your decision and risk: the server then sends this copy of the game to every visitor. Leave it out and each
+   # player chooses their own copy (ADR 0001). The .zip or the extracted folder; start a relative path with ./
+   # RG_GAME_PATH=./ResetGeneration-Standalone.zip
+   ```
+
+   `RG_PUBLIC_URL` defaults to `https://<RG_DOMAIN>`. A public server never runs bots, with or without `RG_GAME_PATH`.
+4. Create the `data` folder next to `compose.yaml` and put your captured battle templates in it (see [Battle templates](#battle-templates)). It is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. Without a usable template the server refuses to start and prints why, and `restart: unless-stopped` then keeps retrying. On a Linux host, make the folder writable by the container's user (uid 1000), or Docker creates it owned by root and the server stops with `EACCES: permission denied, mkdir '/app/data'`:
+
+   ```sh
+   mkdir -p data/templates && sudo chown -R 1000:1000 data
+   ```
+5. Run `docker compose up -d --build` and open `https://<your domain>/`. The first visit can take a few seconds while Caddy gets the certificate; `docker compose logs caddy` shows how it went.
+
+Caddy keeps its certificates in a Docker volume (`caddy_data`). Losing it only means asking Let's Encrypt again, which limits how often it will issue for one name. The Java client's TCP port 8976 isn't published: a Discord-enabled server refuses the Java client anyway, because it can't send a token. Each bot needs about 400 MB of memory, but a public server runs none.
+
+### On a private network or this PC
+
+`compose.lan.yaml` runs the server with `--lan`: name-only login, every story and hero open, and bots when `RG_GAME_PATH` is set. It publishes the page on 8080 and the Java client's port on 8976, to this PC only unless you set `BIND=0.0.0.0` in `.env`:
 
 ```sh
-# Your copy of the game: the .zip or the extracted folder. Start a relative path with ./
 RG_GAME_PATH=./ResetGeneration-Standalone.zip
-# Who can connect. 127.0.0.1 (default) is this PC only; 0.0.0.0 is your network or the internet.
 BIND=127.0.0.1
-# Optional: guests and members (see Guests and members). Leave them out for name-only login.
-# RG_DISCORD_CLIENT_ID=
-# RG_DISCORD_CLIENT_SECRET=
-# RG_PUBLIC_URL=https://play.example.com
 ```
 
-Then run `docker compose up -d --build` and open `http://localhost:8080/`. The container keeps accounts and battle templates in `./data`, so create that folder and put your captured templates in it before the first start: without one the container exits with a message (see [Battle templates](#battle-templates)), and `restart: unless-stopped` then keeps retrying. The folder is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. On a Linux host, create it yourself and make it writable by the container's user (uid 1000), or Docker creates it owned by root and the server stops with `EACCES: permission denied, mkdir '/app/data'`:
+Run `docker compose -f compose.lan.yaml up -d --build` and open `http://localhost:8080/`. It keeps accounts and battle templates in `./data` the same way, and it only warns when there are no templates. The container serves plain HTTP, so the screen wake lock isn't available on another device unless you put HTTPS in front.
 
-```sh
-mkdir -p data && sudo chown 1000:1000 data
-```
-
-- **Local or LAN:** set `RG_GAME_PATH`. The server serves the game files and runs bots. For LAN play, set `BIND=0.0.0.0`.
-- **Public:** set `BIND=0.0.0.0`. With `RG_GAME_PATH` empty, the server serves no game files, so each player chooses their own copy (see [Host the page without the game files](#host-the-page-without-the-game-files)); that is the project's default (ADR 0001). If you set `RG_GAME_PATH`, the server sends that copy to every visitor, which is your decision and your risk. A public server never runs bots, with or without it.
-
-The container serves plain HTTP. For a public server, put a reverse proxy or tunnel in front of port 8080 that provides HTTPS, which the page needs for features such as screen wake lock, and that waits more than 15 s for a response, because the server holds `retrieveAllEvents` requests for up to 15 s (ADR 0004). Without Discord sign-in, anyone can log in as any name and drop that player's session (ADR 0009), so turn it on for a public server (see [Guests and members](#guests-and-members)). Each bot needs about 400 MB of memory.
 
 ## Battle templates
 
@@ -166,7 +186,7 @@ To restore it on this machine or on a server, run the following from the folder 
 mkdir -p data && tar -xzf battle-templates.tar.gz -C data
 ```
 
-With Docker, extract it into the `./data` folder that `compose.yaml` mounts, then run `docker compose restart`. When a match starts, the log shows `table uses template <name>`. A template the server can't use is skipped at start with a `battle template <name> skipped` warning.
+With Docker, extract it into the `./data` folder that the compose file mounts, then run `docker compose restart` (add `-f compose.lan.yaml` for a LAN server). When a match starts, the log shows `table uses template <name>`. A template the server can't use is skipped at start with a `battle template <name> skipped` warning.
 
 If no archive is left, capture the templates again with the steps above. That needs Windows, the Visual Studio x86 tools and the Java client. Keep the `trace.log` and `<outdir>` from each capture session as well: `import-all.js` rebuilds the templates from them without playing the battles again.
 

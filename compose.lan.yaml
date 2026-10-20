@@ -1,0 +1,17 @@
+# The server for a private network, or this PC only: name-only login, every story and hero open, bots when RG_GAME_PATH is set.
+# Run it with `docker compose -f compose.lan.yaml up -d --build`. For the internet use compose.yaml. See "Run in Docker" in the README.
+services:
+  rg:
+    build: .
+    command: ["node", "server/gateway.js", "--lan"]
+    restart: unless-stopped
+    ports:
+      - "${BIND:-127.0.0.1}:8080:8080"
+      - "${BIND:-127.0.0.1}:8976:8976"
+    environment:
+      # Set only if RG_GAME_PATH is set: the server then sends that game copy to every visitor and can run bots.
+      RG_GAME: ${RG_GAME_PATH:+/game}
+    volumes:
+      - ./data:/app/data
+      # With no RG_GAME_PATH, this mounts an empty file that the server ignores.
+      - ${RG_GAME_PATH:-/dev/null}:/game:ro
