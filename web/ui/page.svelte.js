@@ -1,4 +1,4 @@
-// What the components draw. Plain code (the account, the game loop) changes these fields; the components never fetch or decide.
+// What the components draw. Plain code (the account, the game loop) changes these fields and the components draw them. A component may poll for what only it shows (Strip does).
 export const page = $state({
   status: 'Loading game files…', // the overlay's line: what the page is doing
   overlay: true,    // the overlay covers the game screen until Start, and again after a failure
@@ -20,7 +20,7 @@ export const page = $state({
   dialogs: 0,       // dialogs open; the game screen can't be reached while one is
 });
 
-// What the touch pad drives once the game runs: { game, input, audio, botQuestion }. Raw, so the emulator and its input queue are
+// What the touch pad drives once the game runs: { game, input, audio }. Raw, so the emulator and its input queue are
 // never wrapped in reactive proxies.
 class Slot { current = $state.raw(null); }
 export const padSession = new Slot();

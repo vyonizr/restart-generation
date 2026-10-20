@@ -2,10 +2,11 @@
 // It works on elements it is given and returns a function that takes every listener off again. Pad.svelte draws the pad.
 import { javaKey, PAD } from './keys.js';
 import { stayAwake, needsVideo } from './wake.js';
+import { botQuestion } from './bots.js';
 
 // pad: the .pad element; typing: the hidden field that raises the system keyboard; typeButton: the Keyboard control.
-// game, input (the queue applied at the start of each tick), audio and botQuestion come from the running game (game.js).
-export function bindPad({ pad, typing, typeButton, game, input, audio, botQuestion }) {
+// game, input (the queue applied at the start of each tick) and audio come from the running game (game.js).
+export function bindPad({ pad, typing, typeButton, game, input, audio }) {
   const ac = new AbortController(), { signal } = ac;
   const presses = new Map(), fingers = new Map(); // data-key -> press count, pointerId -> data-key
   const button = k => pad.querySelector(`[data-key="${k}"]`);

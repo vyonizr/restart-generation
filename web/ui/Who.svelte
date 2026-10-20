@@ -1,7 +1,7 @@
 <!-- Who you are: the header on a desktop, the line under Start on a touch device (App places it in both). -->
 <script>
   import { page } from './page.svelte.js';
-  import { actions } from './accounts.svelte.js';
+  import { actions } from './accounts.js';
 
   let menu = $state();
 </script>

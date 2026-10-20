@@ -2,7 +2,7 @@
 <script>
   import Dialog from './Dialog.svelte';
   import { page } from './page.svelte.js';
-  import { answerConfirm } from './accounts.svelte.js';
+  import { answerConfirm } from './accounts.js';
 </script>
 
 <Dialog id="confirm" titleId="confirm-title" focus="#confirm-no" oncancel={() => answerConfirm(false)}>

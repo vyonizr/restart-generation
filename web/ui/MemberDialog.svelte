@@ -2,7 +2,7 @@
 <script>
   import Dialog from './Dialog.svelte';
   import { page } from './page.svelte.js';
-  import { answerName } from './accounts.svelte.js';
+  import { answerName } from './accounts.js';
 
   let input = $state();
   // Each call to ask again (with an error) puts a new object in page.nameDialog: select the text so typing replaces it.

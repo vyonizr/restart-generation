@@ -1,12 +1,12 @@
 # The page is built with Vite and Svelte; the server and engine stay dependency-free
 
-The browser page grew from a few buttons into a login dialog, guest and member accounts, a bot prompt, a file picker, a touch pad, notices and a footer whose copy depends on the server. `web/main.js` wires 21 elements by id and mixes game loading, input, audio, the pad and every dialog, and `web/accountui.js` builds DOM by hand and manages dialog focus by hand. The UI layer moves to Svelte 5, compiled by plain Vite (not SvelteKit). The page and its dialogs become components that own their state; the emulator, the SNAP client and the server do not change.
+The browser page grew from a few buttons into a login dialog, guest and member accounts, a bot prompt, a file picker, a touch pad, notices and a footer whose copy depends on the server. `web/main.js` wires 21 elements by id and mixes game loading, input, audio, the pad and every dialog, and `web/accountui.js` builds DOM by hand and manages dialog focus by hand. The UI layer moves to Svelte 5, compiled by plain Vite (not SvelteKit). The page and its dialogs become components that draw one small shared state (`web/ui/page.svelte.js`), which plain modules (the game loop, the account, the file loader) change; the emulator, the SNAP client and the server do not change.
 
 This reverses the product rule "plain HTML, CSS and JavaScript modules with no build step and no dependencies" for the page only. The server stays dependency-free (the README's "nothing to install" becomes "nothing to install to run the server from a built page"; see below), and `node:sqlite` stays the only database (ADR 0010).
 
 ## What moves and what stays
 
-Moves: `web/index.html` (markup, and the CSS as global styles keeping the `DESIGN.md` tokens), the UI parts of `web/main.js`, `web/accountui.js` and `web/account.js`.
+Moves: `web/index.html` (markup, and the CSS as global styles keeping the `DESIGN.md` tokens), the UI parts of `web/main.js`, and `web/accountui.js`. `web/account.js` stays a plain class: it has no DOM, and nothing needed it to become a store.
 
 Stays plain modules, because Node imports them with no bundler (`server/bot.mjs`, `tools/tune.mjs`, `server/gateway.js` and `server/casino.test.js`): `web/emu/`, `web/snap.js`, `web/zip.js` and `web/tools/game.mjs`. The emulator's game loop and canvas drawing also stay as they are; Svelte code calls them.
 
@@ -22,9 +22,9 @@ Stays plain modules, because Node imports them with no bundler (`server/bot.mjs`
 ## Consequences
 
 - A fresh clone needs `npm install` before the page can be built: Svelte, Vite and the Svelte Vite plugin become development dependencies. Vite 8 needs Node 20.19 or 22.12 and later, which the project's 22.13 minimum meets. The server and the engine still run with no installed packages.
-- `npm run build` writes `web/dist/`, and the gateway serves that folder. The `npm start` scripts build it first when it is missing. A static host takes `web/dist/` as is. The Dockerfile builds in a first stage and copies only `web/dist/` and the server into the final image, so the final image still has no `node_modules`.
+- `npm run build` writes `web/dist/`, and the gateway serves that folder. The `npm start` scripts build it first when it is missing. A static host takes `web/dist/` as is. The Dockerfile builds in a first stage and copies the server, the plain modules it imports (`web/emu`, `web/snap.js`, `web/zip.js`, `web/tools`) and `web/dist/` into the final image, so the final image still has no `node_modules`.
 - The gateway's static whitelist (`/^\/(emu\/)?[\w-]+\.(js|html|mp4)$/`) changes to serve hashed build output. The `Cache-Control: no-cache` rule stays for `index.html`; hashed assets may be cached for a long time.
-- Development uses the Vite dev server with hot reload, proxying `/snap`, `/status`, `/auth`, `/bots` and `/game` to the gateway.
+- Development uses the Vite dev server, proxying `/snap`, `/status`, `/auth`, `/bots` and `/game` to the gateway. A style change swaps in place; a script or component change reloads the page, because a hot-swapped App would start a second engine beside the first. Hot reload is therefore partial.
 - The migration goes one surface at a time with the page working after every step (see `.scratch/ui-migration/spec.md`), and the old code is deleted at the end, with no old and new pages side by side.
 - `PRODUCT.md`, the README and `.impeccable/surfaces/web-index-html.md` changed with the build, not before it: they describe what the repository does today.
 
@@ -32,4 +32,4 @@ Stays plain modules, because Node imports them with no bundler (`server/bot.mjs`
 
 The migration is done: `web/main.js` and `web/accountui.js` are gone, and nothing outside `web/ui` looks elements up by id except what `browser-test.mjs` and the dialogs' focus targets need.
 
-Measured, gzipped, with the same emulator and the same page behaviour: the plain page was one 92 kB script (32 kB gzipped) with its CSS inline in a 17.6 kB `index.html`. The built page is one 149 kB script (54 kB gzipped), 10 kB of CSS (3 kB gzipped) and a 0.8 kB `index.html`. So Svelte and the components cost about 22 kB gzipped on top of the emulator, not the 2 to 5 kB the blog figures above suggested; most of the page's weight is still the emulator and the SNAP client. Hot reload and the component structure are what the cost bought.
+Measured, gzipped, with the same emulator and the same page behaviour: the plain page was one 92 kB script (32 kB gzipped) with its CSS inline in a 17.6 kB `index.html`. The built page is one 149 kB script (54 kB gzipped), 10 kB of CSS (3 kB gzipped) and a 0.8 kB `index.html`. So Svelte and the components cost about 22 kB gzipped on top of the emulator, not the 2 to 5 kB the blog figures above suggested; most of the page's weight is still the emulator and the SNAP client. The component structure and instant style changes are what the cost bought.

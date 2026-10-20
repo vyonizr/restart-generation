@@ -8,9 +8,9 @@ import { javaKey } from './keys.js';
 import { Audio } from './audio.js';
 import { stayAwake } from './wake.js';
 import { loadFiles, store, forgetCopy, source } from './gamefiles.js';
-import { createAccounts } from './accounts.svelte.js';
-import { createNameLogin, showOnlineName } from './login.svelte.js';
-import { botQuestion } from './bots.svelte.js';
+import { createAccounts } from './accounts.js';
+import { createNameLogin, showOnlineName } from './login.js';
+import { botQuestion } from './bots.js';
 
 let ctx, image, rgba;
 
@@ -110,7 +110,7 @@ async function main(canvas) {
   });
   addEventListener('blur', () => { held.clear(); input.push(() => game.releaseAll()); });
   canvas.addEventListener('pointerdown', () => canvas.focus());
-  if (touch) padSession.current = { game, input, audio, botQuestion };
+  if (touch) padSession.current = { game, input, audio };
 
   // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
   const saveNow = () => { for (const f of game.dirtyFiles()) store.set(f.name, f.data); };

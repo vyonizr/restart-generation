@@ -25,7 +25,7 @@
   <div class="side-r">
     <button data-key="back" class="back" aria-label="Back">Back</button>
     <button id="type" class="small" aria-label="Keyboard" bind:this={typeButton}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM6.5 9.5h1M10.5 9.5h1M14.5 9.5h1M17.5 9.5h.5M6.5 12.5h1M10.5 12.5h1M14.5 12.5h1M17.5 12.5h.5M8 15.5h8"/></svg></button>
-    <button id="fullscreen" class="small" aria-label="Fullscreen" hidden={!canFullscreen()} onclick={toggleFullscreen}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
+    <button id="fullscreen" class="small" aria-label="Fullscreen" hidden={!canFullscreen() || !padSession.current} onclick={toggleFullscreen}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
   </div>
   <p class="pad-hint">Hold Select to drop a block</p>
 </div>

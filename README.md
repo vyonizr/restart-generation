@@ -59,7 +59,7 @@ Run `npm install` once, put `RG_GAME=<path>` in a `.env` file in the repo root, 
 
 - `npm start`, or `npm run start:lan` for `--lan`: starts the server. If `web/dist` is missing it builds the page first, and if Vite is not installed it tells you to run `npm install`.
 - `npm run build`: rebuilds the page after you change anything in `web/`.
-- `npm run dev:web`: serves the page with hot reload while a gateway runs. It forwards `/snap`, `/status`, `/auth`, `/bots` and `/game` to port 8080 (or `HTTP_PORT`).
+- `npm run dev:web`: serves the page while a gateway runs: a style change swaps in place, a script or component change reloads the page. It forwards `/snap`, `/status`, `/auth`, `/bots` and `/game` to port 8080 (or `HTTP_PORT`).
 - `npm run dev`: restarts the server on file changes.
 - `npm test`: the self-checks that need no local data and no built page.
 

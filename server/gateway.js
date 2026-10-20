@@ -296,7 +296,7 @@ setInterval(() => {
 }, 5000);
 if (auth.enabled) { auth.sweep(); setInterval(auth.sweep, 60000); }
 
-// ---- browser client: serves web/ and the player's own copy of the game files ----
+// ---- browser client: serves the built page (web/dist) and the player's own copy of the game files ----
 const http = require('http');
 const HTTP_PORT = Number(process.env.HTTP_PORT || 8080);
 const WEB_DIR = path.join(__dirname, '..', 'web');

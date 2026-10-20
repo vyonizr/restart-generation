@@ -3,7 +3,7 @@
 <script>
   import { page } from './page.svelte.js';
   import Who from './Who.svelte';
-  import { changeName } from './login.svelte.js';
+  import { changeName } from './login.js';
   import { chooseZip, chooseFolder } from './gamefiles.js';
   import { pressStart, reload, useDifferentCopy } from './game.js';
   import { focusTarget } from './focus.js';

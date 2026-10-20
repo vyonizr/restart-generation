@@ -2,7 +2,7 @@
   "private": true,
   "scripts": {
     "build": "vite build",
-    "dev:web": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js",
+    "dev:web": "node tools/ensure-web.mjs --vite && node --env-file-if-exists=.env node_modules/vite/bin/vite.js",
     "start": "node tools/ensure-web.mjs && node --env-file-if-exists=.env server/gateway.js",
     "start:lan": "node tools/ensure-web.mjs && node --env-file-if-exists=.env server/gateway.js --lan",
     "start:relaxed": "node tools/ensure-web.mjs && node --env-file-if-exists=.env server/gateway.js --relaxed",

@@ -2,7 +2,7 @@
 <script>
   import Dialog from './Dialog.svelte';
   import { page } from './page.svelte.js';
-  import { submitName, cancelName } from './login.svelte.js';
+  import { submitName, cancelName } from './login.js';
 </script>
 
 <Dialog tag="form" id="login" titleId="login-title" focus="#username" oncancel={cancelName} onsubmit={form => submitName(form.elements.username.value)}>

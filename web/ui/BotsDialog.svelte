@@ -2,7 +2,7 @@
 <script>
   import Dialog from './Dialog.svelte';
   import { page } from './page.svelte.js';
-  import { answerBots, botsKey } from './bots.svelte.js';
+  import { answerBots, botsKey } from './bots.js';
 
   let buttons = $state({});
 

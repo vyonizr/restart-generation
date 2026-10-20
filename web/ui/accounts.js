@@ -33,7 +33,7 @@ function ask({ title, text, yes, no = 'Cancel' }) {
 export const answerConfirm = yes => askResolve?.(yes);
 
 // The line under the screen: notices, and the offer to sign in after a win. Each action is [label, run, secondary].
-export function notice(text, actions = []) {
+function notice(text, actions = []) {
   page.notice = { text, actions: actions.map(([label, run, secondary]) => ({ label, run, secondary })) };
 }
 const dismiss = [['Dismiss', null, true]];
@@ -124,5 +124,5 @@ async function rejected() {
 
 export function createAccounts() {
   account = new Account();
-  return { account, start, watch, rejected, notice };
+  return { account, start, watch, rejected };
 }
