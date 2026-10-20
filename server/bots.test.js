@@ -8,6 +8,7 @@ assert.strictEqual(bots.account('CPU_1', 'password'), null);
 assert.strictEqual(bots.account('CPU_1', 'abc:1'), null);
 assert.strictEqual(bots.account('CPU_1', '0'.repeat(24) + ':1'), null);
 assert.strictEqual(bots.available(), false); // no server address yet
+bots.spawn(3, () => {}).then(list => assert.deepStrictEqual(list, [])); // and so no bot is started
 
 // The Expert hero pool: heroes 0 to 9, each with a reason; a bad entry fails when the server starts.
 assert.ok(bots.loadHeroes().length > 0);

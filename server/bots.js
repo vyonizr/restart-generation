@@ -38,6 +38,7 @@ function account(name, password) {
 // that reached Quick Match in time. The 'expert' level runs the AI profiles of server/bot-ai.json and picks heroes from
 // server/bot-heroes.json (docs/adr/0012); 'cpu' runs the game's own profiles with a random hero.
 function spawn(n, log, level = 'cpu') {
+  if (!available()) return Promise.resolve([]); // no SNAP address (a --public server) or no game copy: no engine is ever started
   if (workers.size + n > MAX_RUNNING) log(`${MAX_RUNNING} bots running at most: starting ${Math.max(0, MAX_RUNNING - workers.size)} of ${n}`);
   n = Math.max(0, Math.min(n, MAX_RUNNING - workers.size));
   return Promise.all(Array.from({ length: n }, (_, i) => new Promise(resolve => {

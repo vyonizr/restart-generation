@@ -39,7 +39,7 @@ A phone, tablet or other computer on the same network can play the game that you
    The server prints one `http://<address>:8080/` line per network address, labelled with the network's name.
 2. On the other device, open the address of the network both devices share, such as `http://192.168.1.20:8080/`.
 
-Both devices must be on the same private network, such as your home Wi-Fi. Without `--lan`, the server accepts connections from your PC only. The same option lets friends play over the internet if they can reach your PC on ports 8080 (the page) and 8976 (the Java client).
+Both devices must be on the same private network, such as your home Wi-Fi. Without `--lan`, the server accepts connections from your PC only. `--lan` always uses name-only login, with no Discord sign-in (see [Guests and members](#guests-and-members)). To serve people over the internet, use `--public` instead: it listens the same way and turns on Discord sign-in when it is configured. Friends need to reach your PC on ports 8080 (the page) and 8976 (the Java client).
 
 If the other device can't connect, Windows Firewall is probably blocking it. To allow the two ports on private networks, run this command in PowerShell as an administrator:
 
@@ -61,11 +61,11 @@ To use npm scripts instead, put `RG_GAME=<path>` in a `.env` file in the repo ro
 node server/gateway.js
 ```
 
-The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](#play-on-other-devices)). To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in `data/accounts.db`, a SQLite database (ADR 0010). A `data/accounts.json` from an older version is not read, and its players register again. To back up the database while the server runs, use `sqlite3 data/accounts.db "VACUUM INTO 'backup.db'"`; copying the file mid-write is not safe.
+The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](#play-on-other-devices)). To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in a SQLite database (ADR 0010): `data/accounts-names.db` on a name-only server (`--lan`, or no Discord settings) and `data/accounts.db` on a Discord server, so switching modes never mixes the two kinds of account. A `data/accounts.json` from an older version is not read, and its players register again. To back up a database while the server runs, use `sqlite3 data/accounts.db "VACUUM INTO 'backup.db'"` (or `accounts-names.db`); copying the file mid-write is not safe.
 
 To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and the server ends a phase only after 3 minutes (1 minute for cannon shots) if someone stops playing. Ranked matches keep the 20 s limit.
 
-If `RG_GAME` is set, the server can also fill friendly matches with bots, players the server controls. A player alone in their room who presses **Start** chooses the difficulty, CPU or Expert, and a bot fills every empty seat. With 2 or 3 people in the room, the page asks "Fill the empty seats with CPU players?" when someone presses **Start**, with No, CPU and Expert. That player moves between the buttons with Left and Right (or the D-pad), presses the focused one with Select (it starts on CPU) and answers No with Back (for a player alone, Back cancels the Start), or clicks a button. CPU is the game's own AI with a random hero. Expert chooses its hero from `server/bot-heroes.json` and runs the AI changes in `server/bot-ai.json`, none yet; self-play has not shown it to be harder (ADR 0012). The game still lets only a player with at least one friend create a room. Each bot runs the game in a worker thread on the server and starts when the match does, which takes about 15 seconds. Ranked matches never get bots, and the Java client gets no question and starts with people only.
+If `RG_GAME` is set (and the server is not `--public`, which never runs bots, whatever `RG_GAME` says), the server can also fill friendly matches with bots, players the server controls. A player alone in their room who presses **Start** chooses the difficulty, CPU or Expert, and a bot fills every empty seat. With 2 or 3 people in the room, the page asks "Fill the empty seats with CPU players?" when someone presses **Start**, with No, CPU and Expert. That player moves between the buttons with Left and Right (or the D-pad), presses the focused one with Select (it starts on CPU) and answers No with Back (for a player alone, Back cancels the Start), or clicks a button. CPU is the game's own AI with a random hero. Expert chooses its hero from `server/bot-heroes.json` and runs the AI changes in `server/bot-ai.json`, none yet; self-play has not shown it to be harder (ADR 0012). The game still lets only a player with at least one friend create a room. Each bot runs the game in a worker thread on the server and starts when the match does, which takes about 15 seconds. Ranked matches never get bots, and the Java client gets no question and starts with people only.
 
 Self-checks:
 
@@ -84,7 +84,7 @@ node server/gameblob.test.js
 
 ## Guests and members
 
-By default a name is the whole identity (ADR 0009), which suits a local or LAN server. A public server can turn on guests and members (ADR 0011) by registering a Discord application at <https://discord.com/developers/applications>, adding `<RG_PUBLIC_URL>/auth/discord/callback` as its redirect, and setting these environment variables (they all go in `.env` for `npm start` and Docker):
+By default a name is the whole identity (ADR 0009), which suits a local or LAN server, and `--lan` always keeps it that way, whatever the Discord settings say. A public server (`--public`, which the Docker image uses) can turn on guests and members (ADR 0011) by registering a Discord application at <https://discord.com/developers/applications>, adding `<RG_PUBLIC_URL>/auth/discord/callback` as its redirect, and setting these environment variables (they all go in `.env` for `npm start` and Docker):
 
 | Variable | Meaning |
 | --- | --- |
@@ -121,7 +121,7 @@ BIND=127.0.0.1
 Then run `docker compose up -d --build` and open `http://localhost:8080/`. The container keeps accounts and battle templates in `./data`, so create that folder and put your captured templates in it before the first start.
 
 - **Local or LAN:** set `RG_GAME_PATH`. The server serves the game files and runs bots. For LAN play, set `BIND=0.0.0.0`.
-- **Public:** leave `RG_GAME_PATH` empty and set `BIND=0.0.0.0`. The server then serves no game files and runs no bots, so each player chooses their own copy (see [Host the page without the game files](#host-the-page-without-the-game-files)).
+- **Public:** set `BIND=0.0.0.0`. With `RG_GAME_PATH` empty, the server serves no game files, so each player chooses their own copy (see [Host the page without the game files](#host-the-page-without-the-game-files)); that is the project's default (ADR 0001). If you set `RG_GAME_PATH`, the server sends that copy to every visitor, which is your decision and your risk. A public server never runs bots, with or without it.
 
 The container serves plain HTTP. For a public server, put a reverse proxy or tunnel in front of port 8080 that provides HTTPS, which the page needs for features such as screen wake lock, and that waits more than 15 s for a response, because the server holds `retrieveAllEvents` requests for up to 15 s (ADR 0004). Without Discord sign-in, anyone can log in as any name and drop that player's session (ADR 0009), so turn it on for a public server (see [Guests and members](#guests-and-members)). Each bot needs about 400 MB of memory.
 

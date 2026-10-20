@@ -17,4 +17,5 @@ The database starts empty. `data/accounts.json` is not imported and is never rea
 - WAL mode can misbehave on network file systems. Compose bind-mounts `./data`; test that on the target host, or use a named volume.
 - Back up with `VACUUM INTO 'backup.db'`, which is safe while the server runs. Copying the file mid-write is not.
 - Battle templates stay in `data/templates/` as files (ADR 0006).
+- A server in name-only mode (`--lan`, or no Discord settings) uses `data/accounts-names.db`, and a Discord server uses `data/accounts.db`, so a name-only login can never reach a member's account and the guest wipe never touches name-only players.
 - LAN servers use the same database. Their players also register again.

@@ -2,7 +2,7 @@
 const assert = require('assert');
 const { Readable } = require('stream');
 const { open } = require('./store');
-const { configFrom, createAuth, GUEST_IDLE_MS } = require('./auth');
+const { configFrom, modeFrom, createAuth, GUEST_IDLE_MS } = require('./auth');
 
 assert.strictEqual(configFrom({}).enabled, false);
 assert.strictEqual(configFrom({ RG_DISCORD_INVITE: 'https://discord.gg/abc-123' }).invite, 'https://discord.gg/abc-123');
@@ -10,6 +10,20 @@ assert.strictEqual(configFrom({ RG_DISCORD_INVITE: 'javascript:alert(1)' }).invi
 assert.strictEqual(configFrom({ RG_DISCORD_INVITE: 'https://discord.gg.evil.test/x' }).invite, '');
 assert.strictEqual(configFrom({ RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b' }).enabled, false); // no public address
 assert.strictEqual(configFrom({ RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b', RG_PUBLIC_URL: 'https://x.test/' }).enabled, true);
+
+// The server's mode: --lan is name-only whatever the Discord settings, --public and a plain start use Discord when it is configured,
+// and the two kinds of server keep separate account files.
+const DISCORD = { RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b', RG_PUBLIC_URL: 'https://x.test' };
+const mode = (flags, env) => { const m = modeFrom(['node', 'gateway.js', ...flags], env); return [m.listenAll, m.discord, m.config.enabled, m.db, m.ignoredDiscord]; };
+assert.deepStrictEqual(mode([], {}), [false, false, false, 'accounts-names.db', false]);
+assert.deepStrictEqual(mode([], DISCORD), [false, true, true, 'accounts.db', false]);              // this PC only, to try the sign-in
+assert.deepStrictEqual(mode(['--lan'], {}), [true, false, false, 'accounts-names.db', false]);
+assert.deepStrictEqual(mode(['--lan'], DISCORD), [true, false, false, 'accounts-names.db', true]);  // Discord is configured, --lan turns it off
+assert.deepStrictEqual(mode(['--public'], DISCORD), [true, true, true, 'accounts.db', false]);
+assert.deepStrictEqual(mode(['--public'], {}), [true, false, false, 'accounts-names.db', false]);   // nothing configured: name-only
+assert.throws(() => modeFrom(['--lan', '--public'], DISCORD), /choose one/);
+// Only --public marks a server for the internet, which never runs Bots.
+assert.deepStrictEqual([[], ['--lan'], ['--public']].map(f => modeFrom(['node', 'gateway.js', ...f], DISCORD).public), [false, false, true]);
 
 let clock = 1e12;
 const setup = (over = {}) => {
