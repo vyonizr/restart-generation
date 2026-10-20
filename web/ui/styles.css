@@ -68,8 +68,10 @@ button.secondary:hover { background: transparent; color: #fff; border-color: #ff
 .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; max-width: 70ch; font: 15px/1.6 var(--body); color: var(--light-2); text-align: center; }
 .nudge-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .nudge button { font-size: 16px; padding: 8px 14px; }
-.strip a { color: var(--light-2); text-underline-offset: 3px; }
-.strip a:hover { color: #fff; }
+footer a { color: var(--light-2); text-underline-offset: 3px; }
+footer a:hover { color: #fff; }
+.online-line { align-items: center; justify-content: center; gap: 6px; font: 500 13px/1 var(--mono); color: var(--light-2); }
+.online-line svg { width: 16px; height: 16px; fill: none; stroke: var(--light-3); stroke-width: 1.4; stroke-linecap: square; }
 
 /* Arena login dialog, over the screen */
 .login { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(320px, 86%); max-height: calc(100% - 12px); overflow-y: auto; display: grid; gap: 14px; padding: 24px;
@@ -123,7 +125,7 @@ footer strong { font-weight: 500; color: var(--light-2); }
   header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
   .page { grid-template-rows: 1fr auto; }
   .touch-only { display: inline; }
-  #who-touch { display: flex; }
+  #who-touch, .online-line { display: flex; }
   html, body { overscroll-behavior: none; }
   main { grid-template-columns: 100%; align-content: start; gap: 12px; padding: 0 16px 16px; }
   .screen { height: auto; width: var(--w); }

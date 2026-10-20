@@ -3,6 +3,7 @@
 <script>
   import { page } from './page.svelte.js';
   import Who from './Who.svelte';
+  import Online from './Online.svelte';
   import { changeName } from './login.js';
   import { chooseZip, chooseFolder } from './gamefiles.js';
   import { pressStart, reload, useDifferentCopy } from './game.js';
@@ -31,6 +32,7 @@
   <button id="start" hidden={!page.start} bind:this={startButton} use:focusTarget={'start'} onclick={pressStart}>Start</button>
   <p class="hint" id="online-as" hidden={!page.onlineName}>Online as <b id="online-name">{page.onlineName}</b> · <button id="change-name" class="secondary" onclick={changeName}>Change name</button></p>
   <p class="hint touch-only who" id="who-touch" hidden={!page.who}><Who /></p>
+  <p class="online-line touch-only" hidden={page.online === null}><Online icon /></p>
   <div id="recover" hidden={!page.recover}>
     <button id="reload" bind:this={reloadButton} onclick={reload}>Reload</button>
     <button id="forget" class="secondary" hidden={!page.forgettable} onclick={useDifferentCopy}>Use a different copy</button>

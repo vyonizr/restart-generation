@@ -1,4 +1,4 @@
-// What the components draw. Plain code (the account, the game loop) changes these fields and the components draw them. A component may poll for what only it shows (Strip does).
+// What the components draw. Plain code (the account, the game loop) changes these fields and the components draw them.
 export const page = $state({
   status: 'Loading game files…', // the overlay's line: what the page is doing
   overlay: true,    // the overlay covers the game screen until Start, and again after a failure
@@ -10,6 +10,7 @@ export const page = $state({
   ownCopy: false,   // the player brings their own game files (the footer says so)
   slow: null,       // text of the slow-device notice, once shown
   server: null,     // GET /status, or null on a static host
+  online: null,     // players online, or null when there is no server to ask
   who: null,        // { name, member, level } once the account is open
   notice: null,     // { text, actions: [{ label, run, secondary }] }: the line under the screen
   nameDialog: null, // { value, error }: the member's name, after Discord sends them back
