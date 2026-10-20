@@ -118,7 +118,8 @@ footer strong { font-weight: 500; color: var(--light-2); }
 
 /* Touch devices: no header, and the touch pad under the game screen, both as wide as fits the height */
 @media (hover: none) and (pointer: coarse) {
-  :root { --cross: min(clamp(116px, 24.5dvh, 240px), calc(100vw - 184px)); --hint: 28px; --pad: calc(var(--cross) + var(--hint)); --chrome: 30px; --w: min(100%, (100dvh - var(--chrome) - var(--pad)) * 3 / 4); }
+  /* --cross: the D-pad's side. It is also capped so the D-pad, a 24px gap, Select and Back (a cell each, 16px apart) fit the width. */
+  :root { --cross: min(clamp(116px, 24.5dvh, 240px), calc(60vw - 40px)); --cell: calc((var(--cross) - 8px) / 3); --side: calc(var(--cell) * 2 + 16px); --hint: 28px; --pad: calc(var(--cross) + var(--hint)); --chrome: 30px; --w: min(100%, (100dvh - var(--chrome) - var(--pad)) * 3 / 4); }
   header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
   .page { grid-template-rows: 1fr auto; }
   .touch-only { display: inline; }
@@ -128,9 +129,9 @@ footer strong { font-weight: 500; color: var(--light-2); }
   .screen { height: auto; width: var(--w); }
   .screen, .pad { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
-  /* As wide as the screen, or wider where the screen is narrow (landscape) and the sides need room beside the D-pad */
-  .pad { display: grid; justify-self: center; width: min(100%, max(var(--w), calc(var(--cross) + 152px))); height: var(--pad);
-    grid-template: "l c r" var(--cross) "hint hint hint" auto / minmax(0, 1fr) var(--cross) minmax(0, 1fr); gap: 8px 24px; align-content: space-between; }
+  /* The D-pad, and beside it Select and Back with Keyboard and Fullscreen below them: one cluster, as wide as it needs */
+  .pad { display: grid; justify-self: center; width: calc(var(--cross) + 24px + var(--side)); height: var(--pad);
+    grid-template: "c r" var(--cross) "hint hint" auto / var(--cross) var(--side); gap: 8px 24px; align-content: space-between; }
   /* Tapped buttons keep :hover on touch screens, so hover looks the same as rest */
   .pad button, .pad button:hover { display: grid; place-content: center; justify-items: center; gap: 6px; padding: 0; font-size: 20px;
     color: var(--light-2); background: var(--ink-2); border-color: var(--ink-3); transition: none; }
@@ -139,17 +140,19 @@ footer strong { font-weight: 500; color: var(--light-2); }
   .pad .small svg { width: 24px; max-width: none; }
   .pad button.held, .pad button.held:hover { background: #fff; color: var(--red); border-color: #fff; }
   .pad svg { width: 40%; max-width: 30px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: square; }
-  /* The D-pad: five controls on a 3 × 3 grid, with Select in the middle. Labels scale with the cell. */
+  /* The D-pad: four arrows on a 3 × 3 grid. The middle and the corners are empty, so a thumb that lands there presses nothing. */
   .cross { grid-area: c; container-type: size; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 4px; }
   .cross button { font-size: min(11cqi, 24px); }
   .cross [data-key=up] { grid-area: 1 / 2; }
-  .cross [data-key=left] { grid-area: 2 / 1; } .cross [data-key=select] { grid-area: 2 / 2; }
+  .cross [data-key=left] { grid-area: 2 / 1; }
   .cross [data-key=right] { grid-area: 2 / 3; } .cross [data-key=down] { grid-area: 3 / 2; }
-  /* The right column, for the thumb that steers: Back in the top row, level with Up and a corner cell away from it, then the
-     rarely pressed Keyboard and Fullscreen as quiet icons. Its rows match the D-pad's. */
-  .side-r { grid-area: r; display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 4px; justify-items: end; }
-  .side-r .back { grid-row: 1; justify-self: start; height: 100%; aspect-ratio: 1; font-size: 16px; }
-  .side-r .small { align-self: center; }
+  /* The right side, for the thumb that steers: Select and Back side by side in the top row, level with Up, a cell wide each and 16px
+     apart, then the rarely pressed Keyboard and Fullscreen as quiet icons at the right edge. Its rows match the D-pad's. */
+  .side-r { grid-area: r; display: grid; grid-template: repeat(3, minmax(0, 1fr)) / repeat(2, var(--cell)); gap: 4px 16px; }
+  .side-r .select { grid-area: 1 / 1; font-size: min(calc(var(--cell) * .34), 24px); }
+  .side-r .back { grid-area: 1 / 2; font-size: 16px; }
+  .side-r .select, .side-r .back { width: 100%; height: 100%; }
+  .side-r .small { grid-column: 1 / 3; justify-self: end; align-self: center; }
   .side-r #type { grid-row: 2; } .side-r #fullscreen { grid-row: 3; }
   .pad-hint { grid-area: hint; text-align: center; font: 12px/1.4 var(--body); color: var(--light-3); }
 
@@ -159,7 +162,7 @@ footer strong { font-weight: 500; color: var(--light-2); }
 }
 /* Landscape: a thinner bottom gap, so the column gets the height */
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
-  :root { --cross: min(clamp(116px, 32dvh, 240px), calc(100vw - 184px)); --hint: 0px; --chrome: 16px; }
+  :root { --cross: min(clamp(116px, 32dvh, 240px), calc(60vw - 40px)); --hint: 0px; --chrome: 16px; }
   .pad-hint { display: none; }
   main { padding-bottom: 4px; }
 }
