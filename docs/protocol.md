@@ -1,6 +1,6 @@
 # Reset Generation online protocol
 
-Reset Generation (web/standalone build, 2009) talks to three layers:
+Reset Generation (web/standalone build, 2008) talks to three layers:
 
 1. **SNAP Mobile 1.4.4 gateway**: login, lobby, game rooms, buddy list, and an event long-poll. Implemented in `lib/rg-signed.jar` (`com.nokia.sm.*` plus obfuscated classes). Original host: `resetgeneration-gw.arena.n-gage.com`.
 2. **RedLynx MT / NAF framework**: a message layer inside the native DLL (`MT_PING`, `MT_PONG`, `MT_GAMESERVER`, `MT_GAMEROOM`, `MT_USER`, `MT_HOSTMIGRATION`, `MT_SERVICE_DISCOVERY`, `MT_STATS_AUTH`). Its payloads travel inside SNAP game packets.

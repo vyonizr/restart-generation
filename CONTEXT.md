@@ -1,13 +1,13 @@
 # Restart Generation
 
-A revival of Reset Generation (RedLynx, 2009) that restores its shut-down online play and runs the original game in a browser.
+A revival of Reset Generation (RedLynx, 2008) that restores its shut-down online play and runs the original game in a browser.
 
 ## Language
 
 ### Names
 
 **Site**:
-The revival as the public sees it, named Restart Generation. The game it revives stays Reset Generation, including in the copyright line and wherever the page names RedLynx's 2009 title.
+The revival as the public sees it, named Restart Generation. The game it revives stays Reset Generation, including in the copyright line and wherever the page names RedLynx's 2008 title.
 _Avoid_: Reset Generation (for the site), the port, the app
 
 ### Players
