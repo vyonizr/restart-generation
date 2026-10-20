@@ -325,7 +325,7 @@ http.createServer((req, res) => {
   }
   if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ accounts: auth.enabled, invite: authConfig.invite, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
+    return res.end(JSON.stringify({ accounts: auth.enabled, servesGame: Boolean(process.env.RG_GAME), invite: authConfig.invite, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
   }
   if (url.startsWith('/auth/')) {
     auth.http(req, res, parsed).catch(e => { log(`${url}: ${e.message}`); res.destroy(); });

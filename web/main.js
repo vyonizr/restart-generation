@@ -361,12 +361,18 @@ function accountLogin(accounts) {
     credentials: () => ({ username: account.name, password: account.token }), name: () => '', forget() {} };
 }
 
+// The footer says "Bring your own copy of the game" and that the files stay in the browser only where that is so: not on a server that
+// sends the game files itself (RG_GAME set), and again if the player ends up with a copy of their own after all.
+const ownCopyNotice = show => { for (const e of document.querySelectorAll('.byo')) e.hidden = !show; };
+
 async function main() {
   const server = await serverStatus();
+  ownCopyNotice(!server?.servesGame);
   const accounts = server?.accounts ? createAccountUI({ canvas, overlay }) : null;
   const accountReady = accounts?.start();
   if (server) startStrip(server);
   const files = await loadFiles();
+  ownCopyNotice(source !== 'server');
   await accountReady;
   status.textContent = 'Starting the engine…';
   await new Promise(r => setTimeout(r));

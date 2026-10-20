@@ -249,7 +249,7 @@ Besides SNAP at `POST /snap`, the HTTP server answers these, which only this ser
 
 | Request | Reply |
 | --- | --- |
-| `GET /status` | `{ accounts, invite, online, waiting }`: whether Discord sign-in is on, the operator's Discord invite link, players online (bots excluded) and waiting in the ranked Quick Match. |
+| `GET /status` | `{ accounts, servesGame, invite, online, waiting }`: whether Discord sign-in is on, whether the server sends the game files itself (`RG_GAME` is set), the operator's Discord invite link, players online (bots excluded) and waiting in the ranked Quick Match. |
 | `GET /bots` | `{ available }`: whether the server can run bots. |
 
 With Discord sign-in on (otherwise `/auth/*` is 404), a token travels as `Authorization: Bearer <token>`:
