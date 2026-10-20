@@ -296,17 +296,19 @@ setInterval(() => {
 }, 5000);
 if (auth.enabled) { auth.sweep(); setInterval(auth.sweep, 60000); }
 
-// ---- browser client: serves web/ and the player's own copy of the game files ----
+// ---- browser client: serves the built page (web/dist) and the player's own copy of the game files ----
 const http = require('http');
 const HTTP_PORT = Number(process.env.HTTP_PORT || 8080);
 const WEB_DIR = path.join(__dirname, '..', 'web');
+// The built page (npm run build, ADR 0013): index.html, assets/ with hashed names, and the files Vite copies as they are.
+const DIST_DIR = path.join(WEB_DIR, 'dist');
 // RG_GAME: the ResetGeneration folder or the standalone .zip. Without it the page asks players for their own files.
 let gameFiles = {};
 if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => {
   require('./aiprofiles').apply(f); // a bot-ai.json key the game's XML doesn't have stops the server here
   gameFiles = f; log(`game files from ${process.env.RG_GAME}`);
 }).catch(e => { log(`RG_GAME: ${e.message}`); if (/bot-ai\.json/.test(e.message)) process.exit(1); });
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml' };
 
 http.createServer((req, res) => {
   const parsed = new URL(req.url, 'http://x');
@@ -338,13 +340,16 @@ http.createServer((req, res) => {
     return res.end(data);
   }
   let file;
-  if (url === '/') file = path.join(WEB_DIR, 'index.html');
-  else if (/^\/(emu\/)?[\w-]+\.(js|html|mp4)$/.test(url) || /^\/fonts\/[\w-]+\.woff2$/.test(url)) file = path.join(WEB_DIR, url);
+  if (url === '/') file = path.join(DIST_DIR, 'index.html');
+  else if (/^\/(?:[\w-]+\/)*[\w.-]+\.(?:js|css|html|woff2|mp4|svg)$/.test(url)) file = path.join(DIST_DIR, url);
+  if (url === '/' && !fs.existsSync(file)) { res.writeHead(503, { 'Content-Type': 'text/plain' }); return res.end('The page is not built yet. Run `npm run build` (after `npm install`), then reload.'); }
   if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
-  res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+  // Build output under assets/ has a hash in its name, so it never changes; everything else is checked on every load.
+  res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': url.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
   fs.createReadStream(file).pipe(res);
 }).listen(HTTP_PORT, HOST, () => {
   log(`browser client on http://localhost:${HTTP_PORT}/`);
+  if (!fs.existsSync(path.join(DIST_DIR, 'index.html'))) log('The page is not built: run `npm run build` (after `npm install`)');
   log(MODE.discord ? 'Discord sign-in is on: players are guests or members (ADR 0011)' : 'Name-only login (ADR 0009)');
   if (MODE.ignoredDiscord) log('Discord sign-in is off in --lan mode: it can only work for a public server (--public)');
   // A public server never runs Bots, whether or not it serves a copy of the game. Without a SNAP address bots.available() is

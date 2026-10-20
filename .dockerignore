@@ -1,4 +1,6 @@
 .git
+node_modules
+web/dist
 .claude
 .env
 .impeccable

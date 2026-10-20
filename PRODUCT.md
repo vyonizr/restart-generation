@@ -20,7 +20,7 @@ The game itself, not a remake or a port: the original engine runs unmodified, an
 
 ## Operating Context
 
-The page is a single static page (`web/index.html`, `web/main.js`) that is served in one of two ways, and neither is the primary one yet:
+The page is a single static page, built from `web/` into `web/dist` (ADR 0013), that is served in one of two ways, and neither is the primary one yet:
 
 - **By a game server with `RG_GAME` set:** the server sends the player's copy of the files, and the player goes straight to **Start**.
 - **By a static host without the files:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
@@ -35,7 +35,7 @@ Online play depends on the server. On a server with Discord sign-in (ADR 0011), 
 - Runs in any desktop browser on any operating system. On a keyboard, arrow keys move, **Ctrl** or **Enter** selects (hold to drop a block), **Shift** goes back, **Esc** opens the menu. A keyboard works on every device, including a tablet with one attached.
 - Phones and tablets (touch devices) play over the LAN: a PC runs the server with `--lan`, and the device opens the page it serves in current Android Chrome or iOS and iPadOS Safari. The game plays in portrait with a touch pad under the game screen: a D-pad with **Select** in its middle (hold to drop) and **Back** to its right, level with Up, **Keyboard** for typing, and **Fullscreen** where the browser supports it. Online modes work as on desktop. Nothing has been tested on a real device yet.
 - The game screen is drawn by the engine at 240 × 320; the page frames it and never redraws it.
-- Plain HTML, CSS and JavaScript modules with no build step and no dependencies.
+- The page is built with Vite and Svelte (ADR 0013). The server, the emulator and the other modules Node imports stay plain JavaScript with no build step and no dependencies.
 - A public server is planned (`.scratch/accounts-and-joining/spec.md`) but not live. Until one is, online play works only against a server someone runs, so the page must not claim that a public server is live.
 - Undecided: whether most players arrive through a static host or a server that serves the files. The page must handle both equally.
 
