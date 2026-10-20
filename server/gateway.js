@@ -11,6 +11,7 @@ const gameServer = require('./casino');
 const bots = require('./bots');
 const store = require('./store');
 const { modeFrom, createAuth } = require('./auth');
+const { createAdmin } = require('./admin');
 
 const PORT = Number(process.env.PORT || 8976);
 let MODE;
@@ -38,11 +39,10 @@ rooms.set('0', { id: '0', name: 'CasinoSystem', max: 100000, members: new Set(),
 const replies = new Map();  // "<S|addr>:<R>" -> cached response, for client retransmits
 
 const authConfig = MODE.config;
-const auth = createAuth({
-  store: db, config: authConfig, fameLevel: gameServer.fameLevel, log,
-  busy: id => [...sessions.values()].some(s => s.userId === id),
-  remove: acc => { for (const s of [...sessions.values()]) if (s.userId === acc.id) dropSession(s); },
-});
+const busy = id => [...sessions.values()].some(s => s.userId === id);
+const remove = acc => { for (const s of [...sessions.values()]) if (s.userId === acc.id) dropSession(s); };
+const auth = createAuth({ store: db, config: authConfig, fameLevel: gameServer.fameLevel, log, busy, remove });
+const admin = createAdmin({ store: db, token: process.env.RG_ADMIN_TOKEN || '', discord: auth.enabled, busy, remove, log });
 
 // Without Discord a name is the whole identity: no password. Anyone can log in as any name, and that drops the name's other
 // session (ADR 0009). With Discord, the password slot carries the guest's or member's token (ADR 0011).
@@ -339,6 +339,10 @@ http.createServer((req, res) => {
   if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     return res.end(JSON.stringify({ accounts: auth.enabled, servesGame: Boolean(process.env.RG_GAME), unlockAll: !MODE.public, invite: authConfig.invite, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
+  }
+  if (parsed.pathname.startsWith('/admin/')) {
+    admin.http(req, res, parsed);
+    return;
   }
   if (url.startsWith('/auth/')) {
     auth.http(req, res, parsed).catch(e => { log(`${url}: ${e.message}`); res.destroy(); });

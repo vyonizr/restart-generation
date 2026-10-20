@@ -1,4 +1,4 @@
-// Guests and members (ADR 0011). Enabled only when the operator configures a Discord application;
+// Guests and members (ADR 0011). Enabled only when the admin configures a Discord application;
 // otherwise the server keeps the name-only login of ADR 0009 and none of this runs.
 const crypto = require('crypto');
 
@@ -15,7 +15,7 @@ const RESERVED = /^(guest\d+|cpu_\d+)$/i;
 const DISCORD_INVITE = /^https:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]+$/;
 
 // Settings from the environment. `enabled` needs all three Discord values: the redirect address can't be derived behind a proxy.
-// `invite` is the operator's own community link, which the page shows if it is set.
+// `invite` is the admin's own community link, which the page shows if it is set.
 function configFrom(env) {
   const config = {
     clientId: env.RG_DISCORD_CLIENT_ID || '',
@@ -104,7 +104,7 @@ function createAuth({ store, config, fameLevel, busy, remove, discord = config.e
     return '';
   };
 
-  // The client address, for the guest limit. Behind a proxy the operator turns trustProxy on, and the address the proxy
+  // The client address, for the guest limit. Behind a proxy the admin turns trustProxy on, and the address the proxy
   // appended (the last one) is used: earlier ones are written by the client.
   const ipOf = req => {
     if (config.trustProxy) {

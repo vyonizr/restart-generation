@@ -3,5 +3,8 @@
 # RG_TRUST_PROXY reads it). It waits as long as the gateway's 15 s long polls need (ADR 0004).
 {$RG_DOMAIN} {
 	encode zstd gzip
+	# The admin's account delete (ADR 0016) is for `docker compose exec rg npm run delete-user` only, never for the internet.
+	@admin path /admin /admin/*
+	respond @admin 404
 	reverse_proxy rg:8080
 }
