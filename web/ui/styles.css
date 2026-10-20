@@ -156,6 +156,10 @@ footer strong { font-weight: 500; color: var(--light-2); }
   .side-r #type { grid-row: 2; } .side-r #fullscreen { grid-row: 3; }
   .pad-hint { grid-area: hint; text-align: center; font: 12px/1.4 var(--body); color: var(--light-3); }
 
+  /* Fullscreen pins the page to the viewport, so the footer would take room that the screen and the pad were sized to fill and push
+     the pad up under the screen. The page grows past the viewport and scrolls instead, as it does outside fullscreen. */
+  .page:fullscreen { grid-template-rows: max-content max-content; overflow: hidden auto; }
+
   .slow, .nudge { display: flex; align-items: center; justify-content: center; gap: 12px; width: var(--w); justify-self: center;
     font: 13px/1.6 var(--body); color: var(--light-2); }
   .slow button { flex: none; font-size: 16px; padding: 6px 12px; }
