@@ -6,7 +6,7 @@ services:
       - "${BIND:-127.0.0.1}:8080:8080"
       - "${BIND:-127.0.0.1}:8976:8976"
     environment:
-      # Set only if RG_GAME_PATH is set: the server then serves the game files and runs bots.
+      # Set only if RG_GAME_PATH is set: the server then sends that game copy to every visitor. The image runs --public, so it never runs bots.
       RG_GAME: ${RG_GAME_PATH:+/game}
       # Guests and members: all three are needed (see the README).
       RG_DISCORD_CLIENT_ID: ${RG_DISCORD_CLIENT_ID:-}

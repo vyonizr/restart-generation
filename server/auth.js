@@ -38,6 +38,7 @@ function modeFrom(argv, env) {
   return {
     config: { ...configured, enabled: discord },
     listenAll: lan || pub,
+    public: pub,         // a server for the internet: it never runs Bots (ADR 0008)
     discord,
     ignoredDiscord: lan && configured.enabled, // Discord is configured but --lan turns it off
     db: discord ? 'accounts.db' : 'accounts-names.db',

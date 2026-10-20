@@ -22,6 +22,8 @@ assert.deepStrictEqual(mode(['--lan'], DISCORD), [true, false, false, 'accounts-
 assert.deepStrictEqual(mode(['--public'], DISCORD), [true, true, true, 'accounts.db', false]);
 assert.deepStrictEqual(mode(['--public'], {}), [true, false, false, 'accounts-names.db', false]);   // nothing configured: name-only
 assert.throws(() => modeFrom(['--lan', '--public'], DISCORD), /choose one/);
+// Only --public marks a server for the internet, which never runs Bots.
+assert.deepStrictEqual([[], ['--lan'], ['--public']].map(f => modeFrom(['node', 'gateway.js', ...f], DISCORD).public), [false, false, true]);
 
 let clock = 1e12;
 const setup = (over = {}) => {

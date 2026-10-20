@@ -28,7 +28,7 @@ The browser client also gets two patches when the server can run bots: the frien
 
   The engine never sees them. The page recognizes the start message by its bytes.
 - While the box is open the player is already locked into "Game starting", so it has no Cancel.
-- Bots need the server's own copy of the game (`RG_GAME`). Without it, the page never asks and applies no bot patches.
+- Bots need the server's own copy of the game (`RG_GAME`). Without it, the page never asks and applies no bot patches. A `--public` server never runs bots, even with `RG_GAME` set: it gets no SNAP address for them, `bots.available()` stays false, and `bots.spawn` starts nothing.
 - Each bot is a full emulator: a worker thread with 350 to 410 MB of memory. In battle it uses little CPU, about 2% of a core, because it never draws the battle.
 - A bot's password is a key that exists only in the server process, and its account is never saved.
 - The AI decides at once, with no visible thinking delay, and plays at its full strength: its think budget is measured on the engine's virtual clock, so it always gets the maximum.
