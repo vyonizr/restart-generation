@@ -199,6 +199,8 @@ On touch devices (`hover: none` and `pointer: coarse`), the header, the hero lin
 
 In landscape on touch devices, the D-pad is `clamp(116px, 32dvh, 240px)`, the hint line hides, and `chrome` drops to `16px`, so the same column shrinks to fit the height. The pad can be wider than the screen there, because the cluster is as wide as the D-pad plus its two buttons. A phone gets a small but playable game; there is no separate tablet landscape layout.
 
+In fullscreen (the pad's **Fullscreen** button) the browser pins the page to the viewport. The page then sizes its rows to their content and scrolls, so the screen and the pad keep exactly the size and place they have outside fullscreen and the footer sits below them, one swipe away. Letting the footer share the pinned height squeezed the page's content area and pushed the pad up under the screen, which then covered its buttons.
+
 ## Elevation & Depth
 
 The page is flat. Depth comes from the ink ramp: `ink-1` ground, `ink-2` for the footer strip and dialog. Two soft, dark shadows lift the only objects that sit above the stage.
