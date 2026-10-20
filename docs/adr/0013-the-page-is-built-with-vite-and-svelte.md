@@ -26,4 +26,10 @@ Stays plain modules, because Node imports them with no bundler (`server/bot.mjs`
 - The gateway's static whitelist (`/^\/(emu\/)?[\w-]+\.(js|html|mp4)$/`) changes to serve hashed build output. The `Cache-Control: no-cache` rule stays for `index.html`; hashed assets may be cached for a long time.
 - Development uses the Vite dev server with hot reload, proxying `/snap`, `/status`, `/auth`, `/bots` and `/game` to the gateway.
 - The migration goes one surface at a time with the page working after every step (see `.scratch/ui-migration/spec.md`), and the old code is deleted at the end, with no old and new pages side by side.
-- `PRODUCT.md`, the README and `.impeccable/surfaces/web-index-html.md` change with the build, not before it: they describe what the repository does today.
+- `PRODUCT.md`, the README and `.impeccable/surfaces/web-index-html.md` changed with the build, not before it: they describe what the repository does today.
+
+## Result
+
+The migration is done: `web/main.js` and `web/accountui.js` are gone, and nothing outside `web/ui` looks elements up by id except what `browser-test.mjs` and the dialogs' focus targets need.
+
+Measured, gzipped, with the same emulator and the same page behaviour: the plain page was one 92 kB script (32 kB gzipped) with its CSS inline in a 17.6 kB `index.html`. The built page is one 149 kB script (54 kB gzipped), 10 kB of CSS (3 kB gzipped) and a 0.8 kB `index.html`. So Svelte and the components cost about 22 kB gzipped on top of the emulator, not the 2 to 5 kB the blog figures above suggested; most of the page's weight is still the emulator and the SNAP client. Hot reload and the component structure are what the cost bought.

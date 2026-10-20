@@ -3,6 +3,7 @@
 <script>
   import { onMount, tick } from 'svelte';
   import { page } from './page.svelte.js';
+  import { focusOn } from './focus.js';
 
   let { tag = 'div', id, titleId, focus, oncancel, onsubmit, children } = $props();
   let box;
@@ -16,7 +17,7 @@
       // Once the game screen is reachable again (it is inert while a dialog is open).
       tick().then(() => {
         if (returnTo && returnTo !== document.body && returnTo.isConnected && !returnTo.closest('[hidden]')) returnTo.focus();
-        else document.getElementById(page.overlay ? 'start' : 'screen').focus();
+        else focusOn(page.overlay ? 'start' : 'screen');
       });
     };
   });

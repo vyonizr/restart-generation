@@ -3,6 +3,7 @@
   import { page } from './page.svelte.js';
   import { startGame } from './game.js';
   import { touch } from './device.js';
+  import { focusTarget } from './focus.js';
   import Pad from './Pad.svelte';
   import Overlay from './Overlay.svelte';
   import Keys from './Keys.svelte';
@@ -23,7 +24,7 @@
   <span class="ghost" aria-hidden="true">Restart<br>Generation</span>
   <main>
     <div class="screen">
-      <canvas id="screen" width="240" height="320" tabindex={page.playing ? 0 : -1} aria-label="Game screen" inert={page.dialogs > 0} bind:this={canvas}></canvas>
+      <canvas id="screen" width="240" height="320" tabindex={page.playing ? 0 : -1} aria-label="Game screen" inert={page.dialogs > 0} bind:this={canvas} use:focusTarget={'screen'}></canvas>
       <Overlay />
       {#if page.nameLogin}<NameDialog />{/if}
       <BotsDialog />

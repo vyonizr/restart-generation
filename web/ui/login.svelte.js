@@ -2,6 +2,7 @@
 // The name is a random GuestNNNNNN until the player sets one, which sets `named`. The server registers it on its first login.
 // The Arena login dialog sets the name; it appears at the first online login.
 import { page } from './page.svelte.js';
+import { focusOn } from './focus.js';
 
 const KEY = 'rg:guest';
 const saveGuest = guest => { try { localStorage.setItem(KEY, JSON.stringify(guest)); } catch {} };
@@ -40,7 +41,7 @@ export function changeName() {
   delete guest.named;
   saveGuest(guest);
   showOnlineName();
-  document.getElementById('start').focus();
+  focusOn('start');
 }
 
 // What the SNAP client (web/snap.js) calls for the login screen.

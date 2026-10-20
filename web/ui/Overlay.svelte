@@ -6,6 +6,7 @@
   import { changeName } from './login.svelte.js';
   import { chooseZip, chooseFolder } from './gamefiles.js';
   import { pressStart, reload, useDifferentCopy } from './game.js';
+  import { focusTarget } from './focus.js';
 
   let zipInput, folderInput, zipButton, startButton, reloadButton;
 
@@ -27,7 +28,7 @@
     onchange={() => { const file = zipInput.files[0]; zipInput.value = ''; chooseZip(file); }}>
   <input id="pick-input" type="file" webkitdirectory multiple hidden bind:this={folderInput}
     onchange={() => { const files = [...folderInput.files]; folderInput.value = ''; chooseFolder(files); }}>
-  <button id="start" hidden={!page.start} bind:this={startButton} onclick={pressStart}>Start</button>
+  <button id="start" hidden={!page.start} bind:this={startButton} use:focusTarget={'start'} onclick={pressStart}>Start</button>
   <p class="hint" id="online-as" hidden={!page.onlineName}>Online as <b id="online-name">{page.onlineName}</b> · <button id="change-name" class="secondary" onclick={changeName}>Change name</button></p>
   <p class="hint touch-only who" id="who-touch" hidden={!page.who}><Who /></p>
   <div id="recover" hidden={!page.recover}>
