@@ -1,0 +1,17 @@
+[
+ {
+  "hero": 9,
+  "name": "AGGRESSOR",
+  "why": "won 36 of 54 AI-against-AI battles (67%), the best of the ten"
+ },
+ {
+  "hero": 4,
+  "name": "CYBORG",
+  "why": "won 29 of 51 (57%)"
+ },
+ {
+  "hero": 1,
+  "name": "HEDGEHOG",
+  "why": "won 33 of 59 (56%)"
+ }
+]

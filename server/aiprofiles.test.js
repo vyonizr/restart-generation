@@ -52,6 +52,10 @@ assert.ok(before.equals(Buffer.from(g['gameplay.pak'])));
 // A second round of changes on the rebuilt pak still reads back correctly.
 assert.strictEqual(text(ai.apply(out, [{ profile: 'AISD', key: 'B', value: 6, why: 't' }]), names[0]).includes('>  6 <'), true);
 
+// values() lists the live properties: commented-out keys are skipped and a repeated key keeps its last value.
+assert.deepStrictEqual(ai.values(g, 'AISD'), { A: 9, B: -3 });
+assert.deepStrictEqual(ai.values(out, 'AISD'), { A: 11, B: -3 });
+
 // No changes: the game's files come back untouched.
 assert.strictEqual(ai.apply(g, []), g);
 

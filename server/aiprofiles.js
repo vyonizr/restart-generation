@@ -33,6 +33,17 @@ function setProperty(xml, profile, key, value) {
   return out;
 }
 
+// The live properties of one profile in the game's files, { key: value }. A property in a comment doesn't count, and a
+// key the file repeats has its last value, as the engine keeps the last.
+function values(game, profile) {
+  const raw = pak.read(game[PAK], file(profile));
+  if (!raw) throw new Error(`${PAK} has no ${file(profile)}`);
+  const xml = Buffer.from(raw).toString('utf8').replace(/<!--[\s\S]*?-->/g, '');
+  const out = {};
+  for (const m of xml.matchAll(/<Property type="(\w+)">\s*(-?\d+)\s*<\/Property>/g)) out[m[1]] = Number(m[2]);
+  return out;
+}
+
 // The game's files with `deltas` applied, or `game` itself when there are none. Throws if a key isn't in the game's XML.
 function apply(game, deltas = load()) {
   if (!deltas.length) return game;
@@ -48,4 +59,4 @@ function apply(game, deltas = load()) {
   return { ...game, [PAK]: packed };
 }
 
-module.exports = { load, apply, setProperty, PROFILES };
+module.exports = { load, apply, setProperty, values, PROFILES };

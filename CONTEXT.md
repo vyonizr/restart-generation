@@ -86,7 +86,11 @@ _Avoid_: CPU (outside player-facing text), AI player, computer
 
 **AI profile**:
 One of the engine's situational weight sets that decide how a Bot values its moves, such as the default one or the one used while a princess is carried.
-_Avoid_: difficulty, AI level, strategy
+_Avoid_: AI level, strategy
+
+**Difficulty**:
+How hard a Bot plays, chosen by the player who starts a friendly match with Bots: CPU runs the AI profiles as the game shipped them, Expert runs the retuned ones. It is one choice per match for all of its Bots, not a setting of the server or the account.
+_Avoid_: AI level, skill
 
 **Observer**:
 Someone attached to a battle who doesn't play in it. A player who waits while other players take their turns is still a player, not an observer.

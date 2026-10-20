@@ -15,8 +15,8 @@ const scramble = (bytes, k) => bytes.map((b, i) => { const key = KEYS[k][i % 32]
 const VALID_NAME = /^[A-Za-z0-9_]{1,15}$/;
 const STATE = { NONE: 0, UNCONFIRMED: 1, REQUESTED: 2, ONLINE: 3, AWAY: 4, OFFLINE: 5 };
 // Not SNAP Mobile commands: this server's own (server/gateway.js).
-const FILL_BOTS = 900;  // P1 1 or 0, P2 room id: fill the empty seats when this player starts that room
-const BOT_CHOICE = 901; // P1 room id; replies ask, go or gone for a Start in that room
+const FILL_BOTS = 900;  // P1 1 (CPU), 2 (Expert) or 0 (no bots), P2 room id: fill the empty seats when this player starts that room
+const BOT_CHOICE = 901; // P1 room id; replies ask, level, go or gone for a Start in that room
 // The room id in the engine's FRIENDLY_CASINO_START (one MT frame: 07 00 header, 11 00 1c, u32 id), or null for any other packet.
 export const startRoom = d => d.length >= 9 && d[0] === 7 && d[1] === 0 && d[2] === 0x11 && d[3] === 0 && d[4] === 0x1c
   ? (d[5] | d[6] << 8 | d[7] << 16 | d[8] << 24) >>> 0 : null;
@@ -44,12 +44,19 @@ export class SnapClient {
   async askBots(room) {
     const query = async () => (await this.request(BOT_CHOICE, { 1: room })).lines[0];
     let state = await query();
-    if (state !== 'ask') return state !== 'gone';
-    const question = this.bots.ask();
-    const watch = setInterval(async () => { const s = await query(); if (s !== 'ask') { state = s; question.close(); } }, 2000);
-    const yes = await question.answer; // null once the room changed
-    clearInterval(watch);
-    if (yes !== null) await this.request(FILL_BOTS, { 1: yes ? 1 : 0, 2: room });
+    // 'ask' offers no bots, CPU or Expert; 'level' (a player alone) offers CPU or Expert. If the room changes while the
+    // box is open, the box closes and the new state decides: a new question, or the Start going on or being dropped.
+    while (state === 'ask' || state === 'level') {
+      const question = this.bots.ask(state === 'level');
+      let changed = null;
+      const watch = setInterval(async () => { const s = await query(); if (s !== state) { changed = s; question.close(); } }, 2000);
+      const answer = await question.answer; // 'none', 'cpu' or 'expert', or null once the room changed
+      clearInterval(watch);
+      if (answer === null) { state = changed ?? state; continue; }
+      if (answer === 'none' && state === 'level') return false; // Back: a player alone can't start without bots
+      await this.request(FILL_BOTS, { 1: { none: 0, cpu: 1, expert: 2 }[answer], 2: room });
+      return true;
+    }
     return state !== 'gone';
   }
 

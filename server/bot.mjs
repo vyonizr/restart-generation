@@ -7,9 +7,10 @@ import { GameHost, VK, UNLOCKS } from '../web/emu/host.js';
 import { SnapClient } from '../web/snap.js';
 import aiProfiles from './aiprofiles.js';
 
-// deltas, hero and report are for tools/selfplay.mjs: AI profile changes to run instead of server/bot-ai.json,
-// a fixed hero (0 to 9), and posting the battle's result to the parent.
-const { name, password, url, deltas, hero, report } = workerData;
+// deltas, hero, report and speed are for tools/selfplay.mjs: AI profile changes to run instead of server/bot-ai.json,
+// a fixed hero (0 to 9), posting the battle's result to the parent, and how many times faster than real time the
+// engine's clock runs (default 1). pool is a list of heroes (0 to 9) to draw the hero from, for the Expert level.
+const { name, password, url, deltas, hero, report, speed = 1, pool } = workerData;
 // The bot's own seat is an AI player (docs/adr/0008).
 const AI = [
   // The lobby (FUN_100ebed0) builds the bot's JoinInfo with type 2, AIPlayer, instead of 0, LocalPlayer.
@@ -24,7 +25,7 @@ const AI = [
 // hero: the list starts at Plumber, and 0 to 9 steps right reach each of the 10 heroes. The engine's own Random
 // entry would pick the same hero every time, since a headless engine with the same inputs runs the same way.
 const MENU = [[3, 'ESCAPE'], [6, 'ESCAPE'], [9, 'ESCAPE'], [13, 'DOWN'], [14, 'DOWN'], [15, 'CONTROL']];
-const steps = hero ?? Math.floor(Math.random() * 10);
+const steps = hero ?? (pool?.length ? pool[Math.floor(Math.random() * pool.length)] : Math.floor(Math.random() * 10));
 const HERO = [...Array.from({ length: steps }, (_, i) => [5 + i * 0.3, 'RIGHT']), [6 + steps * 0.3, 'CONTROL']];
 const LOGIN_AT = 15000;
 
@@ -51,10 +52,11 @@ const keys = [...MENU.map(([t, k]) => [t * 1000, k]), ...HERO.map(([t, k]) => [L
 // on, the engine keeps to real time like the page does.
 const keyed = () => { while (keys.length && keys[0][0] <= game.time) press(keys.shift()[1]); };
 while (game.time < LOGIN_AT) { keyed(); game.tick(); }
-const t0 = performance.now() - game.time;
+const t0 = performance.now() - game.time / speed;
+const clock = () => (performance.now() - t0) * speed; // the engine's time it should have reached by now
 const loop = () => {
   keyed();
-  if (game.time < performance.now() - t0) { game.tick(); snap.pump(); }
-  setTimeout(loop, Math.max(0, game.time - (performance.now() - t0)));
+  if (game.time < clock()) { game.tick(); snap.pump(); }
+  setTimeout(loop, Math.max(0, (game.time - clock()) / speed));
 };
 loop();
