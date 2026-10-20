@@ -7,6 +7,9 @@ const DAY = 24 * HOUR;
 const GUEST_IDLE_MS = DAY;          // a guest is wiped this long after its last activity
 const MEMBER_TOKEN_MS = 90 * DAY;   // a member stays signed in this long, renewed on each visit
 const PENDING_MS = 10 * 60e3;       // how long a Discord round trip may take
+const SAVE_FILE_MAX = 256 * 1024;   // one saved game file (ADR 0014)
+const SAVE_TOTAL_MAX = 1024 * 1024; // all of a member's saved game files
+const SAVE_FILES_MAX = 16;          // and how many of them
 const NAME = /^[A-Za-z0-9_]{1,15}$/;
 const RESERVED = /^(guest\d+|cpu_\d+)$/i;
 const DISCORD_INVITE = /^https:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]+$/;
@@ -160,6 +163,36 @@ function createAuth({ store, config, fameLevel, busy, remove, discord = config.e
     req.on('error', reject);
   });
 
+  // A member's saved game (ADR 0014): the engine's files, one PUT each. The server keeps the bytes and never reads them.
+  const SAVE_NAME = /^[A-Za-z0-9_-]{1,56}\.[A-Za-z0-9]{1,6}$/;
+  const readBytes = (req, max) => new Promise((resolve, reject) => {
+    let size = 0, over = false; const chunks = [];
+    req.on('data', c => {
+      size += c.length;
+      if (size > max * 4) { reject(new Error('too large')); req.destroy(); } else if (size > max) over = true; else if (!over) chunks.push(c);
+    });
+    req.on('end', () => resolve(over ? null : Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+  async function savesRoute(req, res, url) {
+    const acc = accountOfRequest(req);
+    if (!acc) return json(res, 401, { error: 'unknown' });
+    if (acc.kind !== 'member') return json(res, 403, { error: 'members_only' });
+    if (url.pathname === '/auth/saves') {
+      if (req.method !== 'GET') { res.writeHead(405); return res.end(); }
+      return json(res, 200, { files: Object.fromEntries(store.saves(acc).map(f => [f.name, f.data.toString('base64')])) });
+    }
+    const name = url.pathname.slice('/auth/saves/'.length);
+    if (!SAVE_NAME.test(name)) return json(res, 400, { error: 'bad_name' });
+    if (req.method === 'DELETE') { store.dropSave(acc, name); res.writeHead(204); return res.end(); }
+    if (req.method !== 'PUT') { res.writeHead(405); return res.end(); }
+    const data = await readBytes(req, SAVE_FILE_MAX);
+    const used = store.saveUsage(acc, name);
+    if (!data || used.files >= SAVE_FILES_MAX || used.bytes + data.length > SAVE_TOTAL_MAX) return json(res, 413, { error: 'too_large' });
+    store.putSave(acc, name, data);
+    res.writeHead(204); res.end();
+  }
+
   const routes = {
     'POST /auth/guest': (req, res) => {
       if (store.guestCount() >= config.guestCap) return json(res, 503, { error: 'full' });
@@ -255,6 +288,10 @@ function createAuth({ store, config, fameLevel, busy, remove, discord = config.e
       if (!url.pathname.startsWith('/auth/')) return false;
       if (!config.enabled) { res.writeHead(404); res.end('not found'); return true; }
       if (req.method === 'GET' && url.pathname === '/auth/discord/callback') { await callback(url, res); return true; }
+      if (url.pathname === '/auth/saves' || url.pathname.startsWith('/auth/saves/')) {
+        try { await savesRoute(req, res, url); } catch (e) { log(`${url.pathname}: ${e.message}`); if (!res.headersSent) json(res, 400, { error: 'bad_request' }); }
+        return true;
+      }
       const route = routes[`${req.method} ${url.pathname}`];
       if (!route) { res.writeHead(404); res.end('not found'); return true; }
       try { await route(req, res); } catch (e) { log(`${url.pathname}: ${e.message}`); if (!res.headersSent) json(res, 400, { error: 'bad_request' }); }

@@ -19,4 +19,5 @@ This replaces ADR 0009 on such servers: a name alone no longer identifies anyone
 - A member's in-game name is permanent in the first version, because friend links and rankings use it. It must match `^[A-Za-z0-9_]{1,15}$`, and `Guest<digits>` and `CPU_<n>` are reserved.
 - The Java client can't send a token, so a Discord-enabled server refuses its TCP login. It keeps working on LAN servers.
 - A guest who clears browser storage loses the account. That is acceptable for a temporary account.
+- A member's saved game (story progress, settings, achievements) is kept on the server too (ADR 0014); a guest's stays in the browser.
 - The guest-creation limit per IP address depends on the real client address, so behind a proxy the operator must turn on trust of `X-Forwarded-For`.

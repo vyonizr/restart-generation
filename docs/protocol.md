@@ -249,7 +249,7 @@ Besides SNAP at `POST /snap`, the HTTP server answers these, which only this ser
 
 | Request | Reply |
 | --- | --- |
-| `GET /status` | `{ accounts, servesGame, invite, online, waiting }`: whether Discord sign-in is on, whether the server sends the game files itself (`RG_GAME` is set), the operator's Discord invite link, players online (bots excluded) and waiting in the ranked Quick Match. |
+| `GET /status` | `{ accounts, servesGame, unlockAll, invite, online, waiting }`: whether Discord sign-in is on, whether the server sends the game files itself (`RG_GAME` is set), whether the page opens every story and hero from the start (true unless the server is `--public`, ADR 0007), the operator's Discord invite link, players online (bots excluded) and waiting in the ranked Quick Match. |
 | `GET /bots` | `{ available }`: whether the server can run bots. |
 
 With Discord sign-in on (otherwise `/auth/*` is 404), a token travels as `Authorization: Bearer <token>`:
@@ -263,4 +263,7 @@ With Discord sign-in on (otherwise `/auth/*` is 404), a token travels as `Author
 | `POST /auth/exchange { code }` | `{ status: 'name', suggested }`, `{ status: 'confirm', name, guestFame }`, or `{ status: 'done', name, token }`. 404 when the code is unknown or older than 10 minutes. |
 | `POST /auth/finish { code, name?, confirm? }` | `{ name, token }`. 422 `invalid`, `reserved` or `taken` for a name, 409 `confirm` when a guest with progress would be dropped. |
 | `POST /auth/signout` | 204, and the token stops working. |
-| `POST /auth/delete` | 204, and the account, its links and its tokens are gone. |
+| `POST /auth/delete` | 204, and the account, its links, its saved game and its tokens are gone. |
+| `GET /auth/saves` | `{ files: { <name>: <base64> } }`, a member's saved game (ADR 0014). 403 `members_only` for a guest, 401 for an unknown token. |
+| `PUT /auth/saves/<name>` | The file's bytes as the body (`application/octet-stream`); 204. The name is `<letters, digits, _ or ->.<1 to 6 letters or digits>`, else 400. 413 over 256 KB a file, 1 MB or 16 files in all, and the account keeps what it held. |
+| `DELETE /auth/saves/<name>` | 204, whether or not the file existed. |

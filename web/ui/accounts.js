@@ -3,6 +3,7 @@
 // It runs only on a server that has Discord sign-in (GET /status says `accounts`).
 import { Account } from '../account.js';
 import { page } from './page.svelte.js';
+import { leave, discard } from './progress.js';
 
 const POLL_MS = 20000;   // how often a playing page re-reads fame
 const NAME_ERRORS = {
@@ -47,11 +48,11 @@ export const actions = {
   },
   async signout() {
     if (!await ask({ title: 'Sign out?', text: 'You play as a new guest until you sign in again. Your account and fame are kept.', yes: 'Sign out' })) return;
-    try { await account.signOut(); location.reload(); } catch { notice("Couldn't sign out. Try again in a moment.", dismiss); }
+    try { await leave(); await account.signOut(); location.reload(); } catch { notice("Couldn't sign out. Try again in a moment.", dismiss); }
   },
   async delete() {
     if (!await ask({ title: 'Delete your account?', text: 'Your name, fame and friends are removed for good. You continue as a new guest.', yes: 'Delete', no: 'Keep it' })) return;
-    try { await account.remove(); location.reload(); } catch { notice("Couldn't delete the account. Try again in a moment.", dismiss); }
+    try { await account.remove(); discard(); location.reload(); } catch { notice("Couldn't delete the account. Try again in a moment.", dismiss); }
   },
 };
 
@@ -71,7 +72,7 @@ async function finishSignIn(code) {
       }
       closeName();
     } else if (r.status === 'confirm') {
-      const yes = await ask({ title: `Sign in as ${r.name}?`, text: `That Discord account already has a player. Your guest progress (${r.guestFame} fame) is discarded.`, yes: 'Continue' });
+      const yes = await ask({ title: `Sign in as ${r.name}?`, text: `That Discord account already has a player. Your guest progress (${r.guestFame} fame) and this browser's saved game are discarded.`, yes: 'Continue' });
       if (!yes) { notice(`Sign-in cancelled. You're still playing as ${account.name}.`, dismiss); return; }
       await account.finish(code, { confirm: true });
     }
@@ -96,7 +97,7 @@ async function start() {
     return;
   }
   if (returned?.[1] === 'signin-error') notice(returned[2] === 'cancelled' ? `Sign-in cancelled. You're still playing as ${account.name}.` : "Discord sign-in didn't work. Try again.", dismiss);
-  else if (returned) finishSignIn(returned[2]);
+  else if (returned) await finishSignIn(returned[2]); // the account must be final before the saved game is settled
 }
 
 // While the engine runs: keep the header's level current, and after a guest earns fame offer them the account, once a day.

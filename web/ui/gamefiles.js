@@ -10,11 +10,19 @@ const FILES = ['ResetGeneration-Win32-Web.dll', 'settings.cfg', 'achievements.da
 const OPTIONAL = new Set(['settings.cfg', 'achievements.dat']); // the game creates them if they're missing
 const TRY_ANOTHER = touch ? 'Try another .zip.' : 'Try another .zip or folder.';
 
+// Bytes as base64, in chunks so a big file can't overflow the call stack.
+export function toBase64(bytes) {
+  let text = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(text);
+}
+export const fromBase64 = text => Uint8Array.from(atob(text), ch => ch.charCodeAt(0));
+
 // Settings, achievements and saves, kept in local storage.
 export const store = {
-  get(name) { try { const v = localStorage.getItem(`rg:${name}`); return v && Uint8Array.from(atob(v), ch => ch.charCodeAt(0)); } catch { return null; } },
+  get(name) { try { const v = localStorage.getItem(`rg:${name}`); return v && fromBase64(v); } catch { return null; } },
   set(name, data) {
-    try { data ? localStorage.setItem(`rg:${name}`, btoa(String.fromCharCode(...data))) : localStorage.removeItem(`rg:${name}`); } catch { /* storage full or blocked */ }
+    try { data ? localStorage.setItem(`rg:${name}`, toBase64(data)) : localStorage.removeItem(`rg:${name}`); } catch { /* storage full or blocked */ }
   },
   // Every saved game file. The page's own keys (rg:guest) have no file extension.
   names() { try { return Object.keys(localStorage).filter(k => k.startsWith('rg:') && k.includes('.')).map(k => k.slice(3)); } catch { return []; } },
@@ -99,6 +107,10 @@ export async function loadFiles() {
     files = await pickFiles();
     try { await gameStore('readwrite', s => s.put(files, 'game')); } catch { /* not kept: the player picks again next visit */ }
   }
-  for (const name of store.names()) { const saved = store.get(name); if (saved) files[name] = saved; }
   return files;
+}
+
+// The files the engine saved in this browser go over the game's own copies. Call it once the saved game is settled (progress.js).
+export function overlaySaved(files) {
+  for (const name of store.names()) { const saved = store.get(name); if (saved) files[name] = saved; }
 }

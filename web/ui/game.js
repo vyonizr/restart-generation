@@ -7,7 +7,8 @@ import { touch } from './device.js';
 import { javaKey } from './keys.js';
 import { Audio } from './audio.js';
 import { stayAwake } from './wake.js';
-import { loadFiles, store, forgetCopy, source } from './gamefiles.js';
+import { loadFiles, overlaySaved, store, forgetCopy, source } from './gamefiles.js';
+import { syncProgress, track } from './progress.js';
 import { createAccounts } from './accounts.js';
 import { createNameLogin, showOnlineName } from './login.js';
 import { botQuestion } from './bots.js';
@@ -57,12 +58,16 @@ async function main(canvas) {
   const accountReady = accounts?.start();
   const files = await loadFiles();
   await accountReady;
+  if (accounts?.account.member) await syncProgress(accounts.account);
+  overlaySaved(files);
   page.status = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
   const login = accounts ? accountLogin(accounts) : createNameLogin(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
   const bots = await botsAvailable();
   if (bots) snap.bots = botQuestion;
-  const patches = [...UNLOCKS, ...(bots ? LONE_START : [])];
+  // Every story and hero is open only on a server that isn't public (ADR 0007); elsewhere they are earned.
+  const patches = [...(server?.unlockAll ? UNLOCKS : []), ...(bots ? LONE_START : [])];
+  window.rgPatches = patches.map(p => p.what); // exposed for debugging and the headless browser test, like rgStats
   const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches });
   snap.attach(game);
   try {
@@ -114,7 +119,7 @@ async function main(canvas) {
   if (touch) padSession.current = { game, input, audio };
 
   // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
-  const saveNow = () => { for (const f of game.dirtyFiles()) store.set(f.name, f.data); };
+  const saveNow = () => { for (const f of game.dirtyFiles()) { store.set(f.name, f.data); track(f.name, f.data); } };
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
   addEventListener('pagehide', saveNow);
 
