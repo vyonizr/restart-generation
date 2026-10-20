@@ -19,6 +19,7 @@ export const page = $state({
   bots: null,       // { alone, focus }: the CPU question at a friendly Start; focus is 'none', 'cpu' or 'expert'
   onlineName: '',   // "Online as <name>" under Start, once the player has set a name
   dialogs: 0,       // dialogs open; the game screen can't be reached while one is
+  finish: 'soft',   // how the game screen is shown, 'soft' or 'sharp' (the Screen finish, finish.js)
 });
 
 // What the touch pad drives once the game runs: { game, input, audio }. Raw, so the emulator and its input queue are

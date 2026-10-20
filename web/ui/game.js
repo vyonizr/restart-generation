@@ -99,7 +99,7 @@ async function main(canvas) {
   // Keys go to the game wherever focus is on the page, except in a dialog or the overlay's buttons.
   addEventListener('keydown', e => {
     const k = javaKey(e);
-    if (!k || e.target.closest?.('.login, #overlay')) return;
+    if (!k || e.target.closest?.('.login, #overlay, .finish')) return;
     e.preventDefault();
     if (held.has(e.code)) return;      // the Java listener ignored auto-repeat too
     held.add(e.code);
@@ -108,7 +108,7 @@ async function main(canvas) {
   });
   addEventListener('keyup', e => {
     const k = javaKey(e);
-    if (!k || e.target.closest?.('.login, #overlay')) return;
+    if (!k || e.target.closest?.('.login, #overlay, .finish')) return;
     e.preventDefault();
     held.delete(e.code);
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
