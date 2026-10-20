@@ -13,7 +13,6 @@
 {#if page.who}
   <b class="who-name">{page.who.name}</b>
   {#if page.who.member}
-    <span class="who-level">Level {page.who.level}</span>
     <details class="menu" bind:this={menu}>
       <summary>Account</summary>
       <div class="menu-panel">

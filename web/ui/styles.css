@@ -49,7 +49,6 @@ button.secondary:hover { background: transparent; color: #fff; border-color: #ff
 /* Who you are: the header on a desktop, a line under Start on a touch device */
 .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .who-name { font: 500 13px/1 var(--mono); color: #fff; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.who-level { font: 13px/1 var(--mono); color: var(--light-3); white-space: nowrap; }
 .who button { font-size: 13px; padding: 6px 12px; white-space: nowrap; }
 .menu { position: relative; }
 .menu summary { list-style: none; cursor: pointer; padding: 6px 12px; border: 1px solid var(--light-3); font: 400 13px/1 var(--display); text-transform: uppercase;
@@ -60,7 +59,6 @@ button.secondary:hover { background: transparent; color: #fff; border-color: #ff
 .menu-panel button { font-size: 13px; padding: 8px 12px; }
 #who-touch { align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 12px; }
 #who-touch .who-name { font: 600 13px/1.6 var(--body); max-width: none; }
-#who-touch .who-level { font: 13px/1.6 var(--body); }
 #who-touch .menu-panel { position: static; display: flex; padding: 8px 0 0; background: none; box-shadow: none; }
 #who-touch .menu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
@@ -111,7 +109,7 @@ footer strong { font-weight: 500; color: var(--light-2); }
 }
 @media (max-width: 759px) {
   header { height: 64px; padding: 0 16px; }
-  .who .long, .who-level { display: none; }
+  .who .long { display: none; }
   .ghost { font-size: 34vw; }
   main { padding: 24px 16px 48px; }
   footer { grid-template-columns: 1fr; gap: 12px; padding: 32px 16px; }

@@ -41,7 +41,7 @@ const replies = new Map();  // "<S|addr>:<R>" -> cached response, for client ret
 const authConfig = MODE.config;
 const busy = id => [...sessions.values()].some(s => s.userId === id);
 const remove = acc => { for (const s of [...sessions.values()]) if (s.userId === acc.id) dropSession(s); };
-const auth = createAuth({ store: db, config: authConfig, fameLevel: gameServer.fameLevel, log, busy, remove });
+const auth = createAuth({ store: db, config: authConfig, log, busy, remove });
 const admin = createAdmin({ store: db, token: process.env.RG_ADMIN_TOKEN || '', discord: auth.enabled, busy, remove, log });
 
 // Without Discord a name is the whole identity: no password. Anyone can log in as any name, and that drops the name's other

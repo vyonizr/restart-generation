@@ -75,16 +75,16 @@ function discordClient({ clientId, clientSecret, publicUrl }) {
   };
 }
 
-// opts: store, config, fameLevel(acc), busy(id) -> whether that account has a live session, remove(acc) to end its sessions,
+// opts: store, config, busy(id) -> whether that account has a live session, remove(acc) to end its sessions,
 // discord (default: the real one), now (default: Date.now), log.
-function createAuth({ store, config, fameLevel, busy, remove, discord = config.enabled ? discordClient(config) : null, now = Date.now, log = () => {} }) {
+function createAuth({ store, config, busy, remove, discord = config.enabled ? discordClient(config) : null, now = Date.now, log = () => {} }) {
   const states = new Map();   // state -> { guest: account id or null, expires }
   const pending = new Map();  // sign-in code -> { discordId, username, guest, member, expires }
   const created = new Map();  // ip -> [times of new guests in the last hour]
 
   const prune = map => { for (const [k, v] of map) if (v.expires < now()) map.delete(k); };
   const rand = () => crypto.randomBytes(24).toString('base64url');
-  const view = acc => ({ name: acc.name, kind: acc.kind, fame: acc.stats.fame, level: fameLevel(acc) });
+  const view = acc => ({ name: acc.name, kind: acc.kind, fame: acc.stats.fame });
   const progress = guest => guest.stats.matches > 0;
 
   // A member's name, free of every case clash and reserved pattern.

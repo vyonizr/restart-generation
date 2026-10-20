@@ -151,7 +151,7 @@ A near-black blue ink ramp with white text and one saturated crimson.
 - **Rule Ink** (`ink-3`): the scrollbar thumb and the touch pad's borders.
 - **White** (`white`): primary text, headings, button labels, key-cap labels, the default focus ring, and the primary-button hover fill.
 - **Pale Steel** (`light-2`): supporting text that still needs to read, such as the status line, the hero line, the key legend, secondary button labels, and bold footer text.
-- **Muted Steel** (`light-3`): quiet text, such as the level in the header, form labels, dialog notes, and footer body text. Also the secondary button, text input and key-cap borders.
+- **Muted Steel** (`light-3`): quiet text, such as form labels, dialog notes, and footer body text. Also the secondary button, text input and key-cap borders.
 - **Screen Black** (`screen-black`): the game screen's backing, under an 8 px dot grid of white at 16%.
 
 ### Named Rules
@@ -176,12 +176,12 @@ All three faces are self-hosted as `woff2` and load with `font-display: swap`. A
 - **Button** (Anton 400, `22px`, line height `1`, `0.01em`, uppercase): all buttons. **Start** steps up to `34px`; the small buttons in the header step down to `13px`; dialog buttons step down to `18px`.
 - **Body** (Raleway 400, `16px`, line height `1.8`): the base. The status line uses `15px` at line height `1.7` with a `30ch` measure. The key legend uses `14px`.
 - **Label** (Raleway 500, `13px`, line height `1`): form labels. Dialog notes use Raleway `13px` at line height `1.6`.
-- **Mono** (Roboto Mono): the player's name in the header (500, `13px`) and their level (400, `13px`), the online count under the screen (400, `15px`, line height `1.6`), and on touch devices the count beside its icon (500, `13px`), the footer (400, `12px`, line height `1.7`, bold runs at 500), and key-cap labels (500, `13px`).
+- **Mono** (Roboto Mono): the player's name in the header (500, `13px`), the online count under the screen (400, `15px`, line height `1.6`), and on touch devices the count beside its icon (500, `13px`), the footer (400, `12px`, line height `1.7`, bold runs at 500), and key-cap labels (500, `13px`).
 
 ### Named Rules
 **The Display Is Uppercase Rule.** Anton is always uppercase, weight 400, with line height `0.9` for headings and `1` for single-line labels. Headings use `text-wrap: balance`.
 
-**The Mono Is An Aside Rule.** Roboto Mono is limited to the header's name and level, the hero line, the footer, and key caps. Don't use it for headings, buttons, or form text.
+**The Mono Is An Aside Rule.** Roboto Mono is limited to the header's name, the hero line, the footer, and key caps. Don't use it for headings, buttons, or form text.
 
 ## Layout
 
@@ -193,7 +193,7 @@ The key legend is one wrapping row: `10px` between rows, `28px` between groups, 
 
 The footer is a two-column grid (`1fr auto`, `48px` gap): the disclaimer on the left (max `110ch`) and notes right-aligned on the right.
 
-Below `1000px` wide, the footer stacks into one left-aligned column. Below `760px` wide, the page scrolls. The header shrinks to `64px` with `16px` gutters and hides the level and the words after **Sign in**. Main pads `24px 16px 48px`. The footer stacks into one left-aligned column with `32px 16px` padding.
+Below `1000px` wide, the footer stacks into one left-aligned column. Below `760px` wide, the page scrolls. The header shrinks to `64px` with `16px` gutters and hides the words after **Sign in**. Main pads `24px 16px 48px`. The footer stacks into one left-aligned column with `32px 16px` padding.
 
 On touch devices (`hover: none` and `pointer: coarse`), the header, the online count line, the key legend, the ghost type, and the folder button hide (the identity line under the buttons stands in for the header, and the count moves into the Start screen, and notices sit under the touch pad like the slowness notice), and the touch pad sits under the screen. Main pads `0 16px 16px` with a `12px` gap, and its content starts at the top. The screen's width is `min(100%, (100dvh - chrome - pad) * 3 / 4)`, so it fills the visible height, and the pad is a cluster centred under it. In portrait, the pad is the D-pad's size, `clamp(116px, 24.5dvh, 240px)`, plus a `28px` hint line, and `chrome` is the height reserved for the gaps: `30px`. A `390 × 664` phone viewport (an iPhone 13 in Safari) gets a screen about `332 × 443`, so each game pixel is about 4 device pixels. The rest of the page scrolls, so the footer stays reachable below the pad.
 
@@ -234,7 +234,7 @@ Poster-loud and square.
 - **Login dialog:** `ink-2` fill, square, `24px` padding, `14px` gap, width `min(320px, 86%)`, centred over the screen with the dialog lift. Its title carries the crimson bar. Actions sit right-aligned, `10px` apart, secondary before primary. The password field and its note appear only when the server rejects the saved name.
 - **Screen overlay:** `ink-0` at `82%` (`rgb(17 20 27 / 82%)`) over the screen, holding the title, status line, and actions.
 - **Online-as line:** one `hint` line under **Start** that names the player's online name, with a secondary **Change name** button at `13px` with `4px 8px` padding. It appears only after the player has set a name.
-- **Who chip:** in the header's right, the player's name in mono, then, for a guest, a secondary **Sign in with Discord**; a member sees their level and an **Account** summary that opens a panel on `ink-2` with **Sign out** and **Delete my account**. Buttons are `13px` with `6px 12px` padding. On a touch device the same content sits as one line under **Start**, and the panel opens inline.
+- **Who chip:** in the header's right, the player's name in mono, then, for a guest, a secondary **Sign in with Discord**; a member sees an **Account** summary that opens a panel on `ink-2` with **Sign out** and **Delete my account**. Buttons are `13px` with `6px 12px` padding. On a touch device the same content sits as one line under **Start**, and the panel opens inline.
 - **Online count:** `3 online` in Roboto Mono `15px` in `light-2`, centred under the game screen, on desktop only. On a touch device it moves to the last row of the Start screen's overlay, as a `16px` two-person line icon (`1.4` square-capped stroke in `light-3`) and the number in Roboto Mono `13px` at 500, with "players online" visually hidden for screen readers. Both hide when there is no server to ask, and "0 online" is shown, not hidden. A notice replaces the desktop line while it is up. The admin's "Join the Discord" link, when set, sits in the footer after the credit line, underlined in `light-2`.
 - **Notice line:** one line of Raleway `15px` in `light-2` under the screen, with small buttons at `16px` with `8px 14px` padding. It holds sign-in results and the once-a-day offer to sign in after a guest earns fame.
 - **Slowness notice:** one line of Raleway `13px` in `light-2` under the touch pad, as wide as it, with a secondary **Dismiss** button at `16px` with `6px 12px` padding. It appears at most once per visit.
@@ -281,6 +281,6 @@ The engine's canvas fills a `3 / 4` frame, scaled with `image-rendering: pixelat
 - **Don't** use crimson for body or running text.
 - **Don't** introduce a second accent color or a light theme.
 - **Don't** round corners.
-- **Don't** use Roboto Mono beyond the header's name and level, hero line, footer, and key caps.
+- **Don't** use Roboto Mono beyond the header's name, hero line, footer, and key caps.
 - **Don't** add shadows to anything except the game screen and dialogs over it.
 - **Don't** add game art, screenshots, or RedLynx or Ubisoft logos to the page.
