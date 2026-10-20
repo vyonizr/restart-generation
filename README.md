@@ -39,7 +39,7 @@ A phone, tablet or other computer on the same network can play the game that you
    The server prints one `http://<address>:8080/` line per network address, labelled with the network's name.
 2. On the other device, open the address of the network both devices share, such as `http://192.168.1.20:8080/`.
 
-Both devices must be on the same private network, such as your home Wi-Fi. Without `--lan`, the server accepts connections from your PC only. The same option lets friends play over the internet if they can reach your PC on ports 8080 (the page) and 8976 (the Java client).
+Both devices must be on the same private network, such as your home Wi-Fi. Without `--lan`, the server accepts connections from your PC only. `--lan` always uses name-only login, with no Discord sign-in (see [Guests and members](#guests-and-members)). To serve people over the internet, use `--public` instead: it listens the same way and turns on Discord sign-in when it is configured. Friends need to reach your PC on ports 8080 (the page) and 8976 (the Java client).
 
 If the other device can't connect, Windows Firewall is probably blocking it. To allow the two ports on private networks, run this command in PowerShell as an administrator:
 
@@ -61,7 +61,7 @@ To use npm scripts instead, put `RG_GAME=<path>` in a `.env` file in the repo ro
 node server/gateway.js
 ```
 
-The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](#play-on-other-devices)). To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in `data/accounts.db`, a SQLite database (ADR 0010). A `data/accounts.json` from an older version is not read, and its players register again. To back up the database while the server runs, use `sqlite3 data/accounts.db "VACUUM INTO 'backup.db'"`; copying the file mid-write is not safe.
+The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](#play-on-other-devices)). To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in a SQLite database (ADR 0010): `data/accounts-names.db` on a name-only server (`--lan`, or no Discord settings) and `data/accounts.db` on a Discord server, so switching modes never mixes the two kinds of account. A `data/accounts.json` from an older version is not read, and its players register again. To back up a database while the server runs, use `sqlite3 data/accounts.db "VACUUM INTO 'backup.db'"` (or `accounts-names.db`); copying the file mid-write is not safe.
 
 To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and the server ends a phase only after 3 minutes (1 minute for cannon shots) if someone stops playing. Ranked matches keep the 20 s limit.
 
@@ -84,7 +84,7 @@ node server/gameblob.test.js
 
 ## Guests and members
 
-By default a name is the whole identity (ADR 0009), which suits a local or LAN server. A public server can turn on guests and members (ADR 0011) by registering a Discord application at <https://discord.com/developers/applications>, adding `<RG_PUBLIC_URL>/auth/discord/callback` as its redirect, and setting these environment variables (they all go in `.env` for `npm start` and Docker):
+By default a name is the whole identity (ADR 0009), which suits a local or LAN server, and `--lan` always keeps it that way, whatever the Discord settings say. A public server (`--public`, which the Docker image uses) can turn on guests and members (ADR 0011) by registering a Discord application at <https://discord.com/developers/applications>, adding `<RG_PUBLIC_URL>/auth/discord/callback` as its redirect, and setting these environment variables (they all go in `.env` for `npm start` and Docker):
 
 | Variable | Meaning |
 | --- | --- |

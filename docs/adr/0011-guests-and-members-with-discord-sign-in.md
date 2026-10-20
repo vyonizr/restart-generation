@@ -2,7 +2,7 @@
 
 When the operator configures a Discord application, every player is a guest or a member. A guest is created on a first visit, holds a secret token that the browser keeps, and is wiped 24 hours after its last activity, together with its fame, stats and friend links. A member signs in with Discord (`identify` scope only), picks an in-game name once, and keeps the account until they delete it. A guest plays everything a member does, including ranked matches, but only members appear in the global rankings. A guest who signs in keeps what they earned: the guest account becomes the member account, unless that Discord ID already belongs to a member, in which case the member wins and the guest's progress is dropped after a confirmation.
 
-This replaces ADR 0009 on such servers: a name alone no longer identifies anyone, because a stranger could otherwise take a member's name and drop their session mid-battle. Without a Discord application (local and LAN servers) ADR 0009 still holds, and there are no guests and no wipe.
+This replaces ADR 0009 on such servers: a name alone no longer identifies anyone, because a stranger could otherwise take a member's name and drop their session mid-battle. Without a Discord application, or with `--lan` whatever the settings say (a sign-in return address can't work from another device), ADR 0009 still holds, and there are no guests and no wipe. `--public` is the flag for a server on the internet.
 
 ## Considered options
 

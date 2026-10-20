@@ -27,6 +27,23 @@ function configFrom(env) {
   return config;
 }
 
+// How the server runs, from its command line and environment. --lan listens on every interface for a private network and is always
+// name-only (ADR 0009): a sign-in return address can't work from another device, so Discord is ignored. --public listens on every
+// interface for the internet and uses Discord when it is configured. Neither listens on this PC only. Name-only and Discord servers
+// keep their accounts in separate files, so switching modes never exposes one kind of account to the other's login.
+function modeFrom(argv, env) {
+  const lan = argv.includes('--lan'), pub = argv.includes('--public');
+  if (lan && pub) throw new Error('--lan and --public together: choose one. --lan is name-only play on a private network; --public serves the internet');
+  const configured = configFrom(env), discord = configured.enabled && !lan;
+  return {
+    config: { ...configured, enabled: discord },
+    listenAll: lan || pub,
+    discord,
+    ignoredDiscord: lan && configured.enabled, // Discord is configured but --lan turns it off
+    db: discord ? 'accounts.db' : 'accounts-names.db',
+  };
+}
+
 // Discord's side of the sign-in: the authorization address and the code exchange, asking for `identify` only.
 function discordClient({ clientId, clientSecret, publicUrl }) {
   const redirect = `${publicUrl}/auth/discord/callback`;
@@ -253,4 +270,4 @@ function createAuth({ store, config, fameLevel, busy, remove, discord = config.e
   };
 }
 
-module.exports = { configFrom, createAuth, GUEST_IDLE_MS, MEMBER_TOKEN_MS };
+module.exports = { configFrom, modeFrom, createAuth, GUEST_IDLE_MS, MEMBER_TOKEN_MS };

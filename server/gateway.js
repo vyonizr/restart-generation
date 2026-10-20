@@ -1,6 +1,6 @@
 // Replacement for resetgeneration-gw.arena.n-gage.com (SNAP Mobile gateway).
-// Start: node server/gateway.js [--lan]   Client: start.bat with -gw 127.0.0.1
-// Without --lan, both ports accept connections from this PC only.
+// Start: node server/gateway.js [--lan | --public]   Client: start.bat with -gw 127.0.0.1
+// Without --lan or --public, both ports accept connections from this PC only.
 const net = require('net');
 const os = require('os');
 const fs = require('fs');
@@ -10,10 +10,12 @@ const { FRAME, readFrames, frame, parseRequest, ok, err, b64 } = require('./snap
 const gameServer = require('./casino');
 const bots = require('./bots');
 const store = require('./store');
-const { configFrom, createAuth } = require('./auth');
+const { modeFrom, createAuth } = require('./auth');
 
 const PORT = Number(process.env.PORT || 8976);
-const HOST = process.argv.includes('--lan') ? undefined : '127.0.0.1';
+let MODE;
+try { MODE = modeFrom(process.argv, process.env); } catch (e) { console.error(e.message); process.exit(1); }
+const HOST = MODE.listenAll ? undefined : '127.0.0.1';
 const POLL_HOLD_MS = 15000; // client gives up on long requests after ~40 s
 // A session with no request for this long is logged out (closed browser, killed client). Must exceed
 // POLL_HOLD_MS and the Java client's 40 s resend timeout.
@@ -23,9 +25,9 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 
-// Accounts (ADR 0010). RG_DB overrides the file; tests use ':memory:'.
+// Accounts (ADR 0010): accounts-names.db for name-only servers, accounts.db for Discord ones. RG_DB overrides the file; tests use ':memory:'.
 fs.mkdirSync(DATA_DIR, { recursive: true });
-const db = store.open(process.env.RG_DB || path.join(DATA_DIR, 'accounts.db'));
+const db = store.open(process.env.RG_DB || path.join(DATA_DIR, MODE.db));
 
 const LOBBY = { id: '1', name: 'resgen' };
 const sessions = new Map(); // sid -> session
@@ -35,7 +37,7 @@ let nextRoomId = 1;
 rooms.set('0', { id: '0', name: 'CasinoSystem', max: 100000, members: new Set(), permanent: true });
 const replies = new Map();  // "<S|addr>:<R>" -> cached response, for client retransmits
 
-const authConfig = configFrom(process.env);
+const authConfig = MODE.config;
 const auth = createAuth({
   store: db, config: authConfig, fameLevel: gameServer.fameLevel, log,
   busy: id => [...sessions.values()].some(s => s.userId === id),
@@ -343,6 +345,8 @@ http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 }).listen(HTTP_PORT, HOST, () => {
   log(`browser client on http://localhost:${HTTP_PORT}/`);
+  log(MODE.discord ? 'Discord sign-in is on: players are guests or members (ADR 0011)' : 'Name-only login (ADR 0009)');
+  if (MODE.ignoredDiscord) log('Discord sign-in is off in --lan mode: it can only work for a public server (--public)');
   bots.configure(`http://127.0.0.1:${HTTP_PORT}/snap`);
   if (HOST) return;
   for (const [name, address] of lanAddresses(os.networkInterfaces())) log(`browser client on http://${address}:${HTTP_PORT}/ (${name})`);
