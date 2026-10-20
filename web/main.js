@@ -3,7 +3,8 @@
 import { GameHost, WIDTH, HEIGHT, VK, UNLOCKS, LONE_START } from './emu/host.js';
 import { SnapClient } from './snap.js';
 import { gameFromZip } from './zip.js';
-import { createAccountUI, startStrip } from './accountui.js';
+import { createAccounts } from './ui/accounts.svelte.js';
+import { page } from './ui/page.svelte.js';
 
 const GAME_URL = 'game/';   // served by server/gateway.js from the user's own copy of the game
 const FILES = ['ResetGeneration-Win32-Web.dll', 'settings.cfg', 'achievements.dat', 'base.pak', 'fonts.pak', 'story.pak',
@@ -368,9 +369,9 @@ const ownCopyNotice = show => { for (const e of document.querySelectorAll('.byo'
 async function main() {
   const server = await serverStatus();
   ownCopyNotice(!server?.servesGame);
-  const accounts = server?.accounts ? createAccountUI({ canvas, overlay }) : null;
+  const accounts = server?.accounts ? createAccounts() : null;
   const accountReady = accounts?.start();
-  if (server) startStrip(server);
+  page.server = server;
   const files = await loadFiles();
   ownCopyNotice(source !== 'server');
   await accountReady;
