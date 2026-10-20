@@ -89,7 +89,7 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
   assert.strictEqual((await call(auth, 'POST', '/auth/guest', { ip: '8.8.8.8' })).code, 503); // the cap on guests
   clock += 3600e3 + 1;
   assert.strictEqual((await call(auth, 'POST', '/auth/guest')).code, 503); // still capped by count
-  // A forged X-Forwarded-For is ignored unless the operator trusts the proxy; then the proxy's own entry counts.
+  // A forged X-Forwarded-For is ignored unless the admin trusts the proxy; then the proxy's own entry counts.
   ({ auth } = setup({ config: { guestsPerIpHour: 1, trustProxy: false } }));
   await call(auth, 'POST', '/auth/guest', { headers: { 'x-forwarded-for': '5.5.5.5' } });
   assert.strictEqual((await call(auth, 'POST', '/auth/guest', { headers: { 'x-forwarded-for': '6.6.6.6' } })).code, 429);
