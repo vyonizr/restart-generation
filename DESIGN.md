@@ -1,6 +1,6 @@
 ---
 name: Restart Generation
-description: The original 2009 game, right in your browser (again).
+description: The original 2008 game, right in your browser (again).
 colors:
   crimson: "#a50034"
   ink-0: "#11141b"

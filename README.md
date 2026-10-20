@@ -1,6 +1,6 @@
 # Restart Generation server
 
-A replacement for the dead Nokia N-Gage Arena (SNAP Mobile) backend used by the standalone Java build of Reset Generation (RedLynx, 2009).
+A replacement for the dead Nokia N-Gage Arena (SNAP Mobile) backend used by the standalone Java build of Reset Generation (RedLynx, 2008).
 
 Status: the game runs in the browser. The original engine (a 32-bit Windows DLL) runs unchanged in a JavaScript x86 emulator, and the server restores login, stats, rankings, achievements, friends, ranked Quick Match (2-4 players), friendly rooms, and server-hosted battles. See `docs/protocol.md` for the protocol, `docs/adr` for the architecture decisions, `docs/re` for the reverse-engineering notes and how to regenerate the analysis, `web/emu` for the emulator, and `web/ui` for the page (Svelte components built by Vite, ADR 0013).
 

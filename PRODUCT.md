@@ -8,7 +8,7 @@ web
 
 ## Users
 
-People who own Reset Generation (RedLynx, 2009) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in the README, not on the page.
+People who own Reset Generation (RedLynx, 2008) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in the README, not on the page.
 
 ## Product Purpose
 
@@ -41,8 +41,8 @@ Online play depends on the server. On a server with Discord sign-in (ADR 0011), 
 
 ## Brand Commitments
 
-- Name: Restart Generation. The page is an unofficial fan revival of Reset Generation (RedLynx, 2009); the game keeps its own name.
-- Required footer text: "Restart Generation is an unofficial fan revival of Reset Generation © 2009 RedLynx. It is not affiliated with or endorsed by RedLynx. Bring your own copy of the game." The last sentence, and the footer note "Windows standalone build only. Your files stay in this browser.", appear only where the player brings the files: not on a server that sends the game files itself (`RG_GAME` set). Plus a credit line for vyonizr and, once it exists, a link to the GitHub repository.
+- Name: Restart Generation. The page is an unofficial fan revival of Reset Generation (RedLynx, 2008); the game keeps its own name.
+- Required footer text: "Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It is not affiliated with or endorsed by RedLynx. Bring your own copy of the game." The last sentence, and the footer note "Windows standalone build only. Your files stay in this browser.", appear only where the player brings the files: not on a server that sends the game files itself (`RG_GAME` set). Plus a credit line for vyonizr and, once it exists, a link to the GitHub repository.
 - No RedLynx or Ubisoft logos, and nothing that reads as an official RedLynx or Ubisoft site.
 
 ## Evidence on Hand

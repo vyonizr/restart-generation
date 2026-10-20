@@ -1,6 +1,6 @@
 # Reset Generation native-protocol RE briefing
 
-Goal: revive online play of Reset Generation (RedLynx, 2009 web/standalone build of the N-Gage 2.0 game) by
+Goal: revive online play of Reset Generation (RedLynx, 2008 web/standalone build of the N-Gage 2.0 game) by
 writing a replacement server. The Java SNAP Mobile gateway layer is DONE and working (see
 docs/protocol.md and server/gateway.js). What remains is the
 protocol spoken by the native engine DLL, which travels as opaque byte payloads inside SNAP game packets.
