@@ -130,7 +130,7 @@
 
   /* Touch devices: no header, and the touch pad under the game screen, both as wide as fits the height */
   @media (hover: none) and (pointer: coarse) {
-    :root { --pad: clamp(120px, 31dvh, 330px); --chrome: 30px; --w: min(100%, (100dvh - var(--chrome) - var(--pad)) * 3 / 4); }
+    :root { --cross: min(clamp(116px, 24.5dvh, 240px), calc(100vw - 184px)); --hint: 28px; --pad: calc(var(--cross) + var(--hint)); --chrome: 30px; --w: min(100%, (100dvh - var(--chrome) - var(--pad)) * 3 / 4); }
     header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
     .page { grid-template-rows: 1fr auto; }
     .touch-only { display: inline; }
@@ -140,26 +140,30 @@
     .screen { height: auto; width: var(--w); }
     .screen, .pad { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
-    .pad { display: grid; justify-self: center; width: var(--w); height: var(--pad);
-      grid-template: "dpad acts" minmax(0, 1fr) "util util" auto / 1fr 1fr; gap: 10px 8px; align-items: center; }
+    /* As wide as the screen, or wider where the screen is narrow (landscape) and the sides need room beside the D-pad */
+    .pad { display: grid; justify-self: center; width: min(100%, max(var(--w), calc(var(--cross) + 152px))); height: var(--pad);
+      grid-template: "l c r" var(--cross) "hint hint hint" auto / minmax(0, 1fr) var(--cross) minmax(0, 1fr); gap: 8px 24px; align-content: space-between; }
     /* Tapped buttons keep :hover on touch screens, so hover looks the same as rest */
     .pad button, .pad button:hover { display: grid; place-content: center; justify-items: center; gap: 6px; padding: 0; font-size: 20px;
       color: var(--light-2); background: var(--ink-2); border-color: var(--ink-3); transition: none; }
-    .pad .select, .pad .select:hover { font-size: min(24px, 16cqi); color: #fff; background: var(--red); border-color: var(--red); }
-    .pad .small, .pad .small:hover { height: 40px; padding: 0 14px; font-size: 16px; background: none; }
+    .pad .select, .pad .select:hover { color: #fff; background: var(--red); border-color: var(--red); }
+    .pad .small, .pad .small:hover { width: 44px; height: 44px; padding: 0; color: var(--light-3); background: none; }
+    .pad .small svg { width: 24px; max-width: none; }
     .pad button.held, .pad button.held:hover { background: #fff; color: var(--red); border-color: #fff; }
-    .pad small { font: 500 11px/1 var(--body); text-transform: none; letter-spacing: 0; color: rgb(255 255 255 / 75%); }
-    .pad .held small { color: var(--red); }
     .pad svg { width: 40%; max-width: 30px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: square; }
-    .cross, .acts { width: min(100%, 240px, var(--pad) - 60px); aspect-ratio: 1; }
-    .cross { grid-area: dpad; justify-self: start; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); }
-    .cross [data-key=up] { grid-area: 1 / 2; } .cross [data-key=left] { grid-area: 2 / 1; }
+    /* The D-pad: five controls on a 3 × 3 grid, with Select in the middle. Labels scale with the cell. */
+    .cross { grid-area: c; container-type: size; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 4px; }
+    .cross button { font-size: min(11cqi, 24px); }
+    .cross [data-key=up] { grid-area: 1 / 2; }
+    .cross [data-key=left] { grid-area: 2 / 1; } .cross [data-key=select] { grid-area: 2 / 2; }
     .cross [data-key=right] { grid-area: 2 / 3; } .cross [data-key=down] { grid-area: 3 / 2; }
-    .acts { grid-area: acts; justify-self: end; position: relative; container-type: size; } /* labels scale with it in landscape */
-    .acts .select { position: absolute; right: 0; top: 10%; width: 62%; aspect-ratio: 1; }
-    .acts .back, .acts .back:hover { position: absolute; left: 0; bottom: 4%; width: 42%; aspect-ratio: 1; font-size: min(20px, 14cqi); }
-    @container (width < 120px) { .acts small { display: none; } }
-    .util { grid-area: util; display: flex; justify-content: center; gap: 10px; }
+    /* The right column, for the thumb that steers: Back in the top row, level with Up and a corner cell away from it, then the
+       rarely pressed Keyboard and Fullscreen as quiet icons. Its rows match the D-pad's. */
+    .side-r { grid-area: r; display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 4px; justify-items: end; }
+    .side-r .back { grid-row: 1; justify-self: start; height: 100%; aspect-ratio: 1; font-size: 16px; }
+    .side-r .small { align-self: center; }
+    .side-r #type { grid-row: 2; } .side-r #fullscreen { grid-row: 3; }
+    .pad-hint { grid-area: hint; text-align: center; font: 12px/1.4 var(--body); color: var(--light-3); }
 
     .slow, .nudge { display: flex; align-items: center; justify-content: center; gap: 12px; width: var(--w); justify-self: center;
       font: 13px/1.6 var(--body); color: var(--light-2); }
@@ -167,7 +171,8 @@
   }
   /* Landscape: a thinner bottom gap, so the column gets the height */
   @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
-    :root { --pad: clamp(120px, 38dvh, 330px); --chrome: 16px; }
+    :root { --cross: min(clamp(116px, 32dvh, 240px), calc(100vw - 184px)); --hint: 0px; --chrome: 16px; }
+    .pad-hint { display: none; }
     main { padding-bottom: 4px; }
   }
 </style>
@@ -223,18 +228,16 @@
       <div class="cross">
         <button data-key="up" aria-label="Up"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10V2M2.5 5 6 1.5 9.5 5"/></svg></button>
         <button data-key="left" aria-label="Left"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 6H2M5 2.5 1.5 6 5 9.5"/></svg></button>
+        <button data-key="select" class="select" aria-label="Select, hold to drop">Select</button>
         <button data-key="right" aria-label="Right"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M7 2.5 10.5 6 7 9.5"/></svg></button>
         <button data-key="down" aria-label="Down"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2.5 7 6 10.5 9.5 7"/></svg></button>
       </div>
-      <div class="acts">
+      <div class="side-r">
         <button data-key="back" class="back" aria-label="Back">Back</button>
-        <button data-key="select" class="select" aria-label="Select, hold to drop">Select<small>Hold to drop</small></button>
+        <button id="type" class="small" aria-label="Keyboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM6.5 9.5h1M10.5 9.5h1M14.5 9.5h1M17.5 9.5h.5M6.5 12.5h1M10.5 12.5h1M14.5 12.5h1M17.5 12.5h.5M8 15.5h8"/></svg></button>
+        <button id="fullscreen" class="small" aria-label="Fullscreen" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
       </div>
-      <div class="util">
-        <button data-key="menu" class="small" aria-label="Menu">Menu</button>
-        <button id="type" class="small" aria-label="Keyboard">Keyboard</button>
-        <button id="fullscreen" class="small" aria-label="Fullscreen" hidden>Fullscreen</button>
-      </div>
+      <p class="pad-hint">Hold Select to drop a block</p>
     </div>
     <input id="typing" class="typing" aria-label="Type into the game" autocapitalize="off" autocomplete="off" spellcheck="false" value=" ">
     <video id="wake" class="wake" src="wake.mp4" playsinline preload="none" aria-hidden="true"></video>
