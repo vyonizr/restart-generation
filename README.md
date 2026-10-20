@@ -92,7 +92,7 @@ node server/gameblob.test.js
 
 ## Guests and members
 
-By default a name is the whole identity (ADR 0009), which suits a local or LAN server, and `--lan` always keeps it that way, whatever the Discord settings say. A public server (`--public`, which the Docker image uses) can turn on guests and members (ADR 0011) by registering a Discord application at <https://discord.com/developers/applications>, adding `<RG_PUBLIC_URL>/auth/discord/callback` as its redirect, and setting these environment variables (they all go in `.env` for `npm start` and Docker):
+By default a name is the whole identity (ADR 0009), which suits a local or LAN server, and `--lan` always keeps it that way, whatever the Discord settings say. A public server (`--public`, which the Docker image uses) can turn on guests and members (ADR 0011) by registering a Discord application at <https://discord.com/developers/applications> (upload `web/public/icon-512.png` as its icon), adding `<RG_PUBLIC_URL>/auth/discord/callback` as its redirect, and setting these environment variables (they all go in `.env` for `npm start` and Docker):
 
 | Variable | Meaning |
 | --- | --- |
