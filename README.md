@@ -99,7 +99,9 @@ The container serves plain HTTP. For a public server, put a reverse proxy or tun
 
 ## Battle templates
 
-The server hosts battles with a level template captured from the game engine, stored in `data/templates/`. Matchmaking waits until a template with one castle per seat exists. To capture one on Windows:
+Online battles don't work without templates. The server hosts every battle from a level template captured from the game engine, stored in `data/templates/` as `<name>.game` and `<name>.snap` pairs. Matchmaking waits until a template with one castle per seat exists, and the server logs `no battle template for N players in data/templates`. The templates stay out of the repository and the Docker image because they derive from the game (ADR 0001), so a fresh clone, a rebuilt container or a new server has none until you restore or capture them.
+
+To capture one on Windows:
 
 1. Build the capture tool with the Visual Studio x86 tools: `cl /O1 tools\rgtrace\rgtrace.c`.
 2. Start the game, then run `rgtrace <java.exe pid> <outdir> > trace.log`.
@@ -108,6 +110,24 @@ The server hosts battles with a level template captured from the game engine, st
 5. Run `node tools/rgtrace/import-all.js trace.log <outdir>`. It imports every new level into `data/templates/` and skips ones already there. Restart the server to use them.
 
 The game has 6 maps, each in a 2-, 3- and 4-player version (18 levels).
+
+### Back up and restore
+
+Keep a private copy of `data/templates/` (about 6 KB compressed for 6 templates), and never put it in the public repository. Make the archive after every capture:
+
+```bash
+tar -czf battle-templates.tar.gz -C data templates
+```
+
+To restore it on this machine or on a server, run the following from the folder that holds `data/`, then restart the server, which loads templates only at start:
+
+```bash
+mkdir -p data && tar -xzf battle-templates.tar.gz -C data
+```
+
+With Docker, extract it into the `./data` folder that `compose.yaml` mounts, then run `docker compose restart`. When a match starts, the log shows `table uses template <name>`. A template the server can't use is skipped at start with a `battle template <name> skipped` warning.
+
+If no archive is left, capture the templates again with the steps above. That needs Windows, the Visual Studio x86 tools and the Java client. Keep the `trace.log` and `<outdir>` from each capture session as well: `import-all.js` rebuilds the templates from them without playing the battles again.
 
 ## Point the Java client at the server
 
