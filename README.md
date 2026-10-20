@@ -55,7 +55,7 @@ Phones and tablets play in portrait, with a touch pad under the game screen; a k
 
 Requires Node.js 22.13 or later, for the built-in `node:sqlite`. The server and the emulator have no npm dependencies, on purpose, so they run with nothing installed. Only building the page needs `npm install` (Vite and Svelte, ADR 0013). The built page is `web/dist`, which the server serves and a static host can take as it is.
 
-Run `npm install` once, put `RG_GAME=<path>` in a `.env` file in the repo root, then use these npm scripts:
+Run `npm install` once, copy `.env.example` to `.env` in the repo root and set `RG_GAME=<path>` there, then use these npm scripts:
 
 - `npm start`, or `npm run start:lan` for `--lan`: starts the server. If `web/dist` is missing it builds the page first, and if Vite is not installed it tells you to run `npm install`.
 - `npm run build`: rebuilds the page after you change anything in `web/`.
@@ -122,7 +122,7 @@ The image doesn't contain the game files (ADR 0001), and it builds the page in a
 
 1. Point your domain's DNS `A` (and `AAAA`, if you have IPv6) record at the host, and open ports 80 and 443 (443 for UDP too, for HTTP/3) in its firewall. Nothing else on the host may use 80 or 443.
 2. Register the Discord application as described in [Guests and members](#guests-and-members), with `https://<your domain>/auth/discord/callback` as its redirect.
-3. Create a `.env` file in the repo root:
+3. Copy `.env.example` to `.env` in the repo root (it lists every setting, all empty) and fill in at least these:
 
    ```sh
    # The public name Caddy serves, for example the one this project is published on.
