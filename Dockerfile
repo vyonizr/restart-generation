@@ -17,6 +17,6 @@ COPY web/tools web/tools
 COPY --from=page /app/web/dist web/dist
 USER node
 EXPOSE 8080 8976
-# --public: listen on all interfaces inside the container, with Discord sign-in if it is configured. The published ports in
-# compose.yaml decide who connects.
+# --public: listen on all interfaces inside the container, with Discord sign-in if it is configured. Which ports are published
+# decides who connects: compose.yaml publishes none (Caddy is in front), compose.lan.yaml runs it with --lan instead.
 CMD ["node", "server/gateway.js", "--public"]
