@@ -11,6 +11,7 @@ import { loadFiles, store, forgetCopy, source } from './gamefiles.js';
 import { createAccounts } from './accounts.js';
 import { createNameLogin, showOnlineName } from './login.js';
 import { botQuestion } from './bots.js';
+import { startOnlineCount } from './online.js';
 
 let ctx, image, rgba;
 
@@ -50,6 +51,7 @@ export const pressStart = () => onStart?.();
 async function main(canvas) {
   const server = await serverStatus();
   page.server = server;
+  if (server) startOnlineCount(server.online);
   page.ownCopy = !server?.servesGame; // set once and kept: a copy this browser stored earlier doesn't bring the notice back
   const accounts = server?.accounts ? createAccounts() : null;
   const accountReady = accounts?.start();

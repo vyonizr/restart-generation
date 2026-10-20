@@ -9,7 +9,7 @@
   import Keys from './Keys.svelte';
   import Footer from './Footer.svelte';
   import Who from './Who.svelte';
-  import Strip from './Strip.svelte';
+  import Online from './Online.svelte';
   import MemberDialog from './MemberDialog.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import NameDialog from './NameDialog.svelte';
@@ -34,7 +34,7 @@
     {#if touch}<Pad />{/if}
     <p class="slow" id="slow" role="status" hidden={!page.slow}><span id="slow-text">{page.slow}</span><button id="slow-close" class="secondary" onclick={() => { page.slow = null; }}>Dismiss</button></p>
     <p class="nudge" id="nudge" role="status" hidden={!page.notice}><span id="nudge-text">{page.notice?.text}</span><span class="nudge-actions" id="nudge-actions">{#if page.notice}{#each page.notice.actions as action}<button type="button" class={action.secondary ? 'secondary' : ''} onclick={() => { page.notice = null; action.run?.(); }}>{action.label}</button>{/each}{/if}</span></p>
-    <p class="sub" hidden={Boolean(page.notice)}>The original 2008 game, right in your browser (again){#if page.server}<Strip />{/if}</p>
+    <p class="sub" hidden={page.online === null || Boolean(page.notice)}><Online /></p>
     <Keys />
   </main>
   <Footer />

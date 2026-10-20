@@ -98,7 +98,7 @@ By default a name is the whole identity (ADR 0009), which suits a local or LAN s
 | --- | --- |
 | `RG_DISCORD_CLIENT_ID`, `RG_DISCORD_CLIENT_SECRET` | The Discord application. Sign-in asks for the `identify` scope only. |
 | `RG_PUBLIC_URL` | The address players use, such as `https://play.example.com`, with no path. All three above are needed. |
-| `RG_DISCORD_INVITE` | Optional. Your community's `https://discord.gg/...` link, which the page shows as "Join the Discord". |
+| `RG_DISCORD_INVITE` | Optional. Your community's `https://discord.gg/...` link, which the page shows as "Join the Discord" in its footer. |
 | `RG_TRUST_PROXY` | Set to `1` behind one reverse proxy, so the limit on new guests uses the client address the proxy appends to `X-Forwarded-For`. Leave it unset otherwise: anyone can forge that header. |
 | `RG_GUESTS_PER_IP_HOUR` | New guests one address can make per hour. Default 10. |
 | `RG_GUEST_CAP` | Guest accounts the server holds at once. Default 5000. |
@@ -109,7 +109,7 @@ With all three set, every player is a guest or a member:
 - A **member** signs in with Discord, picks an in-game name once (letters, numbers and `_`, up to 15; it can't be changed), and keeps the account until they choose **Delete my account**. A guest who signs in keeps what it earned. If the Discord account already has a player, that player wins and the guest's progress is dropped, after a confirmation. The server stores the Discord ID and the name, never an email.
 - The Java client can't send a token, so on such a server it is refused. It still works on servers without Discord sign-in.
 
-The page also shows how many players are online and waiting for a match (`GET /status`). A public server runs no bots (see below), so a quiet server means a wait.
+The page also shows how many players are online, as "3 online" under the game screen (on a phone, a small people icon and the number on the Start screen), from `GET /status`. A public server runs no bots (see below), so a quiet server means a wait.
 
 ## Run in Docker
 
