@@ -32,6 +32,12 @@ _Avoid_: save file, progress file, profile
 The score a player earns by winning ranked matches. Its level, the fame level, is what the game shows beside a name.
 _Avoid_: XP, rating, points
 
+### Running a server
+
+**Admin**:
+The person who runs a server: they decide its settings and can delete any account. A player deletes only their own.
+_Avoid_: operator, owner, host
+
 ### Online services
 
 **Arena**:

@@ -112,6 +112,32 @@ With all three set, every player is a guest or a member:
 
 The page also shows how many players are online, as "3 online" under the game screen (on a phone, a small people icon and the number on the Start screen), from `GET /status`. A public server runs no bots (see below), so a quiet server means a wait.
 
+## Delete an account
+
+A player deletes their own account with **Delete my account**. As the admin you can delete any account from the command line, for a privacy request or to clear test accounts (ADR 0016). It asks the running server, which ends the player's session and removes the account, its friend links, its saved game and its tokens, the same way **Delete my account** does. It doesn't ban anyone: a member can sign in with Discord again and start a new account.
+
+1. Set `RG_ADMIN_TOKEN` in `.env` to a long random secret, and restart the server. Without it the server has no such endpoint at all.
+
+   ```sh
+   node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+   ```
+2. Delete by in-game name, or by Discord ID on a server with Discord sign-in:
+
+   ```sh
+   npm run delete-user -- --name Alice
+   npm run delete-user -- --discord 123456789012345678
+   ```
+
+   It shows the account's kind, fame, matches, friends, saved game files and whether the player is online, then asks `y/N`. `--yes` skips the question (it is required when there is no terminal). A player in a ranked match is deleted anyway, so that match counts as a win for the others (ADR 0005).
+
+With Docker, run it inside the container, because Caddy answers 404 for `/admin/` and the command talks to the server on `127.0.0.1`:
+
+```sh
+docker compose exec rg npm run delete-user -- --name Alice
+```
+
+On `compose.lan.yaml` the server's port is open to whatever `BIND` allows, and the token is then the only protection: use a long one. The server logs `admin deleted <name>`, with no Discord ID.
+
 ## Run in Docker
 
 The image doesn't contain the game files (ADR 0001), and it builds the page in a first build stage, so it holds no `node_modules`. Two compose files run it: `compose.yaml` for the internet and `compose.lan.yaml` for a private network or this PC.

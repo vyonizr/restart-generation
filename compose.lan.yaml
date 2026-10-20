@@ -11,6 +11,8 @@ services:
     environment:
       # Set only if RG_GAME_PATH is set: the server then sends that game copy to every visitor and can run bots.
       RG_GAME: ${RG_GAME_PATH:+/game}
+      # The admin's account delete (npm run delete-user, ADR 0016). Unset, the endpoint is off.
+      RG_ADMIN_TOKEN: ${RG_ADMIN_TOKEN:-}
     volumes:
       - ./data:/app/data
       # With no RG_GAME_PATH, this mounts an empty file that the server ignores.
