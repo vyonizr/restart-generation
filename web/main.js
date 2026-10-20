@@ -142,7 +142,7 @@ class Audio {
 }
 
 // ---- touch pad: one control per finger; sliding a finger moves the press to the control under it ----
-const PAD = { left: VK.LEFT, right: VK.RIGHT, up: VK.UP, down: VK.DOWN, select: VK.CONTROL, back: VK.SHIFT, menu: VK.ESCAPE };
+const PAD = { left: VK.LEFT, right: VK.RIGHT, up: VK.UP, down: VK.DOWN, select: VK.CONTROL, back: VK.SHIFT };
 const wake = document.getElementById('wake');
 
 // Keeps the screen on: a Wake Lock where the browser has one (secure contexts only), else a hidden video.
@@ -188,7 +188,15 @@ function bindPad(game, input, audio, botQuestion) {
     pad.setPointerCapture(e.pointerId);
     setFinger(e.pointerId, under(e));
   });
-  pad.addEventListener('pointermove', e => { if (fingers.has(e.pointerId)) setFinger(e.pointerId, under(e)); });
+  // A press follows the finger from control to control, except Select and Back, which a drifting finger must never press or
+  // lose: each starts only from a touch that begins on it and lasts until the finger lifts. So a drift while holding Select to
+  // drop a block can't press an arrow, and a slide from an arrow, or across the middle, never presses Select or Back.
+  const fixed = new Set(['select', 'back']);
+  pad.addEventListener('pointermove', e => {
+    if (!fingers.has(e.pointerId) || fixed.has(fingers.get(e.pointerId))) return;
+    const k = under(e);
+    if (!fixed.has(k)) setFinger(e.pointerId, k);
+  });
   for (const t of ['pointerup', 'pointercancel']) pad.addEventListener(t, e => setFinger(e.pointerId, null));
   // An app switch mid-press might never send pointerup, so lift every finger.
   const liftAll = () => { for (const id of [...fingers.keys()]) setFinger(id, null); };

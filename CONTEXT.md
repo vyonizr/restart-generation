@@ -61,7 +61,7 @@ A phone or tablet whose main input is a finger; it plays the browser client with
 _Avoid_: mobile, handheld
 
 **Touch pad**:
-The on-screen controls under the game screen on a touch device: a D-pad, Select, Back, Menu and Keyboard.
+The on-screen controls under the game screen on a touch device: a D-pad with Select in its middle, a Back button to its right level with Up, and a Keyboard button below that.
 _Avoid_: virtual gamepad, on-screen keyboard
 
 **Hero**:
