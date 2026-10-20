@@ -61,7 +61,10 @@ function tableState(t, timeLimit) {
   g.rngBytes(rng).copy(battlefield, t.rngAt);
   return {
     seed,
-    game: g.writeGame({ ...t.game, timeLimit, randomSeed: seed, rng, playerSlots: t.seats + 1, players: [], slotHeroes: [] }),
+    // The engine picks the environment (0 space, 1 clouds and grass, 2 speedball, 3 soccer, 4 racetrack) at random
+    // when a map names none, and the maps don't, so captures hold whichever one came up.
+    game: g.writeGame({ ...t.game, timeLimit, randomSeed: seed, rng, environment: crypto.randomInt(5),
+      playerSlots: t.seats + 1, players: [], slotHeroes: [] }),
     snap: g.writeSnapshot({ ...t.snapshot, battlefield }),
   };
 }

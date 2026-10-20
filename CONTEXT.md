@@ -97,3 +97,7 @@ _Avoid_: random seed, the seed
 **Seat**:
 One player's position in a battle. It fixes the castle, the colour and the place in the turn order, and a battle hands them out at random.
 _Avoid_: slot, player number, team
+
+**Environment**:
+The look of a battle's playfield: space, clouds and grass, speedball, soccer or racetrack.
+_Avoid_: stage, theme, skin

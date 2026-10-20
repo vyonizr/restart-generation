@@ -171,11 +171,26 @@ battle.tick(late, api); // seat 1 ran out of time
 fromClient(late, g2, { seq: 2, type: gm.TYPE.END_TURN_REQUEST, sender: 2, turn: 1, phase: 4 });
 assert.equal(late.phase, 5, 'seat 2 could not end its turn after seat 1 was forced');
 
+const templateDir = path.join(__dirname, '..', 'data', 'templates');
+// A table picks its environment (the look of the playfield, 0 to 4) at random, as the engine does when a map names
+// none, whatever environment the template was captured with; everything else stays as captured.
+const environments = new Map(); // template -> environments its tables got
+for (let n = 0; n < 80; n++) {
+  const table = battle.createTable(2, api);
+  const game = g.parseGame(table.game);
+  assert(Number.isInteger(game.environment) && game.environment >= 0 && game.environment <= 4, `environment ${game.environment}`);
+  if (!environments.has(table.template)) environments.set(table.template, []);
+  environments.get(table.template).push(game.environment);
+  const was = g.parseGame(fs.readFileSync(path.join(templateDir, `${table.template}.game`)));
+  assert.deepEqual(game.blocks, was.blocks);
+  assert.deepEqual(game.castles, was.castles);
+}
+for (const [name, list] of environments) assert(new Set(list).size > 1, `every table from ${name} got environment ${list[0]}`);
+
 // Every table gets its own battle seed, in the Game and in the snapshot's copy of the RNG; the rest of the
 // template reaches the clients unchanged. The expected bytes are built here from the RNG layout (i, j, 11, then
 // the 11 state words), not by the host's code.
 const rngLayout = r => Buffer.concat([new Int32Array([r.i, r.j, 11]), new Uint32Array(r.state)].map(a => Buffer.from(a.buffer)));
-const templateDir = path.join(__dirname, '..', 'data', 'templates');
 const seen = new Set();
 for (let n = 0; n < 12; n++) {
   const table = battle.createTable(2, api);
