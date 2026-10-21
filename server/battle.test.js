@@ -1,5 +1,5 @@
 // Self-check for the battle host with fake clients: node server/battle.test.js
-// Uses made-up templates (battle.fixture.js); with --real, the ones in data/templates (see tools/rgtrace/import-template.js).
+// Uses made-up templates (battle.fixture.js); with --real, the ones in data/templates and data/battle-templates.zip (docs/HOSTING.md).
 const assert = require('assert');
 const battle = require('./battle');
 const fixture = require('./battle.fixture');

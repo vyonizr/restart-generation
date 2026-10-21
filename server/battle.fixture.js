@@ -34,4 +34,4 @@ function template(seats, name) {
 // Two templates per player count, so a table's choice of template is exercised too.
 const templates = () => [2, 3, 4].flatMap(n => [template(n, `made_up_${n}p_a`), template(n, `made_up_${n}p_b`)]);
 
-module.exports = { templates };
+module.exports = { template, templates };

@@ -40,7 +40,7 @@ ADR 0001 lets an admin set `RG_GAME` and send their copy to every visitor, at th
 
 - `RG_CONTACT`, an email address or an https address where a rights holder can ask for the game's removal, is required. A `--public` server won't start without it, and the page shows it in its Notices dialog.
 - No advertising, no donation links, no payments on that server or its page.
-- The templates in `data/templates/` are only used by the server and are never sent to a browser. Never commit them, and never publish a backup of `data/`.
+- The templates in `data/templates/` and `data/battle-templates.zip` are only used by the server and are never sent to a browser. Never commit them, and never publish a backup of `data/`.
 - Keep the way to switch it off at once: unset `RG_GAME_PATH` and restart.
 - Say nothing that claims the copy is licensed or official.
 

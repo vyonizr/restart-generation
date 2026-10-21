@@ -5,11 +5,13 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { T, frames } = require('./mt');
 const gm = require('./gamemsg');
 const g = require('./gameblob');
 
-const TEMPLATES = path.join(__dirname, '..', 'data', 'templates');
+const DATA = path.join(__dirname, '..', 'data');
+const ZIP = 'battle-templates.zip';
 const START_DEADLINE_MS = 40000;  // Mac FUN_000cd7ee
 const OVERTIME_MS = 30000;        // forced EndTurn this long after the phase limit (FUN_1000ddf0)
 const RELAXED_MS = 180000;        // forced EndTurn this long after a phase starts on a relaxed table
@@ -37,16 +39,57 @@ function snapshotRngAt(game, snapshot) {
   return at;
 }
 
-function loadTemplates() {
-  if (!fs.existsSync(TEMPLATES)) return [];
-  return fs.readdirSync(TEMPLATES).filter(f => f.endsWith('.game')).flatMap(f => {
-    const name = f.slice(0, -5);
+// The .game and .snap files in a zip, by file name, whatever folder holds them: a zip of the templates folder and a zip
+// of its files both work, and so do the backslash paths Windows PowerShell's Compress-Archive writes. Stored and deflated
+// entries (what Windows and zip tools write); ZIP64 isn't supported.
+// Synchronous, unlike web/zip.js, because the server checks its templates before it starts listening.
+function templateFilesInZip(bytes) {
+  let eocd = bytes.length - 22;
+  while (eocd >= 0 && bytes.readUInt32LE(eocd) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error('not a .zip file');
+  const files = new Map();
+  for (let i = 0, n = bytes.readUInt16LE(eocd + 10), p = bytes.readUInt32LE(eocd + 16); i < n; i++) {
+    if (bytes.readUInt32LE(p) !== 0x02014b50) throw new Error('its file list is damaged');
+    const method = bytes.readUInt16LE(p + 10), size = bytes.readUInt32LE(p + 20), nameLen = bytes.readUInt16LE(p + 28);
+    const local = bytes.readUInt32LE(p + 42), file = bytes.toString('utf8', p + 46, p + 46 + nameLen).split(/[/\\]/).pop();
+    p += 46 + nameLen + bytes.readUInt16LE(p + 30) + bytes.readUInt16LE(p + 32);
+    if (!/\.(game|snap)$/.test(file)) continue;
+    const start = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28), data = bytes.subarray(start, start + size);
+    if (method === 0) files.set(file, Buffer.from(data));
+    else if (method === 8) files.set(file, zlib.inflateRawSync(data));
+    else throw new Error(`${file} uses compression method ${method}; only stored and deflated entries are read`);
+  }
+  return files;
+}
+
+// Every template in data/templates/ and data/battle-templates.zip (docs/HOSTING.md "Battle templates"). A name in both
+// is taken from the folder, where new captures land, with a warning if the two copies differ (a zip made from the folder
+// says nothing). An unreadable zip is skipped with a warning, like an unusable template.
+function loadTemplates(dir = DATA) {
+  const sources = []; // [label, Map of file name -> bytes], the folder last so that it wins
+  const zip = path.join(dir, ZIP);
+  if (fs.existsSync(zip)) {
+    try { sources.push([ZIP, templateFilesInZip(fs.readFileSync(zip))]); } catch (e) { console.warn(`${ZIP} skipped: ${e.message}`); }
+  }
+  const folder = path.join(dir, 'templates');
+  if (fs.existsSync(folder)) {
+    sources.push(['templates', new Map(fs.readdirSync(folder).filter(f => /\.(game|snap)$/.test(f)).map(f => [f, fs.readFileSync(path.join(folder, f))]))]);
+  }
+  const chosen = new Map(); // template name -> its source's files
+  const same = (a, b, f) => a.has(f) === b.has(f) && (!a.has(f) || a.get(f).equals(b.get(f)));
+  for (const [label, files] of sources) for (const f of files.keys()) if (f.endsWith('.game')) {
+    const name = f.slice(0, -5), was = chosen.get(name)?.files;
+    if (was && !(same(was, files, f) && same(was, files, `${name}.snap`))) console.warn(`battle template ${name} differs in data/templates and ${ZIP}: using data/templates`);
+    chosen.set(name, { label, files });
+  }
+  return [...chosen].flatMap(([name, { label, files }]) => {
     try {
-      const game = g.parseGame(fs.readFileSync(path.join(TEMPLATES, f)));
-      const snapshot = g.parseSnapshot(fs.readFileSync(path.join(TEMPLATES, `${name}.snap`)));
+      if (!files.has(`${name}.snap`)) throw new Error(`no ${name}.snap`);
+      const game = g.parseGame(files.get(`${name}.game`));
+      const snapshot = g.parseSnapshot(files.get(`${name}.snap`));
       return [{ name, game, snapshot, rngAt: snapshotRngAt(game, snapshot), seats: game.castles.length }];
     } catch (e) {
-      console.warn(`battle template ${name} skipped: ${e.message}`);
+      console.warn(`battle template ${name} (${label === ZIP ? ZIP : 'data/templates'}) skipped: ${e.message}`);
       return [];
     }
   });
@@ -90,7 +133,7 @@ const seatCounts = () => new Set((templates ??= loadTemplates()).map(t => t.seat
 // stalled phase. api.templates replaces data/templates (tests use made-up ones, battle.fixture.js).
 function createTable(seats, api, relaxed = false) {
   const fit = (api.templates ?? (templates ??= loadTemplates())).filter(t => t.seats === seats);
-  if (!fit.length) { api.log(`no battle template for ${seats} players in data/templates`); return null; }
+  if (!fit.length) { api.log(`no battle template for ${seats} players in data/templates or data/${ZIP}`); return null; }
   const t = fit[randomInt(api, fit.length)];
   const limits = t.game.timeLimit;
   const { seed, game, snap } = tableState(t, relaxed ? limits.map(() => -1) : limits, api);

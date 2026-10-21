@@ -138,10 +138,10 @@ For the whole procedure on a VPS, from a bare host to updates and backups, see [
    ```
 
    `RG_PUBLIC_URL` defaults to `https://<RG_DOMAIN>`. A public server never runs bots, with or without `RG_GAME_PATH`.
-4. Create the `data` folder next to `compose.yaml` and put your captured battle templates in it (see [Battle templates](#battle-templates)). It is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. Without a usable template the server refuses to start and prints why, and `restart: unless-stopped` then keeps retrying. On a Linux host, make the folder writable by the container's user (uid 1000), or Docker creates it owned by root and the server stops with `EACCES: permission denied, mkdir '/app/data'`:
+4. Create the `data` folder next to `compose.yaml` and put your `battle-templates.zip` in it (see [Battle templates](#battle-templates)). It is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. Without a usable template the server refuses to start and prints why, and `restart: unless-stopped` then keeps retrying. On a Linux host, make the folder writable by the container's user (uid 1000), or Docker creates it owned by root and the server stops with `EACCES: permission denied, mkdir '/app/data'`:
 
    ```sh
-   mkdir -p data/templates && sudo chown -R 1000:1000 data
+   mkdir -p data && sudo chown -R 1000:1000 data
    ```
 5. Run `docker compose up -d --build` and open `https://<your domain>/`. The first visit can take a few seconds while Caddy gets the certificate; `docker compose logs caddy` shows how it went.
 
@@ -160,7 +160,7 @@ Run `docker compose -f compose.lan.yaml up -d --build` and open `http://localhos
 
 ## Battle templates
 
-Online battles don't work without templates. A `--public` server (which the Docker image runs) refuses to start when `data/templates/` holds no usable template, and prints why. Any other server starts and warns, since the page and single-player play don't need them. Whatever the mode, the server also warns for each player count (2, 3 or 4) that has no template: matches of that size won't start, and without a 4-player template CPU players can't fill a room. The server hosts every battle from a level template captured from the game engine, stored in `data/templates/` as `<name>.game` and `<name>.snap` pairs. Matchmaking waits until a template with one castle per seat exists, and the server logs `no battle template for N players in data/templates`. The templates stay out of the repository and the Docker image because they derive from the game (ADR 0001), so a fresh clone, a rebuilt container or a new server has none until you restore or capture them.
+Online battles don't work without templates. A `--public` server (which the Docker image runs) refuses to start when neither `data/templates/` nor `data/battle-templates.zip` holds a usable template, and prints why. Any other server starts and warns, since the page and single-player play don't need them. Whatever the mode, the server also warns for each player count (2, 3 or 4) that has no template: matches of that size won't start, and without a 4-player template CPU players can't fill a room. The server hosts every battle from a level template captured from the game engine, stored as `<name>.game` and `<name>.snap` pairs in `data/templates/`, in `data/battle-templates.zip`, or both. Matchmaking waits until a template with one castle per seat exists, and the server logs `no battle template for N players in data/templates or data/battle-templates.zip`. The templates stay out of the repository and the Docker image because they derive from the game (ADR 0001), so a fresh clone, a rebuilt container or a new server has none until you restore or capture them.
 
 To capture one on Windows:
 
@@ -176,21 +176,17 @@ The game has 6 maps, each in a 2-, 3- and 4-player version (18 levels).
 
 Accounts have their own backup, `npm run backup`, which is safe while the server runs: see [Back up the accounts](DEPLOY.md#7-back-up-the-accounts).
 
-Keep a private copy of `data/templates/` (about 6 KB compressed for 6 templates), and never put it in the public repository. Make the archive after every capture:
+Keep a private copy of your templates in `data/battle-templates.zip` (about 15 KB for 6 templates), and never put it in the public repository. Make it again after every capture, from the folder that holds `data`:
 
-```bash
-tar -czf battle-templates.tar.gz -C data templates
+```powershell
+Compress-Archive -Force data\templates data\battle-templates.zip
 ```
 
-To restore it on this machine or on a server, run the following from the folder that holds `data/`, then restart the server, which loads templates only at start:
+(On Linux or macOS: `cd data && zip -r battle-templates.zip templates`.) The server reads the zip as it is, next to `data/templates/`, so restoring is copying it into `data/` on this machine or a server and restarting the server, which loads templates only at start. A zip of the `templates` folder and a zip of the files in it both work. A template in both places is taken from `data/templates/`, with a `differs` warning at start if the two copies aren't the same.
 
-```bash
-mkdir -p data && tar -xzf battle-templates.tar.gz -C data
-```
+With Docker, copy the zip into the `./data` folder that the compose file mounts, then run `docker compose restart` (add `-f compose.lan.yaml` for a LAN server). When a match starts, the log shows `table uses template <name>`. A template the server can't use is skipped at start with a `battle template <name> skipped` warning, and a zip it can't read with `battle-templates.zip skipped`.
 
-With Docker, extract it into the `./data` folder that the compose file mounts, then run `docker compose restart` (add `-f compose.lan.yaml` for a LAN server). When a match starts, the log shows `table uses template <name>`. A template the server can't use is skipped at start with a `battle template <name> skipped` warning.
-
-If no archive is left, capture the templates again with the steps above. That needs Windows, the Visual Studio x86 tools and the Java client. Keep the `trace.log` and `<outdir>` from each capture session as well: `import-all.js` rebuilds the templates from them without playing the battles again.
+If no zip is left, capture the templates again with the steps above. That needs Windows, the Visual Studio x86 tools and the Java client. Keep the `trace.log` and `<outdir>` from each capture session as well: `import-all.js` rebuilds the templates from them without playing the battles again.
 
 ## Point the Java client at the server
 
