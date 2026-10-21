@@ -120,6 +120,8 @@ export class GameHost {
     for (const f of vfs.files.values()) if (f.dirty) { out.push(f); f.dirty = false; }
     return out;
   }
+  // Whether the game wrote the file `name` since the last dirtyFiles().
+  unsaved(name) { return Boolean(this.m.vfs.get(`${HOME}\\${name}`)?.dirty); }
 }
 
 // NativeSNAPMobileInterface when there is no server: logins fail with "could not connect".

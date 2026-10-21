@@ -16,6 +16,7 @@ These notes are ours, written in our own words (docs/LEGAL.md). They name functi
 | `re_match.md` | Match start, the join handshake, and in-match traffic. |
 | `re_friends.md` | The native friend list, casino friend messages, friendly arenas, and messages that crash the client. |
 | `re_rules.md` | ServerBattleLogic rules: turn structure, turn timer, game end and results. |
+| `re_settings.md` | The settings file: its layout, the custom keys it holds, and what a rebind does. |
 | `re_quit.md` | How the engine reports Quit through `tick`, and what the Java client did then. |
 
 ### Names used in the notes

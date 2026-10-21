@@ -1,4 +1,6 @@
 // What the components draw. Plain code (the account, the game loop) changes these fields and the components draw them.
+import { DEFAULT_KEYS } from './keys.js';
+
 export const page = $state({
   status: 'Loading game files…', // the overlay's line: what the page is doing
   overlay: true,    // the overlay covers the game screen until Start, and again after a failure
@@ -22,6 +24,7 @@ export const page = $state({
   onlineName: '',   // "Online as <name>" under Start, once the player has set a name
   dialogs: 0,       // dialogs open; the game screen can't be reached while one is
   finish: 'soft',   // how the game screen is shown, 'soft' or 'sharp' (the Screen finish, finish.js)
+  keys: { ...DEFAULT_KEYS }, // the player's custom keys, from the saved game's settings.cfg (keys.js)
 });
 
 // What the touch pad drives once the game runs: { game, input, audio }. Raw, so the emulator and its input queue are

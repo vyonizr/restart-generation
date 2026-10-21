@@ -82,6 +82,10 @@ _Avoid_: mobile, handheld
 The on-screen controls under the game screen on a touch device: a D-pad, then Select and Back side by side to its right level with Up, and a Keyboard button below that.
 _Avoid_: virtual gamepad, on-screen keyboard
 
+**Custom keys**:
+The keys a player chose on the engine's Custom Keys screen for its seven actions: Primary, Secondary, Up, Down, Left, Right and Chat. They are part of the saved game's settings. The page calls Primary and Secondary by the touch pad's names, Select and Back.
+_Avoid_: keybinds, key mapping, hotkeys, controls
+
 **Open progression**:
 Every Story and Hero playable from the start, with nothing marked finished. It applies on any server that isn't public; on a public server they are earned and kept in the saved game.
 _Avoid_: cheat, unlock hack

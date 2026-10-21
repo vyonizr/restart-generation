@@ -1,6 +1,7 @@
 // The touch pad's pointer handling: one control per finger; sliding a finger moves the press to the control under it.
 // It works on elements it is given and returns a function that takes every listener off again. Pad.svelte draws the pad.
-import { javaKey, PAD } from './keys.js';
+import { javaKey, padKey } from './keys.js';
+import { page } from './page.svelte.js';
 import { stayAwake, needsVideo } from './wake.js';
 import { botQuestion } from './bots.js';
 
@@ -9,12 +10,15 @@ import { botQuestion } from './bots.js';
 export function bindPad({ pad, typing, typeButton, game, input, audio }) {
   const ac = new AbortController(), { signal } = ac;
   const presses = new Map(), fingers = new Map(); // data-key -> press count, pointerId -> data-key (undefined over empty space)
+  const codes = new Map(); // data-key -> the Java key code its press sent, so the release lets go of that key even after a rebind
   const button = k => pad.querySelector(`[data-key="${k}"]`);
   const press = k => {
     if (botQuestion.pad(k)) return;
     presses.set(k, (presses.get(k) || 0) + 1);
     if (presses.get(k) > 1) return;
-    input.push(() => game.key(true, PAD[k], 0xffff, 1));
+    const code = padKey(k, page.keys);
+    codes.set(k, code);
+    input.push(() => game.key(true, code, 0xffff, 1));
     button(k).classList.add('held');
     navigator.vibrate?.(8);
   };
@@ -22,7 +26,8 @@ export function bindPad({ pad, typing, typeButton, game, input, audio }) {
     if (!presses.has(k)) return; // a press the bot question took never reached the game
     if (presses.get(k) > 1) { presses.set(k, presses.get(k) - 1); return; }
     presses.delete(k);
-    input.push(() => game.key(false, PAD[k], 0xffff, 1));
+    const code = codes.get(k);
+    input.push(() => game.key(false, code, 0xffff, 1));
     button(k).classList.remove('held');
   };
   // k is the control under the finger, or undefined over empty space (the D-pad's middle and corners): the finger keeps its
@@ -44,8 +49,8 @@ export function bindPad({ pad, typing, typeButton, game, input, audio }) {
     setFinger(e.pointerId, under(e));
   }, { signal });
   // A press follows the finger from control to control, except Select and Back, which a drifting finger must never press or
-  // lose: each starts only from a touch that begins on it and lasts until the finger lifts. So a drift while holding Select to
-  // drop a block can't press an arrow, and a slide from an arrow never presses Select or Back.
+  // lose: each starts only from a touch that begins on it and lasts until the finger lifts. So a drift while holding Select
+  // can't press an arrow, and a slide from an arrow never presses Select or Back.
   const fixed = new Set(['select', 'back']);
   pad.addEventListener('pointermove', e => {
     if (!fingers.has(e.pointerId) || fixed.has(fingers.get(e.pointerId))) return;

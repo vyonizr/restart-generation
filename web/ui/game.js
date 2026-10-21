@@ -4,7 +4,7 @@ import { GameHost, WIDTH, HEIGHT, UNLOCKS, LONE_START } from '../emu/host.js';
 import { SnapClient } from '../snap.js';
 import { page, padSession } from './page.svelte.js';
 import { touch } from './device.js';
-import { javaKey } from './keys.js';
+import { javaKey, customKeys } from './keys.js';
 import { Audio } from './audio.js';
 import { stayAwake } from './wake.js';
 import { loadFiles, overlaySaved, store, forgetCopy, source } from './gamefiles.js';
@@ -60,6 +60,7 @@ async function main(canvas) {
   await accountReady;
   if (accounts?.account.member) await syncProgress(accounts.account);
   overlaySaved(files);
+  page.keys = customKeys(files['settings.cfg']);
   page.status = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
   const login = accounts ? accountLogin(accounts) : createNameLogin(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
@@ -119,7 +120,13 @@ async function main(canvas) {
   if (touch) padSession.current = { game, input, audio };
 
   // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
-  const saveNow = () => { for (const f of game.dirtyFiles()) { store.set(f.name, f.data); track(f.name, f.data); } };
+  // The settings file also holds the custom keys, which the controls legend and the touch pad follow.
+  const saveNow = () => {
+    for (const f of game.dirtyFiles()) {
+      store.set(f.name, f.data); track(f.name, f.data);
+      if (f.name.toLowerCase() === 'settings.cfg') page.keys = customKeys(f.data);
+    }
+  };
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
   addEventListener('pagehide', saveNow);
 
@@ -150,6 +157,7 @@ async function main(canvas) {
         while (input.length) input.shift()();
         const running = game.tick(); snap.pump();
         if (!running) { clearInterval(slowTimer); quit(saveNow, snap); return; } // the loop stops here: no more ticks, input or saves
+        if (game.unsaved('settings.cfg')) saveNow(); // the player left the settings: show their keys at once
         if (game.time < now - t0) t0 = now - game.time; // drop the backlog
         draw(game); // the framebuffer only changes inside a tick
       }

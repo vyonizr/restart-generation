@@ -1,6 +1,8 @@
 // The question at a friendly Start with 2 or 3 people in the room: should bots fill the empty seats? A player alone chooses the
-// CPU level instead. Select answers with the highlighted button (it starts on CPU) and Back answers No, as in the game.
+// CPU level instead. Select answers with the highlighted button (it starts on CPU) and Back answers No, as in the game, with the
+// player's custom keys.
 import { page } from './page.svelte.js';
+import { action } from './keys.js';
 
 const choices = alone => (alone ? ['cpu', 'expert'] : ['none', 'cpu', 'expert']);
 let done = null;
@@ -27,10 +29,11 @@ export function botsKey(e) {
   if (!done) return;
   e.preventDefault(); e.stopImmediatePropagation();
   if (e.repeat) return;
-  if (e.key === 'Enter' || e.key === 'Control') finish(page.bots.focus);
-  else if (e.key === 'Shift' || e.key === 'Escape') finish('none');
-  else if (e.key === 'ArrowLeft') move(-1);
-  else if (e.key === 'ArrowRight') move(1);
+  const a = action(e, page.keys);
+  if (a === 'select') finish(page.bots.focus);
+  else if (a === 'back') finish('none');
+  else if (a === 'left') move(-1);
+  else if (a === 'right') move(1);
 }
 
 // What the SNAP client (web/snap.js) calls as `snap.bots`.

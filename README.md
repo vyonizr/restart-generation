@@ -40,14 +40,16 @@ Do this to get CPU players in online rooms, and to stop other devices from askin
 
 ## Controls
 
-| Action | Keyboard | Touch pad (phone or tablet) |
+| Action | Keyboard (default keys) | Touch pad (phone or tablet) |
 | --- | --- | --- |
 | Move | Arrow keys | D-pad |
 | Select | **Ctrl** or **Enter** | **Select** |
-| Drop a block | Hold **Ctrl** or **Enter** | Hold **Select** |
 | Go back | **Shift** | **Back** |
 | Open the menu | **Esc** | **Back** (in a battle) |
+| Chat | **E** | **Keyboard**, then the chat key |
 | Type text | Your keyboard | **Keyboard** |
+
+To use other keys, open **Settings › Custom Keys** in the game. You can change the keys for moving, Select, Back and Chat; **Enter** always selects and **Esc** always goes back. The list under the game screen shows the keys you chose, and the touch pad's D-pad follows them. Your keys are part of your saved game.
 
 The game screen is soft by default, like the display of a 2008 phone. For sharp pixels, press **Soft screen** under the game screen (on the touch pad, the grid icon beside **Keyboard**). The browser remembers your choice.
 
