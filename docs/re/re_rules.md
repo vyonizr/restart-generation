@@ -127,30 +127,25 @@ Validation (FUN_100228d0): rejected if team == 0 for a non-observer, or index <=
   phase ended by request, `+0x78` tile placed, `+0x79` tile phase ended by request.
 
 ### 3.2 Game::endTurn FUN_10020b50 (Mac FUN_00032b76) and startPhase FUN_1001ebe0
-```
-endTurn():
-  if phase == 8: return
-  if phase == 4:
-     finish current player's turn (KickLoserMode FUN_10014a60 if rule set)
-     if alive < 2: phase = 8; return
-     if nextPlayer() (FUN_1001ea20) found another player this round: return   // stay in phase 4
-  newPhase = phase + 1 (8 -> wraps to 1 after 7)
-  if phase == 4: game+0x98 = 0
-  phase = newPhase; start = now; limit = timeLimit[phase]
-  startPhase()
-startPhase():
-  1: turn++ ; spawns, eggs ...           ; endTurn()      (auto)
-  2: clear tile flags                     ; wait
-  3: special power += SpecialPowerPerTurn ; endTurn()      (auto)
-  4: current = game+0xa0                  ; wait
-  5: reset cannons; if total cannons == 0: endTurn() else wait
-  6, 7: resolution                        ; endTurn()      (auto)
-nextPlayer() FUN_1001ea20 / FUN_100109b0:
-  scan teams cur+1, cur+2, ... (cyclic over 1..4); eligible = Commander present, +0x14 set, not defeated;
-  a team with skip counter > 0 is skipped and its counter decremented.
-  the round ends when the scan wraps to the round's first team -> return false.
-  Order inside a round: ascending team number from the lowest eligible team.
-```
+Ending a turn:
+
+- In phase 8 (game over) nothing happens.
+- In phase 4 the current player's turn finishes (with the KickLoserMode rule, FUN_10014a60, if it is set). If fewer than 2 players are alive the phase becomes 8. If `nextPlayer()` (FUN_1001ea20 / FUN_100109b0) finds another player due this round, the phase stays 4.
+- Otherwise the phase becomes the next one (after 7 it wraps to 1), leaving phase 4 clears the current-team field (`game+0x98`), the phase's start time and limit (`timeLimit[phase]`) are recorded, and `startPhase()` runs.
+
+What each phase does when it starts:
+
+| Phase | On start | Ends |
+| --- | --- | --- |
+| 1 | the turn counter goes up; spawns and eggs | by itself |
+| 2 | tile flags are cleared | when the players are done (tile placement, all at once) |
+| 3 | special power grows by `SpecialPowerPerTurn` | by itself |
+| 4 | the current player is `game+0xa0` | when that player ends the turn (one player at a time) |
+| 5 | cannons are reset | by itself if the total number of cannons is 0, else when the players are done |
+| 6, 7 | resolution | by itself |
+
+`nextPlayer()` looks at the teams after the current one, in order and wrapping over 1 to 4. A team is eligible if it has a Commander, with `+0x14` set, and isn't defeated. A team whose skip counter is above 0 is skipped and the counter goes down. The round ends when the scan comes back to the round's first team, and then there is no next player. So a round goes in ascending team number from the lowest eligible team.
+
 BattleBegin (BattleLogic v21) calls endTurn from phase 0: phase 1 -> turn = 1 -> phase 2.
 So the interactive states are, in order: `(1,2) (1,4)x(players) (1,5) (2,2) (2,4)x... (2,5) ...`.
 Phase 5 is skipped (straight to the next turn's phase 2) only when no living player has a castle cannon.

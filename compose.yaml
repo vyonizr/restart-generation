@@ -14,6 +14,8 @@ services:
       RG_DISCORD_CLIENT_SECRET: ${RG_DISCORD_CLIENT_SECRET:-}
       RG_PUBLIC_URL: ${RG_PUBLIC_URL:-https://${RG_DOMAIN:?Set RG_DOMAIN in .env, for example play.example.com}}
       RG_DISCORD_INVITE: ${RG_DISCORD_INVITE:-}
+      # Where a rights holder can ask for the game's removal. Required with RG_GAME_PATH: the server won't start without it (docs/LEGAL.md).
+      RG_CONTACT: ${RG_CONTACT:-}
       # One proxy (Caddy) sits in front, and nothing else can reach the gateway, so its X-Forwarded-For can be trusted.
       RG_TRUST_PROXY: ${RG_TRUST_PROXY:-1}
       # The admin's account delete (npm run delete-user, ADR 0016). Unset, the endpoint is off; Caddy never forwards /admin/ anyway.

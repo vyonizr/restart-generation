@@ -151,7 +151,7 @@ The image doesn't contain the game files (ADR 0001), and it builds the page in a
 3. Copy `.env.example` to `.env` in the repo root (it lists every setting, all empty) and fill in at least these:
 
    ```sh
-   # The public name Caddy serves, for example the one this project is published on.
+   # The public name Caddy serves.
    RG_DOMAIN=play.example.com
    RG_DISCORD_CLIENT_ID=
    RG_DISCORD_CLIENT_SECRET=
@@ -160,6 +160,9 @@ The image doesn't contain the game files (ADR 0001), and it builds the page in a
    # Optional, and your decision and risk: the server then sends this copy of the game to every visitor. Leave it out and each
    # player chooses their own copy (ADR 0001). The .zip or the extracted folder; start a relative path with ./
    # RG_GAME_PATH=./ResetGeneration-Standalone.zip
+   # Required with RG_GAME_PATH: where a rights holder can ask for the game's removal, an email address or an https address.
+   # The page shows it in its Notices dialog, and the server won't start without it (docs/LEGAL.md).
+   # RG_CONTACT=removals@example.org
    ```
 
    `RG_PUBLIC_URL` defaults to `https://<RG_DOMAIN>`. A public server never runs bots, with or without `RG_GAME_PATH`.
@@ -227,3 +230,17 @@ Pass the server address with `-gw` in the game's start command:
 Alternatively, map `resetgeneration-gw.arena.n-gage.com` to the server's IP address in the hosts file. This works with the unmodified start scripts.
 
 The `-username <name> -password <pw>` flags prefill the login screen and write a client debug log (`applet_<name>_*.txt`) to the game folder.
+
+## Legal
+
+Restart Generation is an unofficial fan revival of Reset Generation (RedLynx, 2008). It isn't affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names, and N-Gage, belong to their owners.
+
+This repository holds no game files and none of the game's code, art, sound or text: no decompiled code, and no level or battle data. Each player brings their own copy of the Windows standalone build, unless the admin of a server chooses to send one from it (ADR 0001); that admin answers for it, and must publish where a rights holder can ask for its removal (`RG_CONTACT`). The notes in `docs/re/` describe how the engine and Arcade behave, in our own words, and the protocol code is written from `docs/protocol.md` so that the original clients and this server can talk to each other.
+
+The code here is free software under the GNU General Public License, version 3 or later (`LICENSE`). The fonts and the Svelte runtime keep their own licences (`THIRD_PARTY_NOTICES.md`, also served as `/licenses.txt`). What may and may not be committed is in `docs/LEGAL.md`; `npm run legal-check` enforces the file-level rules.
+
+If you hold rights to something here and want it removed from this repository, or from the server its author runs, open an issue at https://github.com/vyonizr/restart-generation/issues, or use GitHub's own takedown process. We respond promptly. Another admin's server shows its own contact in its Notices dialog.
+
+## Privacy
+
+A server with Discord sign-in keeps a member's Discord ID, in-game name, stats, friend links and saved game, and a guest's name, stats and friend links until the account is wiped after 24 hours. It keeps no email address and no avatar. **Delete my account** removes a player's record, and an admin can delete any account with `npm run delete-user`. The page says this in its footer.

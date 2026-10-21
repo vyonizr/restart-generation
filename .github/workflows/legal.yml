@@ -1,0 +1,18 @@
+# The same check as the pre-commit hook, on the whole tree and on every commit's files (docs/LEGAL.md).
+name: legal check
+on:
+  push:
+  pull_request:
+jobs:
+  legal-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/legal-check.test.mjs
+      - run: node tools/legal-check.mjs
+      - run: node tools/legal-check.mjs --history HEAD

@@ -13,15 +13,19 @@ const SAVE_FILES_MAX = 16;          // and how many of them
 const NAME = /^[A-Za-z0-9_]{1,15}$/;
 const RESERVED = /^(guest\d+|cpu_\d+)$/i;
 const DISCORD_INVITE = /^https:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]+$/;
+// Where a rights holder can write: an email address or an https address. The page links to it, so nothing else passes.
+const CONTACT = /^(?:[^\s@<>"']+@[^\s@<>"']+\.[A-Za-z]{2,}|https:\/\/[^\s<>"']+)$/;
 
 // Settings from the environment. `enabled` needs all three Discord values: the redirect address can't be derived behind a proxy.
-// `invite` is the admin's own community link, which the page shows if it is set.
+// `invite` is the admin's own community link, and `contact` where a rights holder can ask for the game's removal (docs/LEGAL.md);
+// the page shows both if they are set.
 function configFrom(env) {
   const config = {
     clientId: env.RG_DISCORD_CLIENT_ID || '',
     clientSecret: env.RG_DISCORD_CLIENT_SECRET || '',
     publicUrl: (env.RG_PUBLIC_URL || '').replace(/\/+$/, ''),
     invite: DISCORD_INVITE.test(env.RG_DISCORD_INVITE || '') ? env.RG_DISCORD_INVITE : '',
+    contact: CONTACT.test(env.RG_CONTACT || '') ? env.RG_CONTACT : '',
     trustProxy: env.RG_TRUST_PROXY === '1',
     guestsPerIpHour: Number(env.RG_GUESTS_PER_IP_HOUR || 10),
     guestCap: Number(env.RG_GUEST_CAP || 5000),

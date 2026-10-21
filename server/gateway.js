@@ -284,6 +284,13 @@ if (!seatCounts.size) {
   for (const n of [2, 3, 4]) if (!seatCounts.has(n)) log(`No battle template for ${n} players: ${n}-player matches won't start${n === 4 ? ", and CPU players can't fill empty seats" : ''}`);
 }
 
+// A server that sends the game to every visitor says where a rights holder can ask for its removal (docs/LEGAL.md): a --public server
+// won't start without a valid RG_CONTACT. Any other server doesn't need one.
+if (MODE.public && process.env.RG_GAME && !authConfig.contact) {
+  console.error('Refusing to start a --public server that serves the game without RG_CONTACT: an email address or an https address where a rights holder can ask for its removal (docs/LEGAL.md)');
+  process.exitCode = 1; return;
+}
+
 net.createServer(sock => {
   const addr = `${sock.remoteAddress}:${sock.remotePort}`;
   log('connect', addr);
@@ -319,7 +326,7 @@ if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame())
   require('./aiprofiles').apply(f); // a bot-ai.json key the game's XML doesn't have stops the server here
   gameFiles = f; log(`game files from ${process.env.RG_GAME}`);
 }).catch(e => { log(`RG_GAME: ${e.message}`); if (/bot-ai\.json/.test(e.message)) process.exit(1); });
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
 
 http.createServer((req, res) => {
   const parsed = new URL(req.url, 'http://x');
@@ -338,7 +345,7 @@ http.createServer((req, res) => {
   }
   if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ accounts: auth.enabled, servesGame: Boolean(process.env.RG_GAME), unlockAll: !MODE.public, invite: authConfig.invite, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
+    return res.end(JSON.stringify({ accounts: auth.enabled, servesGame: Boolean(process.env.RG_GAME), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
   }
   if (parsed.pathname.startsWith('/admin/')) {
     admin.http(req, res, parsed);
@@ -356,7 +363,7 @@ http.createServer((req, res) => {
   }
   let file;
   if (url === '/') file = path.join(DIST_DIR, 'index.html');
-  else if (/^\/(?:[\w-]+\/)*[\w.-]+\.(?:js|css|html|woff2|mp4|svg|png|ico)$/.test(url)) file = path.join(DIST_DIR, url);
+  else if (/^\/(?:[\w-]+\/)*[\w.-]+\.(?:js|css|html|woff2|mp4|svg|png|ico|txt)$/.test(url)) file = path.join(DIST_DIR, url);
   if (url === '/' && !fs.existsSync(file)) { res.writeHead(503, { 'Content-Type': 'text/plain' }); return res.end('The page is not built yet. Run `npm run build` (after `npm install`), then reload.'); }
   if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
   // Build output under assets/ has a hash in its name, so it never changes; everything else is checked on every load.

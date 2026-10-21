@@ -116,6 +116,12 @@ footer p { font: 12px/1.7 var(--mono); color: var(--light-3); }
 footer strong { font-weight: 500; color: var(--light-2); }
 .disclaimer { max-width: 110ch; }
 .notes { text-align: right; }
+.notes button { font-size: 13px; padding: 6px 12px; }
+/* The notices cover the page, not the game screen: they are too long for it. */
+#notices { position: fixed; z-index: 10; width: min(520px, 92vw); max-height: calc(100dvh - 32px); overflow-x: hidden; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 65%); }
+#notices a { color: var(--light-2); text-underline-offset: 3px; }
+#notices a:hover { color: #fff; }
+#notices strong { font-weight: 500; color: var(--light-2); }
 
 @media (max-width: 999px) {
   footer { grid-template-columns: 1fr; gap: 8px; }
