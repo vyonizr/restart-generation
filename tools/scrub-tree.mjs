@@ -48,7 +48,7 @@ export function scrub(text, names = [], to = '') {
   return out;
 }
 
-const TEXT = /\.(js|mjs|md|svelte|json|html|css|yml|yaml|c|java|sh|txt)$/i;
+const TEXT = /\.(js|mjs|cjs|md|svelte|json|html|css|yml|yaml|c|java|sh|txt|svg|example)$|(^|\/)(Caddyfile|Dockerfile|pre-commit)$/i;
 
 if (import.meta.url === new URL(`file:///${process.argv[1]?.replace(/\\/g, '/')}`).href) {
   // Only the files git has in this checkout's index: in a filter-branch run that is the commit being rewritten, and by hand it
