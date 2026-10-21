@@ -6,9 +6,9 @@ The project is published on GitHub and run as a public server (ADRs 0001, 0002).
 - **History.** Only the `development` branch is published, through `tools/export-public.mjs`, which rewrites every author to a GitHub no-reply address and runs the check over every commit. The other branches stay local; some of them hold reference screenshots of third-party websites.
 - **Rules and a check.** `docs/LEGAL.md` holds the rules for every commit. `tools/legal-check.mjs` enforces the file-level ones in `npm test`, in a pre-commit hook (`npm run hooks`) and in GitHub Actions. `AGENTS.md` points every agent session at the rules.
 - **Protocol code.** `web/snap.js` no longer says it is a port of the Java client or names its classes, its internals use our own vocabulary, and the browser sends a plain base64 password with no `K`, so it carries none of the SDK's password keys. `server/snap.js` accepts that, and keeps the keys for an unmodified Java client.
-- **Serving the game.** ADR 0001 lets an admin send their copy. A `--public` server that does must set `RG_CONTACT`, where a rights holder can ask for its removal, or it won't start; the footer shows it. No ads, donations or payments on such a server.
-- **Names.** The page stays "Restart Generation" with a footer that says it isn't affiliated with RedLynx, Ubisoft or Nokia. Documentation uses `example.com`, not a domain with the game's name.
-- **Privacy.** The README and the footer of a server with accounts say what is kept: a Discord ID and a name, no email.
+- **Serving the game.** ADR 0001 lets an admin send their copy. A `--public` server that does must set `RG_CONTACT`, where a rights holder can ask for its removal, or it won't start; the Notices dialog shows it. No ads, donations or payments on such a server.
+- **Names.** The page stays "Restart Generation" with a footer line, and a Notices dialog, that say it isn't affiliated with RedLynx, Ubisoft or Nokia. Documentation uses `example.com`, not a domain with the game's name.
+- **Privacy.** The README and the Notices dialog of a server with accounts say what is kept: a Discord ID and a name, no email.
 
 ## Considered options
 

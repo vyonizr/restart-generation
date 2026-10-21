@@ -161,7 +161,7 @@ The image doesn't contain the game files (ADR 0001), and it builds the page in a
    # player chooses their own copy (ADR 0001). The .zip or the extracted folder; start a relative path with ./
    # RG_GAME_PATH=./ResetGeneration-Standalone.zip
    # Required with RG_GAME_PATH: where a rights holder can ask for the game's removal, an email address or an https address.
-   # The page shows it in the footer, and the server won't start without it (docs/LEGAL.md).
+   # The page shows it in its Notices dialog, and the server won't start without it (docs/LEGAL.md).
    # RG_CONTACT=removals@example.org
    ```
 
@@ -239,7 +239,7 @@ This repository holds no game files and none of the game's code, art, sound or t
 
 The code here is free software under the GNU General Public License, version 3 or later (`LICENSE`). The fonts and the Svelte runtime keep their own licences (`THIRD_PARTY_NOTICES.md`, also served as `/licenses.txt`). What may and may not be committed is in `docs/LEGAL.md`; `npm run legal-check` enforces the file-level rules.
 
-If you hold rights to something here and want it removed from this repository, or from the server its author runs, open an issue at https://github.com/vyonizr/restart-generation/issues, or use GitHub's own takedown process. We respond promptly. Another admin's server shows its own contact in its footer.
+If you hold rights to something here and want it removed from this repository, or from the server its author runs, open an issue at https://github.com/vyonizr/restart-generation/issues, or use GitHub's own takedown process. We respond promptly. Another admin's server shows its own contact in its Notices dialog.
 
 ## Privacy
 

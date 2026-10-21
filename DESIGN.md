@@ -191,7 +191,7 @@ The game screen is centred in the main area. Its height is `clamp(300px, 100dvh 
 
 The key legend is one wrapping row: `10px` between rows, `28px` between groups, `6px` between caps and their label.
 
-The footer is a two-column grid (`1fr auto`, `48px` gap): the disclaimer on the left (max `110ch`) and the notes right-aligned on the right: the file note, or on a server that sends the game the notice that it does and where to ask for its removal; on a server with accounts, what it keeps; and the licence line with its links to the licences and to the source.
+The footer is a two-column grid (`1fr auto`, `48px` gap): the disclaimer and the credit on the left (max `110ch`, two lines), and on the right one small secondary **Notices** button. The button opens the notices dialog (below), which holds everything else legal.
 
 Below `1000px` wide, the footer stacks into one left-aligned column. Below `760px` wide, the page scrolls. The header shrinks to `64px` with `16px` gutters and hides the words after **Sign in**. Main pads `24px 16px 48px`. The footer stacks into one left-aligned column with `32px 16px` padding.
 
@@ -207,7 +207,7 @@ The page is flat. Depth comes from the ink ramp: `ink-1` ground, `ink-2` for the
 
 ### Shadow Vocabulary
 - **Screen lift** (`box-shadow: 0 2px 16px rgb(0 0 0 / 40%), 0 2px 4px rgb(0 0 0 / 30%)`): the game screen only.
-- **Dialog lift** (`box-shadow: 0 2px 16px rgb(0 0 0 / 50%)`): the login dialog over the screen.
+- **Dialog lift** (`box-shadow: 0 2px 16px rgb(0 0 0 / 50%)`): the login dialog over the screen. The notices dialog is the exception: it covers the page (fixed, centred, up to `520px` wide, scrolling inside if the viewport is short) and dims everything else with a `65%` black shade instead of a lift.
 
 ### Named Rules
 **The Flat Frame Rule.** Header, footer, legend, and buttons carry no shadow. Only the game screen and dialogs above it are lifted.

@@ -15,6 +15,7 @@
   import ConfirmDialog from './ConfirmDialog.svelte';
   import NameDialog from './NameDialog.svelte';
   import BotsDialog from './BotsDialog.svelte';
+  import NoticesDialog from './NoticesDialog.svelte';
 
   let canvas, screen, pitch = $state(0);
   onMount(() => {
@@ -48,4 +49,5 @@
     <Keys />
   </main>
   <Footer />
+  {#if page.notices}<NoticesDialog />{/if}
 </div>
