@@ -1,6 +1,6 @@
-// JS versions of the engine's hottest loops, mostly drawing, installed as traps at their original addresses
-// (0x10xxxxxx). Each one leaves memory, registers and flags as the guest code would, except the dead
-// stack below ESP that the guest's own calls would have scribbled on.
+// JS versions of the engine's hottest loops and routines, mostly drawing, installed as traps at their original
+// addresses (0x10xxxxxx). Each one leaves memory, registers and flags as the guest code would, except the dead
+// stack below ESP that the guest's own calls (and the frames of routines done whole) would have scribbled on.
 export function installFastPaths(cpu, addr) {
   const { r, dv, m8 } = cpu;
   const rd = a => dv.getInt32(a >>> 0, true);
@@ -41,55 +41,59 @@ export function installFastPaths(cpu, addr) {
     }
   };
 
-  // The row loop of the RLE sprite blitter FUN_1009e550 (0x1009e600-0x1009e719). Each 16-bit code is a
-  // run: length in the top nibble and palette index below, or a zero nibble and the index in the next code.
-  // Index bit 15 marks an opaque run; the object's draw mode (+0x20) picks fill, blend or add.
-  const exit = addr(0x1009e719);
-  cpu.traps.set(addr(0x1009e600), c => {
-    const esp = r[4] >>> 0, S = o => rd(esp + o);
-    const width = S(0x10), data = S(0x18), dst = S(0x24), shift = S(0x28) & 31, rowStep = S(0x1c), pal = S(0x38);
-    const self = r[6], mode = rd(self + 0x20) >>> 0, level = m8[(self + 0x64) >>> 0], full = rd(self + 0x64) === 0xff;
-    let eax = r[0], ebx = r[3], edx = r[2], ebp = r[5], rows = S(0x14), x = 0, code = 0, next = 0;
+  // The run-length image's blitters FUN_1009e550 and FUN_1009de90; docs/re/re_render.md has the image, its data and
+  // the loop states. Each 16-bit code is a run: length in the top nibble and palette index below, or a zero nibble and
+  // the index in the next code. Index bit 15 marks an opaque run; the image's draw mode (+0x20) picks fill, blend or add.
+  // rleRows draws rows rows from data index at and screen offset off, as FUN_1009e550's row loop does, and leaves in
+  // run* the data index, offset, pixels done in the last row, last code, index after the last run and EDX it ends with.
+  let runAt = 0, runOff = 0, runX = 0, runCode = 0, runNext = 0, runEdx = 0;
+  const rleRows = (self, data, at, dst, off, width, rows, rowStep, shift, pal, edx) => {
+    const mode = rd(self + 0x20) >>> 0, level = m8[(self + 0x64) >>> 0], full = rd(self + 0x64) === 0xff;
+    let x = 0, code = 0, next = 0;
     for (;;) {
       x = 0;
       if (width > 0) {
         do {
-          code = dv.getUint16((data + ebx * 2) >>> 0, true); ebx = (ebx + 1) | 0;
-          let len;
-          if (code & 0xf000) { len = code >>> 12; eax = code & 0xfff; }
-          else { len = code; eax = dv.getUint16((data + ebx * 2) >>> 0, true); ebx = (ebx + 1) | 0; }
-          next = ebx;
-          if (eax & 0x8000) {
-            const p = (dst + ebp) >>> 0, color = rd(pal + (eax & 0x7fff) * 4);
+          code = dv.getUint16((data + at * 2) >>> 0, true); at = (at + 1) | 0;
+          let len, index;
+          if (code & 0xf000) { len = code >>> 12; index = code & 0xfff; }
+          else { len = code; index = dv.getUint16((data + at * 2) >>> 0, true); at = (at + 1) | 0; }
+          next = at;
+          if (index & 0x8000) {
+            const p = (dst + off) >>> 0, color = rd(pal + (index & 0x7fff) * 4);
             if (mode === 0) { for (let i = 0; i < len; i++) wr(p + i * 4, color); }
             else if (mode === 1) blend(p, color, level, len);
             else if (mode === 2) { const a = color >>> 24; blend(p, color, (full ? ((a + 1) * 0xff) >>> 8 : a) & 255, len); }
             else if (mode === 3) add(self, p, color, level, len);
           }
-          edx = (len << shift) | 0; ebp = (ebp + edx) | 0; x = (x + len) | 0; ebx = next; eax = width;
+          edx = (len << shift) | 0; off = (off + edx) | 0; x = (x + len) | 0;
         } while (x < width);
-        eax = rowStep;
       }
-      const before = ebp;
-      ebp = (ebp + eax) | 0;
+      off = (off + rowStep) | 0;
       rows = (rows - 1) | 0;
-      if (rows === 0) { c.alu(0, before, eax, 32); c.dec(1, 32); break; }
+      if (rows === 0) break;
     }
-    dv.setInt32(esp + 0x2c, x, true); dv.setInt32(esp + 0x14, 0, true);
-    if (width > 0) { dv.setInt32(esp + 0x34, next, true); dv.setInt32(esp + 0x30, code, true); }
-    r[0] = eax; r[1] = 0; r[2] = edx; r[3] = ebx; r[5] = ebp;
+    runAt = at; runOff = off; runX = x; runCode = code; runNext = next; runEdx = edx;
+  };
+  // The trap at FUN_1009e550's row loop (0x1009e600-0x1009e719), for the draws that run in the guest.
+  const exit = addr(0x1009e719);
+  cpu.traps.set(addr(0x1009e600), c => {
+    const esp = r[4] >>> 0, S = o => rd(esp + o), width = S(0x10), rowStep = S(0x1c);
+    rleRows(r[6], S(0x18), r[3], S(0x24), r[5], width, S(0x14), rowStep, S(0x28) & 31, S(0x38), r[2]);
+    c.alu(0, (runOff - rowStep) | 0, rowStep, 32); c.dec(1, 32);
+    wr(esp + 0x2c, runX); wr(esp + 0x14, 0);
+    if (width > 0) { wr(esp + 0x34, runNext); wr(esp + 0x30, runCode); }
+    r[0] = rowStep; r[1] = 0; r[2] = runEdx; r[3] = runAt; r[5] = runOff;
     c.eip = exit;
   });
 
-  // The row loop of the clipped variant FUN_1009de90 (0x1009df68-0x1009e0a9): same runs and draw modes,
-  // but it skips rows above the clip, pixels left of it, and pixels past its right edge.
-  const exitClipped = addr(0x1009e0a9);
-  cpu.traps.set(addr(0x1009df68), c => {
-    const esp = r[4] >>> 0, S = o => rd(esp + o);
-    const width = S(0x10), pal = S(0x18), data = S(0x1c), left = S(0x20), right = S(0x24), top = S(0x28), rows = S(0x2c);
-    const rowStep = S(0x30), dst = S(0x38), shift = S(0x3c) & 31;
-    const self = r[6], mode = rd(self + 0x20) >>> 0, level = m8[(self + 0x64) >>> 0];
-    let y = S(0x14), off = S(0x44), next = S(0x48), x = 0, len = r[3], wrote = false;
+  // FUN_1009de90's row loop: the same runs, but rows before the top cut and pixels outside the left cut and right stop
+  // aren't drawn. Returns the screen offset after the last row and leaves the row, the pixels done in it, the data
+  // index, the last run's length and whether any run was read in clip*.
+  let clipY = 0, clipX = 0, clipNext = 0, clipLen = 0, clipRead = false;
+  const rleClippedRows = (self, data, next, dst, off, width, pal, left, right, top, rows, rowStep, shift, y, len) => {
+    const mode = rd(self + 0x20) >>> 0, level = m8[(self + 0x64) >>> 0];
+    let x = 0, read = false;
     do {
       x = 0;
       if (width > 0) {
@@ -98,7 +102,7 @@ export function installFastPaths(cpu, addr) {
           let index;
           if (code & 0xf000) { len = code >>> 12; index = code & 0xfff; }
           else { len = code; index = dv.getUint16((data + next * 2) >>> 0, true); next = (next + 1) | 0; }
-          wrote = true;
+          read = true;
           const skip = x < left ? left - x : 0;
           let count = len - skip;
           if (len + x > right) count = right - skip - x;
@@ -115,11 +119,304 @@ export function installFastPaths(cpu, addr) {
       off = (off + rowStep) | 0;
       y = (y + 1) | 0;
     } while (y < rows);
-    c.alu(7, y, rows, 32);
-    dv.setInt32(esp + 0x14, y, true); dv.setInt32(esp + 0x40, x, true); dv.setInt32(esp + 0x44, off, true);
-    if (wrote) { dv.setInt32(esp + 0x48, next, true); dv.setInt32(esp + 0x4c, len, true); }
-    r[0] = rowStep; r[1] = y; r[2] = off; r[3] = len; r[5] = rows; r[7] = x;
+    clipY = y; clipX = x; clipNext = next; clipLen = len; clipRead = read;
+    return off;
+  };
+  // The trap at that loop (0x1009df68-0x1009e0a9), for the draws that run in the guest.
+  const exitClipped = addr(0x1009e0a9);
+  cpu.traps.set(addr(0x1009df68), c => {
+    const esp = r[4] >>> 0, S = o => rd(esp + o), rows = S(0x2c), rowStep = S(0x30);
+    const off = rleClippedRows(r[6], S(0x1c), S(0x48), S(0x38), S(0x44), S(0x10), S(0x18), S(0x20), S(0x24), S(0x28),
+      rows, rowStep, S(0x3c) & 31, S(0x14), r[3]);
+    c.alu(7, clipY, rows, 32);
+    wr(esp + 0x14, clipY); wr(esp + 0x40, clipX); wr(esp + 0x44, off);
+    if (clipRead) { wr(esp + 0x48, clipNext); wr(esp + 0x4c, clipLen); }
+    r[0] = rowStep; r[1] = clipY; r[2] = off; r[3] = clipLen; r[5] = rows; r[7] = clipX;
     c.eip = exitClipped;
+  });
+
+  // The run-length image's draw routines as plain functions of their arguments (self the image). Each leaves the
+  // EAX, ECX and EDX the routine returns with in out*.
+  let outA = 0, outC = 0, outD = 0;
+  // The palette of frame f; sets outD to the EDX choosing it leaves: the palette, or the vtable when it's the palette object's.
+  const palette = (self, f) => {
+    if (m8[(self + 0x2e) >>> 0] === 0) return (outD = rd(rd(self + 0x54) + f * 4));
+    outD = rd(self);
+    const owner = rd(self + 0x48);
+    return owner ? rd(owner + 8) : 0;
+  };
+  // FUN_1009de90: draws frame f at (x, y) cut to the image's clip.
+  const drawClipped = (self, dst, shift, pitch, x, y, f) => {
+    const data = rd(rd(self + 4)), size = rd(self + 0x14), width = rd(size + 0x18), height = rd(size + 0x1c), s = shift & 31;
+    const below = (rd(self + 0x30) - y) | 0, overBottom = (height - below) | 0, rows = (below + (overBottom < 0 ? overBottom : 0)) | 0;
+    const space = (rd(self + 0x3c) - x) | 0, overRight = (width - space) | 0, right = (space + (overRight < 0 ? overRight : 0)) | 0;
+    const fromLeft = (x - rd(self + 0x38)) | 0, left = -(fromLeft < 0 ? fromLeft : 0) | 0;
+    const fromTop = (y - rd(self + 0x34)) | 0, top = -(fromTop < 0 ? fromTop : 0) | 0;
+    const at = rd(rd(self + 0x44) + f * 4) >> 1, pal = palette(self, f), off = (Math.imul(pitch, y) + x) << s;
+    if (rows <= 0) { outA = pitch; outC = shift; outD = off; return; }
+    const rowStep = (pitch - width) << s;
+    outD = rleClippedRows(self, data, at, dst, off, width, pal, left, right, top, rows, rowStep, s, 0, 0);
+    outA = rowStep; outC = rows;
+  };
+  // FUN_1009e550: draws frame f at (x, y), or passes it to FUN_1009de90 unless it's wholly inside the clip.
+  const drawFrame = (self, dst, shift, pitch, x, y, f) => {
+    const size = rd(self + 0x14), height = rd(size + 0x1c), width = rd(size + 0x18), s = shift & 31;
+    if (x < rd(self + 0x38) || x > ((rd(self + 0x3c) - width) | 0) || y < rd(self + 0x34) || y > ((rd(self + 0x30) - height) | 0)) {
+      drawClipped(self, dst, shift, pitch, x, y, f);
+      return;
+    }
+    const data = rd(rd(self + 4)), at = rd(rd(self + 0x44) + f * 4) >> 1, pal = palette(self, f), off = (Math.imul(pitch, y) + x) << s;
+    if (height <= 0) { outA = pitch; outC = shift; return; }
+    const rowStep = (pitch - width) << s;
+    rleRows(self, data, at, dst, off, width, height, rowStep, s, pal, outD);
+    outA = rowStep; outC = 0; outD = runEdx;
+  };
+  // FUN_1009e940 for an image that isn't mirrored (+0x2d) and has no other draw (+0x70): takes the renderer's clip,
+  // gives up on a frame wholly outside it or a format other than 2, and draws the rest with FUN_1009e550.
+  const drawImage = (self, renderer, dst, pitch, x, y, level, f) => {
+    if (f < 0 || f >= rd(self + 0x40)) f = 0;
+    wr(self + 0x30, rd(renderer + 0x24)); wr(self + 0x3c, rd(renderer + 0x18)); wr(self + 0x38, rd(renderer + 0x1c));
+    wr(self + 0x34, rd(renderer + 0x20)); wr(self + 0x64, level);
+    const size = rd(self + 0x14), width = rd(size + 0x18), height = rd(size + 0x1c), left = rd(self + 0x38), top = rd(self + 0x34);
+    outA = x;
+    if (x >= rd(self + 0x3c)) { outC = width; outD = left; return; }
+    if (((width + x) | 0) < left) { outC = (width + x) | 0; outD = left; return; }
+    outC = y;
+    if (y >= rd(self + 0x30)) { outD = left; return; }
+    if (((height + y) | 0) < top) { outD = top; return; }
+    const format = rd(size + 0x20);
+    if (format !== 2) { outD = (format - 2) | 0; return; }
+    wr(self + 0xc, rd(renderer + 0xc));
+    drawFrame(self, dst, 2, pitch, x, y, f);
+  };
+
+  // FUN_10052de0 draws one scene object; the trap at its entry does the whole call. It needs the object's and the
+  // screen's images loaded and their caches the usual one, so that FUN_1004a060 only marks them recently used. It
+  // draws run-length images itself and calls any other image's draw method in the guest. Anything else (no object,
+  // no image, an image to load) runs in the guest from the routine's second instruction.
+  const cacheVt = addr(0x1017bd8c), rleVt = addr(0x10182a88), holderOf = addr(0x10112570), drawObjectRest = addr(0x10052de3);
+  // Whether FUN_1004a060(o) would only move o's cache node to the front (or do nothing, without a cache).
+  const plainTouch = o => { const m = rd(o + 0x28); return m === 0 || (rd(m) === cacheVt && rd(o + 0x24) !== 0 && m8[(o + 0x2c) >>> 0] === 0); };
+  // FUN_1004a060(o) for such an o: unlinks its node from the cache's newest-first list and puts it in front.
+  const touch = o => {
+    const m = rd(o + 0x28);
+    if (m === 0) return;
+    const node = rd(o + 0x44);
+    if (node === 0 || node === rd(m + 0x14)) return;
+    const newer = rd(node + 4), older = rd(node);
+    if (newer) wr(newer, older);
+    if (older) wr(older + 4, newer);
+    if (node === rd(m + 0x10)) wr(m + 0x10, newer);
+    wr(node + 4, 0); wr(node, rd(m + 0x14)); wr(rd(m + 0x14) + 4, node); wr(m + 0x14, node);
+  };
+  cpu.traps.set(addr(0x10052de0), c => {
+    const esp = r[4] >>> 0, self = r[1], obj = rd(esp + 4), screen = obj && rd(self + 4);
+    if (!obj || !rd(obj + 0x24) || !plainTouch(obj) || !plainTouch(screen) || !rd(screen + 0x24) || rd(rd(rd(screen + 0x24)) + 0xc) !== holderOf) {
+      r[4] = c.alu(5, esp, 8, 32);
+      c.eip = drawObjectRest;
+      return;
+    }
+    touch(obj); touch(obj);
+    const img = rd(obj + 0x24);
+    touch(screen); touch(screen);
+    const dst = rd(rd(rd(screen + 0x24) + 4));
+    touch(screen);
+    const pitch = rd(rd(rd(screen + 0x24) + 4) + 4);
+    const pos = rd(esp + 8), x = rd(pos), y = rd(pos + 4), level = rd(rd(esp + 12) + 8), frame = rd(esp + 16);
+    if (rd(img) === rleVt && rd(img + 0x70) === 0 && m8[(img + 0x2d) >>> 0] === 0) {
+      drawImage(img, self, dst, pitch, x, y, level, frame);
+      r[0] = outA; r[1] = outC; r[2] = outD;
+    } else {
+      // The routine's frame, its registers at the call, and the call itself, which returns to a sentinel instead.
+      const ebx = r[3], ebp = r[5], esi = r[6], edi = r[7];
+      wr(esp - 4, rd(screen + 0x1c)); wr(esp - 8, pitch); wr(esp - 12, esi); wr(esp - 16, edi); wr(esp - 20, ebx); wr(esp - 24, ebp);
+      r[0] = x; r[1] = img; r[2] = rd(img); r[3] = img; r[5] = dst; r[6] = screen; r[7] = self; r[4] = esp - 24;
+      cpu.call(rd(rd(img) + 0x50), [self, dst, esp - 8, x, y, level, frame]);
+      r[3] = ebx; r[5] = ebp; r[6] = esi; r[7] = edi;
+    }
+    c.alu(0, esp - 8, 8, 32);
+    r[4] = esp + 20;
+    c.eip = rd(esp) >>> 0;
+  });
+
+  // FUN_10078810 draws a curved band of short lines between two points (docs/re/re_render.md). The trap at the test
+  // before its first loop (0x1007893c), reached with the setup done, draws both parts with the two span routines below
+  // and returns from the routine. A screen whose pixels need the guest leaves the loops to the guest.
+  const bandFirst = addr(0x10078942), bandSecond = addr(0x10078a5b);
+  // FUN_10078510 and FUN_10078460 on band self: count pixels from (x, y) of screen, cut to the band's +0x44 by +0x48.
+  // Returns the address of the first pixel to change and sets spanCount to how many (none when it isn't positive).
+  let spanCount = 0;
+  const bandSpan = (self, screen, x, y, count) => {
+    spanCount = 0;
+    if (y < 0 || y >= rd(self + 0x48)) return 0;
+    const width = rd(self + 0x44);
+    if (((x + count) | 0) >= width) count = (width - x) | 0;
+    let skip = 0;
+    if (x < 0) { skip = -x | 0; x = 0; }
+    touch(screen);
+    const base = rd(rd(rd(screen + 0x24) + 4));
+    touch(screen);
+    const pitch = rd(rd(rd(screen + 0x24) + 4) + 4);
+    spanCount = (count - skip) | 0;
+    return (base + ((Math.imul(pitch, y) + x) | 0) * 4) >>> 0;
+  };
+  const bandFill = (self, screen, x, y, count, color) => {
+    const p = bandSpan(self, screen, x, y, count);
+    if (spanCount <= 0) return;
+    if ((p & 3) === 0) cpu.m32.fill(color, p >>> 2, (p >>> 2) + spanCount);
+    else for (let i = 0; i < spanCount; i++) wr(p + i * 4, color);
+  };
+  const bandDarken = (self, screen, x, y, count, shift, mask) => {
+    const p = bandSpan(self, screen, x, y, count);
+    for (let i = 0; i < spanCount; i++) {
+      const v = rd(p + i * 4);
+      if ((v & 0xff000000) !== 0x33000000) wr(p + i * 4, ((v >>> (shift & 31)) & mask) | 0x33000000);
+    }
+  };
+  cpu.traps.set(addr(0x1007893c), c => {
+    const esp = r[4] >>> 0, S = o => rd(esp + o), self = r[6], screen = S(0x14), sag = rd(self + 0x38);
+    if (sag === 0 || sag === -1 || !plainTouch(screen) || !rd(screen + 0x24) || rd(rd(rd(screen + 0x24)) + 0xc) !== holderOf) {
+      c.eip = r[1] <= 0 ? bandSecond : bandFirst;
+      return;
+    }
+    const steps = rd(self + 0x30), plain = m8[(esp + 0x50) >>> 0] !== 0, dx = S(0x44), dy = S(0x48), shades = (S(0x4c) << 8) | 0;
+    const table = rd(self + 0x2c), xStep = S(0x34), yStep = S(0x38), lift = rd(self + 0x3c) << 8, full = rd(self + 0x34);
+    let swapped = S(0x18), width = S(0x40), shade = S(0x20), downs = S(0x24), last = S(0x28), x = S(0x2c), y = r[3], i = S(0x10);
+    // The line of step i: the walk's y plus the curve's sag, in whole pixels.
+    const lineAt = () => { const d = (i - (steps >> 1)) | 0; return ((((((Math.imul(d, d) << 8) / sag) | 0) - lift) << 8) + y) >> 16; };
+    const colorOf = s => rd(table + ((shades + s) | 0) * 4);
+    if (steps > 0) {
+      do {
+        const left = (x - (width << 15)) >> 16;
+        if (swapped === 1) {
+          if (width === ((full + 6) | 0)) { width = full; swapped = 2; }
+          else if (width < ((full + 6) | 0)) width = (width + 1) | 0;
+        }
+        const line = lineAt();
+        if (last < line) {
+          shade = (shade + rd(self + 0xc)) | 0;
+          if (++downs > 1) break;
+        }
+        last = line;
+        if (swapped !== 0 || !plain) {
+          bandFill(self, screen, (left - dx) | 0, (line - dy) | 0, width, colorOf(shade));
+          if (!plain) bandDarken(self, screen, (left - dx - 1) | 0, ((y >> 16) - dy) | 0, (width - 2) | 0, 1, 0x7f7f7f);
+        }
+        x = (x + xStep) | 0; y = (y + yStep) | 0; i++;
+      } while (i < steps);
+    }
+    r[0] = i; r[1] = rd(self); r[2] = steps;
+    if (i < steps) {
+      const top = (rd(self) + S(0x1c)) | 0, taper = (steps - full - 6) | 0;
+      width = full;
+      shade = (rd(self + 4) + rd(self)) | 0;
+      do {
+        const left = (x - (width << 15)) >> 16, line = lineAt();
+        shade = (shade + rd(self + 8)) | 0;
+        if (shade > top) shade = top;
+        if (swapped === 0 ? true : !plain) {
+          bandFill(self, screen, (left - dx) | 0, (line - dy) | 0, width, colorOf(shade));
+          if (!plain) bandDarken(self, screen, (left - dx - 1) | 0, ((y >> 16) - dy) | 0, (width - 2) | 0, 1, 0x7f7f7f);
+        }
+        if (swapped === 0) {
+          if (i === taper) width = (full + 6) | 0;
+          else if (i > taper) width = (width - 1) | 0;
+        }
+        x = (x + xStep) | 0; y = (y + yStep) | 0; i++;
+      } while (i < steps);
+      r[0] = i; r[1] = xStep;
+    }
+    // The epilogue: pop EDI, EBP, EBX and ESI, drop the locals, return popping five arguments.
+    r[7] = S(0); r[5] = S(4); r[3] = S(8); r[6] = S(0xc);
+    c.alu(0, esp + 0x10, 0x2c, 32);
+    c.eip = S(0x3c) >>> 0;
+    r[4] = esp + 0x54;
+  });
+
+  // FUN_100529e0 and FUN_10052ac0 blend a row or a column of a drawable toward a color (docs/re/re_render.md). The traps
+  // at their entries do the whole call for a drawable without a cache; any other goes on in the guest after the
+  // routine's first instruction, a push of EBX (row) or EDI (column).
+  const blendLine = (c, column, rest) => {
+    const esp = r[4] >>> 0, S = o => rd(esp + o), screen = S(4), img = rd(screen + 0x24);
+    if (rd(screen + 0x28) !== 0 || !img || rd(rd(img) + 0xc) !== holderOf) {
+      wr(esp - 4, r[column ? 7 : 3]); r[4] = esp - 4;
+      c.eip = rest;
+      return;
+    }
+    const x = S(8), y = S(0xc), color = S(0x14), amount = S(0x18), holder = rd(img + 4), pitch = rd(holder + 4);
+    const fixed = column ? x : y, edge = rd(screen + (column ? 0x18 : 0x1c));
+    if (fixed < 0 || fixed >= edge) {
+      if (fixed < 0) c.alu(4, fixed, fixed, 32); else c.alu(7, fixed, edge, 32);
+      r[0] = fixed; r[1] = column ? pitch : img;
+    } else {
+      const end = rd(screen + (column ? 0x1c : 0x18));
+      let along = column ? y : x, count = S(0x10), skip = 0;
+      if (((along + count) | 0) >= end) count = (end - along) | 0;
+      if (along < 0) { skip = -along | 0; along = 0; }
+      const base = rd(holder), at = column ? Math.imul(pitch, along) + x : Math.imul(pitch, y) + along;
+      let p = (base + (at | 0) * 4) >>> 0;
+      c.alu(7, skip, count, 32);
+      if (skip >= count) {
+        r[0] = column ? base : holder; r[1] = column ? pitch : base; r[2] = p;
+      } else {
+        const step = column ? pitch << 2 : 4, cl = color & 0xff00ff, cg = (color >>> 8) & 255;
+        let dl = 0, rb = 0;
+        for (let n = (count - skip) | 0; n > 0; n--, p = (p + step) >>> 0) {
+          const d = rd(p), dg = (d >>> 8) & 255;
+          dl = d & 0xff00ff;
+          rb = ((Math.imul(cl - dl, amount) >>> 8) + dl) & 0xff00ff;
+          wr(p, ((Math.imul(cg - dg, amount) & 0xffffff00) + (dg << 8)) | rb);
+        }
+        c.alu(0, p - step, step, 32); c.dec(1, 32);
+        r[0] = dl; r[1] = column ? step : rb; r[2] = p;
+      }
+    }
+    r[4] = esp + 0x1c;
+    c.eip = rd(esp) >>> 0;
+  };
+  const rowRest = addr(0x100529e1), columnRest = addr(0x10052ac1);
+  cpu.traps.set(addr(0x100529e0), c => blendLine(c, false, rowRest));
+  cpu.traps.set(addr(0x10052ac0), c => blendLine(c, true, columnRest));
+
+  // FUN_10038160's loop at 0x100383c0 calls the virtual method +0x18 of each of its 0x7c-byte objects; for the sprung
+  // points that is FUN_1006ca60 (docs/re/re_render.md), done here. Other methods run in the guest. The trap runs the
+  // whole loop and leaves it at 0x100383d6.
+  const springStep = addr(0x1006ca60), springsDone = addr(0x100383d6);
+  // FUN_1006ca60 on point p: returns the EDX it leaves (the z velocity); its EAX is the new z.
+  const spring = p => {
+    const wait = rd(p + 0x78);
+    if (wait > 0) wr(p + 0x78, wait - 1);
+    else { const rest = (0x40 - rd(p + 0x74)) | 0; wr(p + 0x74, -(rest < 0 ? rest : 0) | 0); }
+    const x = rd(p + 4), y = rd(p + 8);
+    const vz = (rd(p + 0x18) + (Math.imul(rd(p + 0xc), -24) >> 8) + 0x1000) | 0;
+    wr(p + 0x18, (Math.imul(vz, 0xdc) >> 8) + rd(p + 0x70));
+    const vx = rd(p + 0x10);
+    if (vx !== 0) wr(p + 0x10, Math.imul((((-x | 0) << 3) >> 8) + vx, 200) >> 8);
+    const vy = rd(p + 0x14);
+    if (vy !== 0) wr(p + 0x14, Math.imul((((-y | 0) << 3) >> 8) + vy, 200) >> 8);
+    wr(p + 4, rd(p + 4) + rd(p + 0x10));
+    wr(p + 8, rd(p + 8) + rd(p + 0x14));
+    const z = rd(p + 0xc), dz = rd(p + 0x18);
+    wr(p + 0xc, z + dz);
+    return dz;
+  };
+  cpu.traps.set(addr(0x100383c0), c => {
+    const owner = r[6];
+    let i = r[7], off = r[5], ecx = r[1], edx = r[2];
+    do {
+      const p = (rd(owner + 0xc) + off) | 0, vt = rd(p), fn = rd(vt + 0x18) >>> 0;
+      if (fn === springStep) { edx = spring(p); ecx = p; }
+      else {
+        r[1] = p; r[2] = vt; r[7] = i; r[5] = off;
+        cpu.call(fn, []);
+        ecx = r[1]; edx = r[2];
+      }
+      r[0] = rd(owner + 8);
+      i = (i + 1) | 0; off = (off + 0x7c) | 0;
+    } while (i < r[0]);
+    c.alu(7, i, r[0], 32);
+    r[1] = ecx; r[2] = edx; r[5] = off; r[7] = i;
+    c.eip = springsDone;
   });
 
   // The two row loops of FUN_1009c9f0, which alpha-blends a 32-bit image onto the screen using each
