@@ -142,7 +142,7 @@ function play({ seed, seats, relaxed, bots, defeats }) {
       if (!live.has(a.team) || stopped.has(a.team)) continue;
       a.run(); drain();
       if (a.ends !== undefined && !over && phase === 4 && turn === a.ends && lastMover === a.team) {
-        fail(`team ${a.team} ended its turn in (${turn}, 4), and the host didn't pass it on`);
+        fail(`seat ${a.team} ended its turn in (${turn}, 4), and the host didn't pass it on`);
       }
       defeatDue();
     }
@@ -156,7 +156,7 @@ function play({ seed, seats, relaxed, bots, defeats }) {
       const bound = exempt.has(step(turn, phase)) ? table.forceAfter[phase] + work + 2 * SEC : Math.max(work, QUIET_BOUND);
       if (clock.t - phaseAt > bound) fail(`phase ${phase} of turn ${turn} still open ${(clock.t - phaseAt) / SEC} s after it began; the last living client acted at ${work / SEC} s`);
     } else if (stopped.has(lastMover) && clock.t - phaseAt > table.forceAfter[4] + 2 * SEC) {
-      fail(`team ${lastMover}'s page stopped, and its turn in (${turn}, 4) is still open ${(clock.t - phaseAt) / SEC} s later, past the forced end`);
+      fail(`seat ${lastMover}'s client stopped, and its turn in (${turn}, 4) is still open ${(clock.t - phaseAt) / SEC} s later, past the forced end`);
     }
   }
   return happened;

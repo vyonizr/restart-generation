@@ -201,7 +201,7 @@ const suspect = (table, p) => {
   if (table.phase === 5) return p.seen < step(table.turn, 2) || p.skipped === table.turn;
   return table.phase === 2 && (p.seen < step(table.turn - 1, 5) || (table.cannons > 0 && table.turn > 1 && p.fired5 !== table.turn - 1));
 };
-// Phases 2 and 5 only. In phase 4 the server never ends or skips a turn on silence: a silent team may be defeated
+// Phases 2 and 5 only. In phase 4 the server never ends or skips a turn on silence: a silent player may be defeated
 // (the clients skipped it) or only stopped (a sleeping phone; the clients still wait for it), and the server can't
 // tell which. It follows the clients instead, on the first order of a later phase, or ends the turn by force.
 // Waiting for no one at all ends the phase at once (lose).
@@ -211,19 +211,19 @@ const goneWhy = (table, p) => lapsed(table, p) ? 'silent for a whole turn'
 const allDone = table => alive(table).every(p => table.done.has(p.team) || goneWhy(table, p));
 const endIfAllDone = (table, api) => {
   if (!allDone(table)) return;
-  const notDone = alive(table).filter(p => !table.done.has(p.team)).map(p => `team ${p.team} ${goneWhy(table, p)}`);
-  endTurn(table, api, notDone.length ? `every other team acted; ${notDone.join(', ')}` : 'every team acted');
+  const notDone = alive(table).filter(p => !table.done.has(p.team)).map(p => `seat ${p.team} ${goneWhy(table, p)}`);
+  endTurn(table, api, notDone.length ? `every other seat acted; ${notDone.join(', ')}` : 'every seat acted');
 };
 
 function onEndTurnRequest(table, p, m, api) {
   p.seen = step(table.turn, table.phase);
-  if (m.turn !== table.turn || m.phase !== table.phase) return report(table, api, `dropped team ${p.team}'s end-turn request for (${m.turn}, ${m.phase})`);
+  if (m.turn !== table.turn || m.phase !== table.phase) return report(table, api, `dropped seat ${p.team}'s end-turn request for (${m.turn}, ${m.phase})`);
   if (table.phase === 4) {
-    if (table.ended4.has(p.team)) return report(table, api, `dropped team ${p.team}'s end-turn request: its turn already ended or was skipped`);
+    if (table.ended4.has(p.team)) return report(table, api, `dropped seat ${p.team}'s end-turn request: its turn already ended or was skipped`);
     const skipped = alive(table).filter(o => o.team < p.team && !table.ended4.has(o.team));
     for (const o of skipped) { table.ended4.add(o.team); o.skipped = table.turn; }
     table.ended4.add(p.team);
-    return endTurn(table, api, `team ${p.team} ended its turn${skipped.length ? `, skipping team ${skipped.map(o => o.team).join(', ')}` : ''}`);
+    return endTurn(table, api, `seat ${p.team} ended its turn${skipped.length ? `, skipping seat ${skipped.map(o => o.team).join(', ')}` : ''}`);
   }
   table.done.add(p.team);
   endIfAllDone(table, api);
@@ -235,7 +235,7 @@ function onGame(table, p, data, api) {
   if (m.type === gm.TYPE.END_TURN_REQUEST) return onEndTurnRequest(table, p, m, api); // never acked or forwarded
   // Clients are authoritative about the game state: follow them if they are ahead.
   if (m.turn > table.turn || (m.turn === table.turn && m.phase > table.phase)) {
-    report(table, api, `team ${p.team} is already in (${m.turn}, ${m.phase}): following the clients`);
+    report(table, api, `seat ${p.team} is already in (${m.turn}, ${m.phase}): following the clients`);
     enterPhase(table, m.turn, m.phase);
   }
   p.lastSeq = Math.max(p.lastSeq, m.seq);
@@ -267,7 +267,7 @@ function lose(table, p, api) {
   if (table.phase === 2 || table.phase === 5) return endIfAllDone(table, api);
   // Phase 4: if the leaver held the last turn, every client has moved on to phase 5 by itself (re_rules.md section 3).
   if (table.phase === 4 && alive(table).length && alive(table).every(o => table.ended4.has(o.team))) {
-    report(table, api, `team ${p.team} lost holding the last turn: following the clients to phase 5`);
+    report(table, api, `seat ${p.team} lost holding the last turn: following the clients to phase 5`);
     enterPhase(table, table.turn, 5);
   }
 }
@@ -302,7 +302,7 @@ function tick(table, api) {
     if (table.phase === 4) {
       // Turns run in ascending seat number, and players don't join in seat order.
       const cur = alive(table).filter(p => !table.ended4.has(p.team)).sort((x, y) => x.team - y.team)[0];
-      if (cur) { table.ended4.add(cur.team); whose = ` of team ${cur.team}'s turn`; }
+      if (cur) { table.ended4.add(cur.team); whose = ` of seat ${cur.team}'s turn`; }
     }
     endTurn(table, api, `forced end${whose} after ${Math.round(limit / 1000)} s`);
   }
