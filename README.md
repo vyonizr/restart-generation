@@ -239,6 +239,8 @@ This repository holds no game files and none of the game's code, art, sound or t
 
 The code here is free software under the GNU General Public License, version 3 or later (`LICENSE`). The fonts and the Svelte runtime keep their own licences (`THIRD_PARTY_NOTICES.md`, also served as `/licenses.txt`). What may and may not be committed is in `docs/LEGAL.md`; `npm run legal-check` enforces the file-level rules.
 
+If you hold rights to something here and want it removed from this repository, or from the server its author runs, open an issue at https://github.com/vyonizr/restart-generation/issues, or use GitHub's own takedown process. We respond promptly. Another admin's server shows its own contact in its footer.
+
 ## Privacy
 
 A server with Discord sign-in keeps a member's Discord ID, in-game name, stats, friend links and saved game, and a guest's name, stats and friend links until the account is wiped after 24 hours. It keeps no email address and no avatar. **Delete my account** removes a player's record, and an admin can delete any account with `npm run delete-user`. The page says this in its footer.

@@ -31,7 +31,7 @@ We say so plainly so that nobody has to find it out:
 
 - **The emulator runs RedLynx's engine.** The page and the server execute the original code from a copy the player or the admin supplies (ADR 0003). The repository contains none of it.
 - **`docs/re/` and `tools/re/`** are our notes and scripts about the engine, made by decompiling it. They hold no decompiled code, but they are derived from it (ADR 0001). They are the first thing to remove if asked.
-- **`server/snap.js` keeps the Java client's password keys and command flags**, so that an unmodified Java client can log in (ADR 0002). The browser client no longer carries them (ADR 0018). Older commits of `web/snap.js` still do, and its earlier comments name the original classes.
+- **`server/snap.js` keeps the Java client's password keys and command flags**, so that an unmodified Java client can log in (ADR 0002). The browser client no longer carries them (ADR 0018). Older commits of `web/snap.js` still do (the keys are why `tools/legal-allow.json` lists it); the wording that named the original classes is rewritten in the published history by `tools/scrub-tree.mjs`.
 - **A server that sends the game** (`RG_GAME`) distributes it. See below.
 
 ## Serving the game
@@ -48,7 +48,7 @@ ADR 0001 lets an admin set `RG_GAME` and send their copy to every visitor, at th
 
 1. Don't reply in public, and don't argue on social media.
 2. Do what it asks for the named material at once: unset `RG_GAME_PATH`, remove the file or the path. A removal is not an admission.
-3. Keep the notice and what you did. Tell your host before they tell you.
+3. Keep the notice and what you did. Tell your host before they tell you. Notices about this repository reach the maintainer at the address in the README's Legal section.
 4. A counter-notice, a repository takedown dispute or any admission is for a lawyer.
 
 ## Publishing

@@ -25,4 +25,4 @@ That you wrote what you send, or have the right to send it under the GNU General
 
 ## A rights holder, or a notice
 
-If you represent RedLynx, Ubisoft or Nokia and want something removed, tell us in an issue or use GitHub's own takedown process; a server that sends the game shows its own contact in its footer. We respond promptly.
+If you represent RedLynx, Ubisoft or Nokia and want something removed, open an issue at https://github.com/vyonizr/restart-generation/issues (also in the README's Legal section), or use GitHub's own takedown process; a server run by someone else shows its own contact in its footer. We respond promptly.
