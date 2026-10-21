@@ -1,6 +1,7 @@
 // Plays into an Arcade battle with and without the JS fast paths (web/emu/fast.js) in lockstep and
-// reports the first tick where registers, flags, pixels or memory differ. Memory below ESP is skipped:
-// the guest's own calls leave scratch there that the fast paths don't reproduce.
+// reports the first tick where registers, flags, pixels, sound or memory differ. Memory below ESP is skipped:
+// the guest's own calls leave scratch there that the fast paths don't reproduce. Sound is pulled as the page
+// does (one 64 ms block per 64 ms of game time): without it the battle doesn't get as far, and some drawing never runs.
 // Usage: node web/tools/fasttest.mjs [ticks]
 import crypto from 'crypto';
 import { loadGame } from './game.mjs';
@@ -16,7 +17,11 @@ performance.now = Date.now = () => 0;
 const files = await loadGame();
 const a = new GameHost(files, { fast: false }), b = new GameHost(files, { fast: true });
 a.boot(); b.boot();
-const step = (g, i) => { const k = keys.get(i); if (k) { g.key(true, VK[k]); g.tick(); g.key(false, VK[k]); } g.tick(); };
+const pulled = new Map([[a, 0], [b, 0]]), sound = new Map([[a, []], [b, []]]);
+const step = (g, i) => {
+  const k = keys.get(i); if (k) { g.key(true, VK[k]); g.tick(); g.key(false, VK[k]); } g.tick();
+  while (pulled.get(g) * 64 < g.time) { sound.get(g).push(g.pullSound().join(',')); pulled.set(g, pulled.get(g) + 1); }
+};
 const state = g => {
   const c = g.m.cpu; c.materialize();
   return JSON.stringify({ r: [...c.r], eip: c.eip >>> 0, fl: c.lflags, now: g.m.win.now });
@@ -34,6 +39,8 @@ for (let i = 1; i <= ticks; i++) {
   t = clock(); step(b, i); tb += clock() - t;
   const sa = state(a), sb = state(b);
   if (sa !== sb) { console.log(`tick ${i}: CPU state differs\n slow ${sa}\n fast ${sb}`); process.exit(1); }
+  if (sound.get(a).join(';') !== sound.get(b).join(';')) { console.log(`tick ${i}: sound differs`); process.exit(1); }
+  sound.get(a).length = 0; sound.get(b).length = 0;
   if (hash(new Uint8Array(a.pixels.buffer, a.pixels.byteOffset, a.pixels.byteLength)) !==
     hash(new Uint8Array(b.pixels.buffer, b.pixels.byteOffset, b.pixels.byteLength))) { console.log(`tick ${i}: pixels differ`); process.exit(1); }
   if (i % 100 === 0 || i === ticks) {
