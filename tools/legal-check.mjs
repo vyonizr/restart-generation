@@ -3,7 +3,7 @@
 //   node tools/legal-check.mjs --staged        only what is staged (the pre-commit hook)
 //   node tools/legal-check.mjs --history [rev] every file of every commit that rev reaches (default HEAD)
 //   node tools/legal-check.mjs --install-hook  make git run this before each commit here (core.hooksPath = .githooks)
-//   add --repo <dir> to check another checkout (tools/export-public.mjs does, with the current rules)
+//   (rev may be a range, a..b: tools/publish.mjs checks only the commits it is about to push)
 // Exit code 1 if anything is refused. It cannot recognise a screenshot or a recording of the game; docs/LEGAL.md says what a
 // contributor must not add, and an exception goes in tools/legal-allow.json with its provenance.
 import fs from 'node:fs';
@@ -54,8 +54,7 @@ export function checkText(file, text) {
   return null;
 }
 
-let repo = root; // the checkout that is checked: this one, or another one given with --repo (tools/export-public.mjs)
-const git = (...args) => { const r = spawnSync('git', args, { cwd: repo, encoding: 'buffer', maxBuffer: 1 << 28 }); if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.toString()}`); return r.stdout; };
+const git = (...args) => { const r = spawnSync('git', args, { cwd: root, encoding: 'buffer', maxBuffer: 1 << 28 }); if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.toString()}`); return r.stdout; };
 const lines = buf => buf.toString('utf8').split('\n').filter(Boolean);
 const isText = buf => !buf.subarray(0, 8000).includes(0);
 
@@ -70,7 +69,6 @@ function checkFile(file, read, size) {
 }
 
 function run(argv) {
-  if (argv.includes('--repo')) repo = path.resolve(argv[argv.indexOf('--repo') + 1]);
   if (argv.includes('--install-hook')) {
     const r = spawnSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root });
     console.log(r.status === 0 ? 'git will run tools/legal-check.mjs --staged before each commit.' : 'not a git checkout: nothing installed.');
@@ -99,7 +97,7 @@ function run(argv) {
       ? lines(git('diff', '--cached', '--name-only', '--diff-filter=ACMR'))
       : [...new Set([...lines(git('ls-files')), ...lines(git('ls-files', '--others', '--exclude-standard'))])];
     for (const file of files) {
-      const full = path.join(repo, file);
+      const full = path.join(root, file);
       if (!fs.existsSync(full)) continue;
       const read = () => (staged ? git('show', `:${file}`) : fs.readFileSync(full));
       const bad = checkFile(file, read, fs.statSync(full).size);

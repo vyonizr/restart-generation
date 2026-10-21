@@ -54,8 +54,8 @@ ADR 0001 lets an admin set `RG_GAME` and send their copy to every visitor, at th
 ## Publishing
 
 1. Merge what you want to publish into `development`, and make sure `npm test` passes.
-2. `node tools/export-public.mjs vyonizr <new-folder> <branch>` clones that branch alone as `main`, rewrites every commit's author to the GitHub no-reply address, scrubs the history (`tools/scrub-tree.mjs`: wording that named the original client's classes, an example domain that held the game's name, the authors' real names in files, and the design critique in `.impeccable/critique`, which says the page's look is borrowed from the rights holder's site), drops the link to this checkout, and runs the legal check over every commit. It pushes nothing.
-3. Create the empty repository `vyonizr/restart-generation` on GitHub, without a README or licence, and push that folder by hand.
+2. `node tools/publish.mjs` works in this checkout and only on what isn't published yet. It fetches the public `main` (into `refs/public/main`), matches each published commit to its source commit, and rewrites only the newer ones on top: every author becomes the GitHub no-reply address, the files are scrubbed (`tools/scrub-tree.mjs`: wording that named the original client's classes, an example domain that held the game's name, the authors' real names in files), and the design critique in `.impeccable/critique`, which says the page's look is borrowed from the rights holder's site, is left out. Then it runs the legal check and looks for real names, addresses and keys in the new commits, and shows them. It pushes nothing.
+3. Read the list, then run `node tools/publish.mjs --push`. It pushes only when the checks pass, and never with force: if the public `main` has a commit it can't match, it stops. The first time, against an empty repository, it rewrites the whole branch.
 4. Other local branches are not published. Some of them hold reference screenshots of third-party websites and must never be.
 5. The Notices dialog links to the source at https://github.com/vyonizr/restart-generation, as the GPL asks. If the repository ever moves, change `SOURCE` in `web/ui/NoticesDialog.svelte`.
 

@@ -1,8 +1,7 @@
-// Rewrites, in the files of the checkout it runs in (docs/LEGAL.md, ADR 0018): wording that names the original client's classes, an
-// example domain that holds the game's name, and the real names of the source's authors (RG_SCRUB_NAMES, a JSON array, replaced by
-// RG_SCRUB_TO). tools/export-public.mjs runs it on every commit of the published history, with `git filter-branch --tree-filter`
-// and --drop, which also deletes DROP; run it by hand without --drop in this checkout to see what it would change. It only changes
-// comments and prose. It never touches docs/re, which describes the original on purpose.
+// Rewrites wording that names the original client's classes, an example domain that holds the game's name, and the real names of the
+// source's authors (docs/LEGAL.md, ADR 0018). tools/publish.mjs applies scrub() to every file of every published commit that
+// scrubbable() accepts, and leaves the DROP folders out. Run it by hand in this checkout to see what it would change (then git diff).
+// It only changes comments and prose. It never touches docs/re, which describes the original on purpose.
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -51,7 +50,7 @@ export const RULES = [
 ];
 
 // Folders that stay in the working checkout but not in the published history: a design critique that says the page's look is borrowed
-// from the rights holder's site. Deleted only with --drop.
+// from the rights holder's site.
 export const DROP = ['.impeccable/critique'];
 
 export function scrub(text, names = [], to = '') {
@@ -63,20 +62,20 @@ export function scrub(text, names = [], to = '') {
 
 const TEXT = /\.(js|mjs|cjs|md|svelte|json|html|css|yml|yaml|c|java|sh|txt|svg|example)$|(^|\/)(Caddyfile|Dockerfile|pre-commit)$/i;
 
+// Whether a file at this repository path gets scrubbed.
+export const scrubbable = rel => TEXT.test(rel) && !rel.startsWith('docs/re/') && rel !== 'tools/scrub-tree.mjs' && rel !== 'tools/legal-check.test.mjs';
+
 if (import.meta.url === new URL(`file:///${process.argv[1]?.replace(/\\/g, '/')}`).href) {
-  // Only the files git has in this checkout's index: in a filter-branch run that is the commit being rewritten, and by hand it
-  // leaves ignored folders (tmp/, other worktrees) alone.
+  // Only the files git has in this checkout's index, so that ignored folders (tmp/, other worktrees) are left alone.
   const listed = spawnSync('git', ['ls-files', '-z'], { cwd: process.cwd(), encoding: 'utf8', maxBuffer: 1 << 28 });
   if (listed.status !== 0) { console.error('scrub-tree: not a git checkout'); process.exit(1); }
   const root = process.cwd();
-  const names = JSON.parse(process.env.RG_SCRUB_NAMES || '[]'), to = process.env.RG_SCRUB_TO || '';
   let changed = 0;
-  if (process.argv.includes('--drop')) for (const dir of DROP) if (fs.existsSync(path.join(root, dir))) { fs.rmSync(path.join(root, dir), { recursive: true, force: true }); changed++; }
   for (const rel of listed.stdout.split('\0').filter(Boolean)) {
-    if (!TEXT.test(rel) || rel.startsWith('docs/re/') || rel === 'tools/scrub-tree.mjs' || rel === 'tools/legal-check.test.mjs') continue;
+    if (!scrubbable(rel)) continue;
     const file = path.join(root, rel);
     if (!fs.existsSync(file)) continue;
-    const text = fs.readFileSync(file, 'utf8'), next = scrub(text, names, to);
+    const text = fs.readFileSync(file, 'utf8'), next = scrub(text);
     if (next !== text) { fs.writeFileSync(file, next); changed++; if (process.argv.includes('--verbose')) console.log('scrubbed', rel); }
   }
   console.log(`scrub-tree: ${changed} change(s)`);
