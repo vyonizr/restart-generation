@@ -1,4 +1,4 @@
-// JS versions of the engine's hottest drawing loops, installed as traps at their original addresses
+// JS versions of the engine's hottest loops, mostly drawing, installed as traps at their original addresses
 // (0x10xxxxxx). Each one leaves memory, registers and flags as the guest code would, except the dead
 // stack below ESP that the guest's own calls would have scribbled on.
 export function installFastPaths(cpu, addr) {
@@ -227,5 +227,190 @@ export function installFastPaths(cpu, addr) {
       return toward(d, rd(pal + (s & 0xfff) * 4), a, r[2]);
     });
     dv.setInt32(esp + 0x20, 0, true); dv.setInt32(esp + 0x24, a, true); r[0] = 0;
+  });
+
+  // The span routines as plain functions of (sprite, dst, src, count, alpha), for the sprite blitters
+  // below to call instead of "call [sprite+0x68]". Each draws nothing when count isn't positive.
+  // Blends each color channel of d toward s by a/256 and clears the top byte.
+  const fade = (d, s, a) => {
+    const dg = (d >>> 8) & 255, dl = d & 0xff00ff;
+    return ((Math.imul(((s >>> 8) & 255) - dg, a) & 0xffffff00) + (dg << 8)) | (((Math.imul((s & 0xff00ff) - dl, a) >>> 8) + dl) & 0xff00ff);
+  };
+  const spans = new Map([
+    // FUN_1009f2c0: copies at alpha 0xff, else fades toward the source at alpha.
+    [addr(0x1009f2c0), (self, dst, src, count, alpha) => {
+      if (alpha === 0xff) { if (count > 0) m8.copyWithin(dst >>> 0, src >>> 0, (src >>> 0) + count * 4); return; }
+      for (; count > 0; count--, dst = (dst + 4) | 0, src = (src + 4) | 0) wr(dst, fade(rd(dst), rd(src), alpha));
+    }],
+    // FUN_1009f340: blends at the source pixel's alpha, scaled by alpha below 0xff.
+    [addr(0x1009f340), (self, dst, src, count, alpha) => {
+      for (; count > 0; count--, dst = (dst + 4) | 0, src = (src + 4) | 0) {
+        const s = rd(src);
+        wr(dst, toward(rd(dst), s, alpha === 0xff ? s >>> 24 : Math.imul((s >>> 24) + 1, alpha) >>> 8, 0));
+      }
+    }],
+    // FUN_1009f8c0: the source is a palette index and alpha. At alpha 0xff it blends toward the palette color
+    // as FUN_1009f340 does; below, it fades toward it by source alpha * alpha / 256.
+    [addr(0x1009f8c0), (self, dst, src, count, alpha) => {
+      if (count <= 0) return;
+      const pal = rd(rd(self + 0x48) + 8);
+      for (; count > 0; count--, dst = (dst + 4) | 0, src = (src + 4) | 0) {
+        const s = rd(src), color = rd(pal + (s & 0xfff) * 4);
+        wr(dst, alpha === 0xff ? toward(rd(dst), color, s >>> 24, 0) : fade(rd(dst), color, Math.imul(s >>> 24, alpha) >>> 8));
+      }
+    }],
+  ]);
+  // The sprite's span routine fn; one without a JS version runs in the guest, with ECX the sprite.
+  const spanOf = fn => spans.get(fn) ?? ((self, dst, src, count, alpha) => { r[1] = self; cpu.call(fn, [dst, src, count, alpha]); });
+  // Copies a run's second segment straight to the screen, as the blitters do when the sprite's +0x64 byte is set.
+  const copy = (dst, src, bytes) => { if (bytes > 0) m8.copyWithin(dst >>> 0, src >>> 0, (src >>> 0) + bytes); };
+
+  // The row loop of the run-length sprite blitter FUN_100a1880 (0x100a1900-0x100a1a04), for a frame inside
+  // the clip; docs/re/re_render.md has the data format and the stack slots. Each run steps over transparent
+  // pixels, then passes its two segments to the span routine, or copies the second.
+  const exitSprite = addr(0x100a1a04);
+  cpu.traps.set(addr(0x100a1900), c => {
+    const esp = r[4] >>> 0, S = o => rd(esp + o);
+    const self = r[5], data = S(0x10), dst = S(0x1c), shift = S(0x20), pitch = S(0x24);
+    const width = rd(self + 0x50), height = rd(self + 0x54), alpha = rd(self + 0x60), straight = m8[(self + 0x64) >>> 0] !== 0;
+    const span = spanOf(rd(self + 0x68) >>> 0);
+    let row = S(0x28), at = r[3], off = r[7], x = 0, mid = 0, n2 = 0, ran = false;
+    do {
+      x = 0;
+      if (width > 0) {
+        do {
+          const skip = rd(data + at * 2), n1 = rd(data + at * 2 + 4);
+          off = (off + skip) | 0; at = (at + 4) | 0;
+          span(self, (dst + off) | 0, data + at * 2, n1 >> shift, alpha);
+          off = (off + n1) | 0; at = (at + (n1 >> 1)) | 0;
+          n2 = rd(data + at * 2); at = (at + 2) | 0; mid = off;
+          if (straight) copy(dst + off, data + at * 2, n2);
+          else span(self, (dst + off) | 0, data + at * 2, n2 >> shift, alpha);
+          off = (off + n2) | 0; at = (at + (n2 >> 1)) | 0;
+          x = (x + (skip >> shift) + (n1 >> shift) + (n2 >> shift)) | 0;
+          ran = true;
+        } while (x < width);
+      }
+      off = (off + ((pitch - width) << shift)) | 0;
+      row = (row + 1) | 0;
+    } while (row < height);
+    c.alu(7, row, height, 32);
+    wr(esp + 0x28, row); wr(esp + 0x30, x);
+    if (ran) { wr(esp + 0x14, mid); wr(esp + 0x2c, n2); }
+    r[0] = row; r[1] = shift; if (width > 0) r[2] = data; r[3] = at; r[6] = height; r[7] = off;
+    c.eip = exitSprite;
+  });
+
+  // The clipped variant FUN_100a1a40 first walks the rows above the clip without drawing
+  // (0x100a1ae0-0x100a1b30), only to move its data index past them.
+  const exitSkipped = addr(0x100a1b30);
+  cpu.traps.set(addr(0x100a1ae0), c => {
+    const esp = r[4] >>> 0, width = rd(esp + 0x2c), shift = r[5], data = r[7];
+    let rows = rd(esp + 0x1c), at = r[3], x = 0;
+    do {
+      x = 0;
+      if (width > 0) {
+        do {
+          const skip = rd(data + at * 2), n1 = rd(data + at * 2 + 4);
+          at = (at + 4 + (n1 >> 1)) | 0;
+          const n2 = rd(data + at * 2);
+          at = (at + 2 + (n2 >> 1)) | 0;
+          x = (x + (skip >> shift) + (n1 >> shift) + (n2 >> shift)) | 0;
+        } while (x < width);
+      }
+      rows = (rows - 1) | 0;
+    } while (rows !== 0);
+    if (width > 0) { c.alu(7, x, width, 32); r[2] = rd(esp + 0x38); } else c.alu(4, width, width, 32);
+    c.dec(1, 32);
+    wr(esp + 0x1c, 0);
+    r[1] = width; r[3] = at; r[6] = x;
+    c.eip = exitSkipped;
+  });
+
+  // Then its drawing row loop (0x100a1b70-0x100a1d7a): the same runs, each segment cut to the clip's left
+  // and right edges before it is drawn.
+  const exitClippedSprite = addr(0x100a1d7a);
+  cpu.traps.set(addr(0x100a1b70), c => {
+    const esp = r[4] >>> 0, S = o => rd(esp + o);
+    const self = r[6], data = S(0x14), dst = S(0x28), pitch = S(0x30), x0 = S(0x34), shift = r[5];
+    const width = rd(self + 0x50), clipLeft = rd(self + 0x38), clipRight = rd(self + 0x3c), alpha = rd(self + 0x60);
+    const straight = m8[(self + 0x64) >>> 0] !== 0, span = spanOf(rd(self + 0x68) >>> 0);
+    // Cuts a segment of n pixels, x pixels into the row, to the clip: returns the pixels left to draw, and sets
+    // `lead` to those cut off on the left, which the source and the screen skip.
+    let lead = 0;
+    const clip = (x, n) => {
+      const from = (x0 + x - clipLeft) | 0, over = (x0 + x + n - clipRight) | 0;
+      lead = from < 0 ? Math.min(-from | 0, n) : 0;
+      return ((over < 0 ? n : Math.max((n - over) | 0, 0)) - lead) | 0;
+    };
+    let rows = S(0x20), at = r[3], off = r[0], x = 0, n2 = 0, bytes = 0, cut = 0, stored = 0, step = 0, before = 0, ran = false;
+    do {
+      if (width > 0) {
+        x = 0;
+        do {
+          const skip = rd(data + at * 2), n1bytes = rd(data + at * 2 + 4), n1 = n1bytes >> shift;
+          off = (off + skip) | 0; at = (at + 4) | 0; x = (x + (skip >> shift)) | 0;
+          if (n1bytes > 0) {
+            const count = clip(x, n1);
+            span(self, (dst + off + (lead << shift)) | 0, data + (at + (lead << (shift - 1))) * 2, count, alpha);
+          }
+          off = (off + n1bytes) | 0; at = (at + (n1bytes >> 1)) | 0; x = (x + n1) | 0;
+          bytes = rd(data + at * 2); n2 = bytes >> shift; at = (at + 2) | 0; cut = 0;
+          if (bytes > 0) {
+            const count = clip(x, n2), to = (dst + off + (lead << shift)) | 0, from = data + (at + (lead << (shift - 1))) * 2;
+            cut = lead;
+            if (straight) copy(to, from, count << shift);
+            else span(self, to, from, count, alpha);
+          }
+          stored = (off + (cut << shift)) | 0;
+          off = (off + bytes) | 0; at = (at + (bytes >> 1)) | 0; x = (x + n2) | 0;
+          ran = true;
+        } while (x < width);
+      }
+      step = (pitch - width) << shift; before = off; off = (off + step) | 0;
+      rows = (rows - 1) | 0;
+    } while (rows !== 0);
+    c.alu(0, before, step, 32); c.dec(1, 32);
+    wr(esp + 0x20, 0);
+    if (ran) { wr(esp + 0x18, cut); wr(esp + 0x1c, bytes); wr(esp + 0x2c, stored); wr(esp + 0x38, x); wr(esp + 0x3c, n2); }
+    r[0] = off; r[1] = 0; r[2] = step; r[3] = at;
+    if (width > 0) { r[6] = S(0x10); r[7] = data; }
+    c.eip = exitClippedSprite;
+  });
+
+  // The row loop of FUN_100846d0 (0x100846f1-0x100848a8), which marks the edges of a tile grid. Each nonzero
+  // cell (12 bytes: value, mask, packed sides) gets a mask bit for each neighbor above, below, right and left
+  // (1, 2, 4, 8) that is off the grid or holds another value, and its value in that side's byte of the packed word.
+  const exitEdges = addr(0x100848a8);
+  cpu.traps.set(addr(0x100846f1), c => {
+    const esp = r[4] >>> 0, cols = rd(r[0] + 8), rows = rd(r[0] + 0xc), cells = rd(rd(esp + 0x30) + 4);
+    const differs = (y, x, v) => rd(cells + Math.imul(Math.imul(y, cols) + x, 12)) !== v;
+    let row = r[5], at = 0, mask = 0, down = 0, right = 0, last = 0;
+    do {
+      for (let col = 0; col < cols; col++) {
+        at = Math.imul(Math.imul(cols, row) + col, 12);
+        const v = rd(cells + at);
+        mask = 0; down = 0; right = 0;
+        if (v === 0) continue;
+        let up = 0, left = 0;
+        if (row < 1 || differs(row - 1, col, v)) { mask |= 1; up = v; }
+        if (row + 1 >= rows || differs(row + 1, col, v)) { mask |= 2; down = v; }
+        if (col + 1 >= cols || differs(row, col + 1, v)) { mask |= 4; right = v; }
+        if (col < 1 || differs(row, col - 1, v)) { mask |= 8; left = v; }
+        wr(cells + at + 4, mask);
+        wr(cells + at + 8, (((up << 8 | down) << 8 | right) << 8) | left);
+        last = col + 1;
+      }
+      row = (row + 1) | 0;
+    } while (row < rows);
+    c.alu(7, row, rows, 32);
+    wr(esp + 0x18, row);
+    if (cols > 0) {
+      wr(esp + 0x10, mask); wr(esp + 0x1c, down); wr(esp + 0x20, right); wr(esp + 0x28, 0);
+      r[1] = rd(esp + 0x14); r[3] = at;
+    }
+    if (last) wr(esp + 0x24, last);
+    r[2] = rows; r[5] = row; r[6] = 0; r[7] = cols > 0 ? cols : 0;
+    c.eip = exitEdges;
   });
 }

@@ -1,5 +1,5 @@
 // Prints the top 30 functions by self time from the .cpuprofile in <dir>.
-// Usage: node --cpu-prof --cpu-prof-dir=<dir> web/tools/run.mjs ..., then node web/tools/prof.js <dir>
+// Usage: node --cpu-prof --cpu-prof-dir=<dir> web/tools/run.mjs ..., then node web/tools/prof.cjs <dir>
 const fs = require('fs');
 const dir = process.argv[2];
 const f = fs.readdirSync(dir).find(x => x.endsWith('.cpuprofile'));

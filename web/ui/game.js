@@ -16,13 +16,16 @@ import { startOnlineCount } from './online.js';
 
 let ctx, image, rgba;
 
+// Converts the engine's BGRX framebuffer to the canvas's RGBA. About a quarter of battle frames leave the picture as it was,
+// and those skip the upload and the browser's redraw of the screen, which saves phones power.
 function draw(game) {
   const px = game.pixels;
+  let changed = false;
   for (let i = 0; i < px.length; i++) {
-    const v = px[i];
-    rgba[i] = 0xff000000 | ((v & 0xff) << 16) | (v & 0xff00) | ((v >> 16) & 0xff);
+    const v = px[i], c = (0xff000000 | ((v & 0xff) << 16) | (v & 0xff00) | ((v >> 16) & 0xff)) >>> 0;
+    if (rgba[i] !== c) { rgba[i] = c; changed = true; }
   }
-  ctx.putImageData(image, 0, 0);
+  if (changed) ctx.putImageData(image, 0, 0);
 }
 
 // A one-line notice under the pad when the device can't run the game at full speed.
@@ -204,6 +207,8 @@ export function startGame(canvas) {
   ctx = canvas.getContext('2d');
   image = ctx.createImageData(WIDTH, HEIGHT);
   rgba = new Uint32Array(image.data.buffer);
+  // A browser may drop a hidden page's canvas; the first frame after it returns is always uploaded.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) rgba.fill(0); });
   main(canvas).catch(e => fail("The game couldn't start with this copy.", e));
 }
 
