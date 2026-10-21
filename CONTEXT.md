@@ -138,6 +138,10 @@ _Avoid_: round, stage
 The countdown each player sees during a phase; when it runs out, the phase ends for that player.
 _Avoid_: turn timer, player timeout
 
+**Forced end**:
+The server ending a phase, or a turn in the player-turns phase, that no player ended: 30 s after the phase time limit, or, in a friendly match run without phase time limits, 3 minutes after it began (1 minute for cannons).
+_Avoid_: timeout, stall timer
+
 **Battle template**:
 The starting state of a battle for one level and player count, captured from the engine.
 _Avoid_: map file, level data
