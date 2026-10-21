@@ -62,6 +62,7 @@ Run `npm install` once, copy `.env.example` to `.env` in the repo root and set `
 - `npm run dev:web`: serves the page while a gateway runs: a style change swaps in place, a script or component change reloads the page. It forwards `/snap`, `/status`, `/auth`, `/bots` and `/game` to port 8080 (or `HTTP_PORT`).
 - `npm run dev`: restarts the server on file changes.
 - `npm test`: the self-checks that need no local data and no built page.
+- `npm run backup`: copies the accounts database into `data/backups/` while the server runs, keeping the newest 7 (`-- --keep <n>`). In Docker: `docker compose exec rg npm run backup`.
 
 To start the server alone, once the page is built:
 
@@ -144,6 +145,8 @@ The image doesn't contain the game files (ADR 0001), and it builds the page in a
 
 ### On the internet (Caddy)
 
+For the whole procedure on a VPS, from a bare host to updates and backups, see [docs/DEPLOY.md](docs/DEPLOY.md). What follows is the short version for a host that is ready.
+
 `compose.yaml` runs the server behind [Caddy](https://caddyserver.com), which gets and renews the HTTPS certificate by itself, redirects http to https, and forwards the client's address (the server's `RG_TRUST_PROXY`, on by default here, reads it). The server publishes no port of its own, so Caddy is the only way in. The page needs HTTPS for features such as the screen wake lock, and Discord needs an `https://` address.
 
 1. Point your domain's DNS `A` (and `AAAA`, if you have IPv6) record at the host, and open ports 80 and 443 (443 for UDP too, for HTTP/3) in its firewall. Nothing else on the host may use 80 or 443.
@@ -202,6 +205,8 @@ To capture one on Windows:
 The game has 6 maps, each in a 2-, 3- and 4-player version (18 levels).
 
 ### Back up and restore
+
+Accounts have their own backup, `npm run backup`, which is safe while the server runs: see [Back up the accounts](docs/DEPLOY.md#7-back-up-the-accounts).
 
 Keep a private copy of `data/templates/` (about 6 KB compressed for 6 templates), and never put it in the public repository. Make the archive after every capture:
 
