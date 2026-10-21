@@ -13,8 +13,8 @@ const g = require('./gameblob');
 const DATA = path.join(__dirname, '..', 'data');
 const ZIP = 'battle-templates.zip';
 const START_DEADLINE_MS = 40000;  // Mac FUN_000cd7ee
-const OVERTIME_MS = 30000;        // forced EndTurn this long after the phase limit (FUN_1000ddf0)
-const RELAXED_MS = 180000;        // forced EndTurn this long after a phase starts on a relaxed table
+const OVERTIME_MS = 30000;        // forced end this long after the phase time limit (FUN_1000ddf0)
+const RELAXED_MS = 180000;        // forced end this long after a phase starts in a relaxed match
 const RELAXED_CANNON_MS = 60000;  // same for phase 5, where a shot count the server can't know stalls the table
 const BOT_IDLE_MS = 15000;        // a live bot acts about 4 s into a phase; a bot silent this long is defeated
 const SUSPECT_MS = 30000;         // a person who sat out the previous phase, or was skipped in phase 4, is presumed defeated this far into a phase
@@ -129,7 +129,7 @@ function shuffledSeats(n, api) {
 let templates;
 const seatCounts = () => new Set((templates ??= loadTemplates()).map(t => t.seats));
 
-// A relaxed table sends -1 phase time limits, so clients show no countdown and only the server ends a
+// A relaxed match sends -1 phase time limits, so clients show no countdown and only the server ends a
 // stalled phase. api.templates replaces data/templates (tests use made-up ones, battle.fixture.js).
 function createTable(seats, api, relaxed = false) {
   const fit = (api.templates ?? (templates ??= loadTemplates())).filter(t => t.seats === seats);
@@ -239,15 +239,15 @@ const lapsed = (table, p) => step(table.turn, table.phase) - p.seen >= 10;
 const waited = (table, ms) => table.now() - table.phaseStart > ms;
 // - A person who left the previous tile or cannon phase unfinished (no order, or shots still owed), or whom
 //   the clients skipped in this turn's phase 4 (the way they skip a defeated player), is presumed defeated
-//   after a longer wait. A defeat costs one forced phase at most: the first one, where nothing yet shows it.
+//   after a longer wait. A defeat costs at most one forced end: in the first phase where nothing yet shows it.
 const suspect = (table, p) => {
   if (table.phase === 5) return p.seen < step(table.turn, 2) || p.skipped === table.turn;
   return table.phase === 2 && (p.seen < step(table.turn - 1, 5) || (table.cannons > 0 && table.turn > 1 && p.fired5 !== table.turn - 1));
 };
-// Phases 2 and 5 only. In phase 4 the server never ends or skips a turn on silence: a silent player may be defeated
-// (the clients skipped it) or only stopped (a sleeping phone; the clients still wait for it), and the server can't
-// tell which. It follows the clients instead, on the first order of a later phase, or ends the turn by force.
-// Waiting for no one at all ends the phase at once (lose).
+// Phases 2 and 5 only. In phase 4 the server never ends or skips a turn on silence: a silent player may be a defeated player
+// (the clients skip them) or a stopped player (the clients still wait for them), and the server can't
+// tell which. It follows the clients instead, on the first order of a later phase, or the forced end ends the turn.
+// Waiting for no one at all ends the phase at once (see `lose`).
 const goneWhy = (table, p) => lapsed(table, p) ? 'silent for a whole turn'
   : p.bot && waited(table, BOT_IDLE_MS) ? `a bot silent for ${BOT_IDLE_MS / 1000} s`
   : suspect(table, p) && waited(table, SUSPECT_MS) ? 'presumed defeated' : null;
@@ -308,7 +308,7 @@ function lose(table, p, api) {
   table.ended4.delete(p.team);
   if (!table.started || table.finished) return;
   if (table.phase === 2 || table.phase === 5) return endIfAllDone(table, api);
-  // Phase 4: if the leaver held the last turn, every client has moved on to phase 5 by itself (re_rules.md section 3).
+  // Phase 4: if the player who lost held the last turn, every client has moved on to phase 5 by itself (re_rules.md section 3).
   if (table.phase === 4 && alive(table).length && alive(table).every(o => table.ended4.has(o.team))) {
     report(table, api, `seat ${p.team} lost holding the last turn: following the clients to phase 5`);
     enterPhase(table, table.turn, 5);

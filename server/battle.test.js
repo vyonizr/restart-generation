@@ -1,4 +1,4 @@
-// Self-check for the battle host with fake clients: node server/battle.test.js
+// Self-check for the server's battles (server/battle.js) with fake clients: node server/battle.test.js
 // Uses made-up templates (battle.fixture.js); with --real, the ones in data/templates and data/battle-templates.zip (docs/HOSTING.md).
 const assert = require('assert');
 const battle = require('./battle');
@@ -55,7 +55,7 @@ assert.deepEqual([ack.body.readInt32LE(0), ack.body.readInt32LE(4)], [1, 1]);
 const [fwd] = take(b);
 assert.deepEqual([fwd.type, fwd.sender, fwd.seq, [...fwd.body]], [gm.TYPE.PLACE_TILE, 1, 1, [1, 2, 3]]);
 
-// b ends its tile phase: everyone gets EndTurn for (1, 2) and the host moves to phase 4.
+// b ends its tile phase: everyone gets EndTurn for (1, 2) and the server moves to phase 4.
 fromClient(host, b, { seq: 1, type: gm.TYPE.END_TURN_REQUEST, sender: 2, turn: 1, phase: 2 });
 for (const s of [a, b]) assert.deepEqual(take(s).map(m => [m.type, m.turn, m.phase]), [[gm.TYPE.END_TURN, 1, 2]]);
 assert.equal(host.phase, 4);
@@ -97,13 +97,13 @@ send(c, 1, 2, gm.TYPE.END_TURN_REQUEST, 1, 4); send(d, 2, 2, gm.TYPE.END_TURN_RE
 send(c, 1, 3, gm.TYPE.FIRE_CANNON, 1, 5); send(c, 1, 4, gm.TYPE.FIRE_CANNON, 1, 5);
 send(d, 2, 3, gm.TYPE.FIRE_CANNON, 1, 5); send(d, 2, 4, gm.TYPE.FIRE_CANNON, 1, 5);
 assert.deepEqual([trio.turn, trio.phase], [2, 2]);
-// Turn 2: d was active last turn, so phase 2 still waits for it, until the forced EndTurn.
+// Turn 2: d was active last turn, so phase 2 still waits for it, until the forced end.
 send(c, 1, 5, gm.TYPE.PLACE_TILE, 2, 2);
 assert.equal(trio.phase, 2, 'stopped waiting for d too early');
 trio.phaseStart = 0;
 battle.tick(trio, api);
 assert.equal(trio.phase, 4);
-// Every client skips d's turn; c's first shot moves the host to phase 5. d has now been silent for a
+// Every client skips d's turn; c's first shot moves the server to phase 5. d has now been silent for a
 // whole turn, so phase 5 ends after c's last shot.
 send(c, 1, 6, gm.TYPE.FIRE_CANNON, 2, 5);
 assert.equal(trio.phase, 5);
@@ -134,12 +134,12 @@ cpuTable.phaseStart = Date.now() - 16000;
 battle.tick(cpuTable, api);
 assert.deepEqual([cpuTable.turn, cpuTable.phase], [2, 2]);
 
-// A relaxed table sends no phase time limits and forces the end of a phase only after 3 minutes (1 minute in phase 5).
+// A relaxed match sends no phase time limits and forces the end of a phase only after 3 minutes (1 minute in phase 5).
 const calm = inSeatOrder(battle.createTable(2, api, true));
 const [e, f] = [client('e'), client('f')];
 for (const s of [e, f]) {
   battle.seat(calm, s, api);
-  assert(g.parseGame(take(s)[0].body.subarray(4)).timeLimit.every(l => l === -1), 'relaxed table sent a limit');
+  assert(g.parseGame(take(s)[0].body.subarray(4)).timeLimit.every(l => l === -1), 'relaxed match sent a limit');
   fromClient(calm, s, join(s.name));
 }
 take(e); take(f);
@@ -198,7 +198,7 @@ for (const [name, list] of environments) assert(new Set(list).size > 1, `every t
 
 // Every table gets its own battle seed, in the Game and in the snapshot's copy of the RNG; the rest of the
 // template reaches the clients unchanged. The expected bytes are built here from the RNG layout (i, j, 11, then
-// the 11 state words), not by the host's code.
+// the 11 state words), not by the server's code.
 const rngLayout = r => Buffer.concat([new Int32Array([r.i, r.j, 11]), new Uint32Array(r.state)].map(a => Buffer.from(a.buffer)));
 const seen = new Set();
 for (let n = 0; n < 12; n++) {
@@ -232,7 +232,7 @@ for (let n = 0; n < 40; n++) {
 }
 assert.deepEqual([...firstSeats].sort(), [1, 2], 'the first player to join always got the same seat');
 
-// Phase 4: when the player holding the last turn leaves, every client is already in phase 5, so the host follows.
+// Phase 4: when the player holding the last turn leaves, every client is already in phase 5, so the server follows.
 const left4 = inSeatOrder(battle.createTable(3, api));
 const [m1, m2, m3] = ['m1', 'm2', 'm3'].map(client);
 let mseq = 0;
@@ -244,8 +244,8 @@ assert.equal(left4.phase, 4, 'm3 still holds the turn');
 battle.leave(left4, left4.players[2], api);
 assert.deepEqual([left4.turn, left4.phase], [1, 5]);
 
-// Phase 4: a team that was silent for a whole turn may be defeated (the clients skip it) or only stopped (they wait
-// for it); the host can't tell, so it neither skips nor ends that turn on silence. It follows the clients instead.
+// Phase 4: a seat that was silent for a whole turn may be a defeated player (the clients skip them) or a stopped player
+// (they wait for them); the server can't tell, so it neither skips nor ends that turn on silence. It follows the clients instead.
 const gap = inSeatOrder(battle.createTable(3, api));
 const [n1, n2, n3] = ['n1', 'n2', 'n3'].map(client);
 for (const s of [n1, n2, n3]) { battle.seat(gap, s, api); fromClient(gap, s, join(s.name)); }
@@ -259,14 +259,14 @@ say(gap, n1, 1, gm.TYPE.PLACE_TILE, 2, 2); say(gap, n2, 2, gm.TYPE.PLACE_TILE, 2
 assert.equal(gap.phase, 4, 'n3 has been silent for a whole turn');
 say(gap, n1, 1, gm.TYPE.END_TURN_REQUEST, 2, 4); say(gap, n2, 2, gm.TYPE.END_TURN_REQUEST, 2, 4);
 gap.phaseStart = Date.now() - 16000; battle.tick(gap, api);
-assert.equal(gap.phase, 4, 'silence alone moved the host past n3\'s turn');
+assert.equal(gap.phase, 4, 'silence alone moved the server past n3\'s turn');
 say(gap, n1, 1, gm.TYPE.FIRE_CANNON, 2, 5); // the clients skipped the defeated n3 and are in phase 5
 assert.deepEqual([gap.turn, gap.phase], [2, 5]);
 say(gap, n1, 1, gm.TYPE.FIRE_CANNON, 2, 5); say(gap, n2, 2, gm.TYPE.FIRE_CANNON, 2, 5); say(gap, n2, 2, gm.TYPE.FIRE_CANNON, 2, 5);
 assert.deepEqual([gap.turn, gap.phase], [3, 2], 'phase 5 waited for the silent n3');
 
 // A person who left turn 1's cannon phase unfinished is presumed defeated, and phase 2 stops waiting for them
-// after 30 s: 3 minutes on a relaxed table would look like a hang.
+// after 30 s: 3 minutes in a relaxed match would look like a hang.
 const dropout = inSeatOrder(battle.createTable(3, api, true));
 const [r1, r2, r3] = ['r1', 'r2', 'r3'].map(client);
 for (const s of [r1, r2, r3]) { battle.seat(dropout, s, api); fromClient(dropout, s, join(s.name)); }

@@ -110,6 +110,10 @@ _Avoid_: game, round
 A player the computer controls in an online battle, filling a seat no person took. Player-facing text calls it "CPU", the game's own word.
 _Avoid_: CPU (outside player-facing text), AI player, computer
 
+**Person**:
+A player whom a human controls, not a Bot.
+_Avoid_: human player, real player
+
 **AI profile**:
 One of the engine's situational weight sets that decide how a Bot values its moves, such as the default one or the one used while a princess is carried.
 _Avoid_: AI level, strategy
@@ -130,6 +134,10 @@ _Avoid_: quick match game
 A battle between players who gathered in a friendly room; its result changes no stats.
 _Avoid_: private match, custom game
 
+**Relaxed match**:
+A friendly match without phase time limits, on a server whose admin turned them off for friendly matches. Only the forced end stops a phase that no player ends.
+_Avoid_: relaxed table, untimed match
+
 **Phase**:
 One step of a battle turn in which players act: tile placement (all at once), player turns (one at a time), or cannons (all at once).
 _Avoid_: round, stage
@@ -138,12 +146,16 @@ _Avoid_: round, stage
 A player who can no longer win the battle: their castle or princess was captured, or they quit or dropped out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
 _Avoid_: eliminated player, knocked-out player
 
+**Stopped player**:
+A player whose page or Bot sends nothing more while the battle goes on for the others, who still give them their turns: a sleeping phone, a hidden tab, a hung Bot. The server can't tell a stopped player from a defeated one, because both are silent.
+_Avoid_: stalled client, frozen page, stopped page
+
 **Phase time limit**:
 The countdown each player sees during a phase; when it runs out, the phase ends for that player.
 _Avoid_: turn timer, player timeout
 
 **Forced end**:
-The server ending a phase, or a turn in the player-turns phase, that no player ended: 30 s after the phase time limit, or, in a friendly match run without phase time limits, 3 minutes after it began (1 minute for cannons).
+The server ending a phase, or a turn in the player-turns phase, that no player ended: 30 s after the phase time limit, or 3 minutes after it began in a relaxed match (1 minute for cannons).
 _Avoid_: timeout, stall timer
 
 **Battle template**:

@@ -1,13 +1,13 @@
-// Liveness check for the battle host: node server/battle.model.test.js [--real]
-// Model clients play whole battles against the host in simulated time (api.now) with a seeded random source
-// (api.random), so a failure's label reproduces it exactly. A defeated client goes quiet (the host can't see
-// defeats, docs/re/re_rules.md section 5), a person may also quit or drop, and a client may stop (a phone that
+// Liveness check for the server's battles: node server/battle.model.test.js [--real]
+// Model clients play whole battles against the server in simulated time (api.now) with a seeded random source
+// (api.random), so a failure's label reproduces it exactly. A defeated player goes quiet (the server can't see
+// defeats, docs/re/re_rules.md section 5), a person may also quit or drop, and any player may become a stopped player (a phone that
 // sleeps, a hidden tab, a hung bot worker) while its game goes on in everyone else's client. The clients move through phases
-// only on the host's EndTurn messages, as the real ones do, so a host that stalls leaves them stuck. Checked:
+// only on the server's EndTurn messages, as the real ones do, so a server that stalls leaves them stuck. Checked:
 //  - the EndTurns match what the clients expect and reach every player, in one order;
-//  - the host is never ahead of the clients;
-//  - tile and cannon phases end soon after the last living client acted. A defeat or a stopped page costs at most
-//    one forced phase, the first one where nothing yet shows it (see `exempt`); every later phase ends in 32 s;
+//  - the server is never ahead of the clients;
+//  - tile and cannon phases end soon after the last living client acted. A defeat or a stopped player costs at most
+//    one forced end, in the first phase where nothing yet shows it (see `exempt`); every later phase ends in 32 s;
 //  - in the player-turns phase, a turn ends as soon as its player ends it, and a stopped player's turn by the
 //    forced end at the latest.
 // Uses made-up templates (battle.fixture.js); with --real, the 2, 3 and 4-player ones in data/templates and data/battle-templates.zip.
@@ -20,7 +20,7 @@ const { createReader, frames, T } = require('./mt');
 
 const templates = process.argv.includes('--real') ? battle.loadTemplates() : fixture.templates();
 const SEC = 1000;
-const QUIET_BOUND = 32 * SEC; // the host waits 30 s for a presumed-defeated person, one tick of slack
+const QUIET_BOUND = 32 * SEC; // the server waits 30 s for a presumed-defeated person, two ticks of slack
 const TURNS = 4;
 const step = (turn, phase) => turn * 10 + phase;
 const i32 = v => { const b = Buffer.alloc(4); b.writeInt32LE(v); return b; };
@@ -32,8 +32,8 @@ const rng = seed => () => { // mulberry32
 };
 
 // opts: seed, seats, relaxed, bots (per seat), defeats [{ team, turn, phase 4|5, count, how: silent|quit|drop|stop }].
-// An event happens in `phase` of `turn` once `count` phase 4 turns, or phase 5 shots, are done. `stop` is a client
-// that stopped: it sends nothing more, but stays in everyone's game, so the clients still give it turns.
+// An event happens in `phase` of `turn` once `count` phase 4 turns, or phase 5 shots, are done. `stop` makes a
+// stopped player: it sends nothing more, but stays in everyone's game, so the clients still give it turns.
 // Returns how many events happened.
 function play({ seed, seats, relaxed, bots, defeats }) {
   const rand = rng(seed);
@@ -42,7 +42,7 @@ function play({ seed, seats, relaxed, bots, defeats }) {
   const inbox = new Map();
   const api = { log() {}, templates, now: () => clock.t, random: rng(seed ^ 0x5bd1e995), send(s, data) { inbox.get(s).push(...s.read(data)); } };
   const table = battle.createTable(seats, api, relaxed);
-  table?.freeSeats.sort((x, y) => x - y); // bots[i] and the scenarios' teams are seats, so seat players in join order
+  table?.freeSeats.sort((x, y) => x - y); // bots[i] and the scenarios' `team` are seats, so seat players in join order
   assert(table, `no ${seats}-player template`);
   const label = () => `seed ${seed}, ${seats} seats${relaxed ? ', relaxed' : ''}, bots [${bots.map(Number)}], defeats ${JSON.stringify(defeats)}`;
   const fail = text => assert.fail(`${text}\n  ${label()}`);
@@ -64,10 +64,10 @@ function play({ seed, seats, relaxed, bots, defeats }) {
   const sessionOf = new Map(sessions.map(s => [playerOf(s).team, s]));
   const isBot = t => playerOf(sessionOf.get(t)).bot;
 
-  // The clients' game: (turn, phase), the living teams, and what each of them is about to do.
+  // The clients' game: (turn, phase), the living seats, and what each of them is about to do.
   const live = new Set(sessionOf.keys());
-  const stopped = new Set(); // living teams whose page stopped: they act no more, but still get their turns
-  const exempt = new Set(); // steps whose end may wait for the forced EndTurn: the first one a quiet defeat can't show in
+  const stopped = new Set(); // stopped players' seats: they act no more, but still get their turns
+  const exempt = new Set(); // steps whose end may wait for the forced end: the first one a quiet defeat or a stopped player can't show in
   let turn = 1, phase = 2, phaseAt = clock.t, work = 0; // work: when the last planned action of the phase is due
   let plan = [], moved = new Set(), fired = 0, lastMover = 0, happened = 0, over = false;
   const seqs = new Map();
@@ -101,8 +101,8 @@ function play({ seed, seats, relaxed, bots, defeats }) {
     }
     work = Math.max(0, ...plan.map(a => a.at));
   }
-  // Phase 4: the clients give the turn to the next living team, or go on to phase 5 when none is left. A stopped
-  // player's turn passes only when the host's EndTurn comes.
+  // Phase 4: the clients give the turn to the next living seat, or go on to phase 5 when none is left. A stopped
+  // player's turn passes only when the server's EndTurn comes.
   function nextMover() {
     defeatDue();
     if (over) return;
@@ -114,7 +114,7 @@ function play({ seed, seats, relaxed, bots, defeats }) {
     for (let i = between(0, 2); i > 0; i--) plan.push({ at: at += between(SEC, 3 * SEC), team: t, run: () => order(t, gm.TYPE.MOVE_UNIT) });
     plan.push({ at: at += between(SEC, isBot(t) ? 3 * SEC : 8 * SEC), team: t, ends: turn, run: () => { order(t, gm.TYPE.END_TURN_REQUEST); moved.add(t); } });
   }
-  const sync = (what) => { if (step(table.turn, table.phase) !== step(turn, phase)) fail(`${what}: the host is in (${table.turn}, ${table.phase}), the clients in (${turn}, ${phase})`); };
+  const sync = (what) => { if (step(table.turn, table.phase) !== step(turn, phase)) fail(`${what}: the server is in (${table.turn}, ${table.phase}), the clients in (${turn}, ${phase})`); };
 
   function onEndTurn(t, ph) {
     if (t !== turn || ph !== phase) fail(`EndTurn (${t}, ${ph}) reached clients in (${turn}, ${phase})`);
@@ -142,7 +142,7 @@ function play({ seed, seats, relaxed, bots, defeats }) {
       if (!live.has(a.team) || stopped.has(a.team)) continue;
       a.run(); drain();
       if (a.ends !== undefined && !over && phase === 4 && turn === a.ends && lastMover === a.team) {
-        fail(`seat ${a.team} ended its turn in (${turn}, 4), and the host didn't pass it on`);
+        fail(`seat ${a.team} ended its turn in (${turn}, 4), and the server didn't pass it on`);
       }
       defeatDue();
     }
@@ -150,13 +150,13 @@ function play({ seed, seats, relaxed, bots, defeats }) {
     battle.tick(table, api); drain();
     defeatDue();
     if (over) break;
-    if (step(table.turn, table.phase) > step(turn, phase)) fail(`the host is ahead of the clients: (${table.turn}, ${table.phase}) vs (${turn}, ${phase})`);
+    if (step(table.turn, table.phase) > step(turn, phase)) fail(`the server is ahead of the clients: (${table.turn}, ${table.phase}) vs (${turn}, ${phase})`);
     if (phase === 2 || phase === 5) {
-      // A forced EndTurn counts from when the host entered the phase, which can be as late as a client's first order.
+      // A forced end counts from when the server entered the phase, which can be as late as a client's first order.
       const bound = exempt.has(step(turn, phase)) ? table.forceAfter[phase] + work + 2 * SEC : Math.max(work, QUIET_BOUND);
       if (clock.t - phaseAt > bound) fail(`phase ${phase} of turn ${turn} still open ${(clock.t - phaseAt) / SEC} s after it began; the last living client acted at ${work / SEC} s`);
     } else if (stopped.has(lastMover) && clock.t - phaseAt > table.forceAfter[4] + 2 * SEC) {
-      fail(`seat ${lastMover}'s client stopped, and its turn in (${turn}, 4) is still open ${(clock.t - phaseAt) / SEC} s later, past the forced end`);
+      fail(`seat ${lastMover}'s player stopped, and its turn in (${turn}, 4) is still open ${(clock.t - phaseAt) / SEC} s later, past the forced end`);
     }
   }
   return happened;

@@ -1,5 +1,5 @@
 // Made-up battle templates for tests, so the battle tests run without data/templates (which come from the game and
-// stay out of the repository). They hold only what the battle host reads: one castle per seat, the phase time limits,
+// stay out of the repository). They hold only what the server reads: one castle per seat, the phase time limits,
 // the cannon rule, and the snapshot's copy of the Game's RNG. The rest is zeros and empty lists, no game data.
 const g = require('./gameblob');
 
@@ -27,7 +27,7 @@ function template(seats, name) {
   };
   const pad = Buffer.alloc(16, 0x5a);
   const snapshot = { battlefield: Buffer.concat([pad, g.rngBytes(rng), pad]), players: Buffer.alloc(8, 1), third: Buffer.alloc(8, 2), b28: 0, b29: 0, i30: 0 };
-  // Through the codecs both ways, as loadTemplates() reads real ones, so a field the host needs can't be missing.
+  // Through the codecs both ways, as loadTemplates() reads real ones, so a field the server needs can't be missing.
   return { name, game: g.parseGame(g.writeGame(game)), snapshot: g.parseSnapshot(g.writeSnapshot(snapshot)), rngAt: pad.length, seats };
 }
 
