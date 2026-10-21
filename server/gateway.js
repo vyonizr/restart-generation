@@ -358,7 +358,8 @@ http.createServer((req, res) => {
   if (url.startsWith('/game/')) {
     const data = Object.hasOwn(gameFiles, url.slice(6)) && gameFiles[url.slice(6)];
     if (!data) { res.writeHead(404); return res.end('not found'); }
-    res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-cache' });
+    // The size lets the page show its download as a percentage (web/ui/gamefiles.js).
+    res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': data.length, 'Cache-Control': 'no-cache' });
     return res.end(data);
   }
   let file;

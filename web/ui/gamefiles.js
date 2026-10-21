@@ -46,14 +46,32 @@ function gameStore(mode, op) {
 export const forgetCopy = () => gameStore('readwrite', s => s.delete('game'));
 
 // Files served next to the page, as server/gateway.js does from RG_GAME. Null if the host has none.
+// The status line shows the download as a percentage of the bytes. gameplay.pak alone is half of them, so counting files
+// would look stuck there. The sizes come from HEAD requests first; if any size is missing, it counts files instead.
 async function fetchFiles() {
+  const heads = await Promise.all(FILES.map(name => fetch(GAME_URL + name, { method: 'HEAD' }).catch(() => null)));
+  const sizes = heads.map(h => (h?.ok ? Number(h.headers.get('Content-Length')) : 0));
+  const total = sizes.every((s, i) => s > 0 || !heads[i]?.ok) ? sizes.reduce((a, b) => a + b, 0) : 0;
+  let got = 0, shown = -1, shownAt = 0;
+  const show = (part, force) => {
+    const pct = Math.min(Math.floor(100 * part), 100), now = performance.now();
+    if (pct <= shown || (!force && now - shownAt < 100)) return; // never backwards, at most every 100 ms
+    shown = pct; shownAt = now;
+    page.status = `Loading game files… ${pct}%`;
+  };
   const files = {};
-  let done = 0;
-  for (const name of FILES) {
+  for (const [i, name] of FILES.entries()) {
     const res = await fetch(GAME_URL + name);
     if (!res.ok) { if (OPTIONAL.has(name)) continue; return null; }
-    files[name] = new Uint8Array(await res.arrayBuffer());
-    page.status = `Loading game files… ${++done}/${FILES.length}`;
+    if (!total || !res.body) files[name] = new Uint8Array(await res.arrayBuffer());
+    else {
+      const chunks = [], reader = res.body.getReader();
+      for (let r; !(r = await reader.read()).done;) { chunks.push(r.value); got += r.value.length; show(got / total); }
+      const data = files[name] = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+      let at = 0;
+      for (const c of chunks) { data.set(c, at); at += c.length; }
+    }
+    show(total ? got / total : (i + 1) / FILES.length, i === FILES.length - 1);
   }
   return files;
 }
