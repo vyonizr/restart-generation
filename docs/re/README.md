@@ -18,6 +18,7 @@ These notes are ours, written in our own words (docs/LEGAL.md). They name functi
 | `re_rules.md` | ServerBattleLogic rules: turn structure, turn timer, game end and results. |
 | `re_settings.md` | The settings file: its layout, the custom keys it holds, and what a rebind does. |
 | `re_quit.md` | How the engine reports Quit through `tick`, and what the Java client did then. |
+| `re_render.md` | The run-length sprite blitters, their data format and span routines, the tile grid edge pass, and the loop states `web/emu/fast.js` reproduces. |
 
 ### Names used in the notes
 
