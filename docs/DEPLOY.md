@@ -1,12 +1,12 @@
 # Deploy to a VPS
 
-This is the whole procedure for a public server on one VPS: Docker, Caddy for HTTPS, and Discord sign-in. The README's [On the internet (Caddy)](../README.md#on-the-internet-caddy) holds the short version for a host that is ready; this adds what comes before and after it.
+This is the whole procedure for a public server on one VPS: Docker, Caddy for HTTPS, and Discord sign-in. [On the internet (Caddy)](HOSTING.md#on-the-internet-caddy) in `HOSTING.md` holds the short version for a host that is ready; this adds what comes before and after it.
 
 > **Status.** Run once on a PC with Docker Desktop, at `RG_DOMAIN=localhost` with test Discord values, from a fresh folder holding `compose.yaml`, the `Caddyfile`, a `.env` and `data/templates/`. That worked: the build, the start, the log line in step 6, `/status`, the http to https redirect, the `/admin/` 404 (with the gateway itself answering 401 behind it), `npm run backup` through `docker compose exec -T` with its pruning, the restore, the no-template refusal, and the game-zip section (the refusal without `RG_CONTACT`, enabling, switching off). **Not checked, because it needs a real VPS:** steps 1 and 2 (SSH, `ufw`, updates, DNS), a real certificate (localhost uses Caddy's own authority), the Discord round trip, the cron line, and the `chown` (Docker Desktop doesn't enforce who owns `data`). Run it on the VPS once, fix what is wrong, then delete this paragraph.
 
 The steps leave out `RG_GAME_PATH`, so each player chooses their own copy of the game (ADR 0001). Sending the game from your server is a separate decision, with legal consequences, at the [end](#optional-send-the-game-from-your-server).
 
-You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a domain name, and a Discord application (README, [Guests and members](../README.md#guests-and-members)). The commands below that run on your PC are PowerShell; the others run on the VPS.
+You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a domain name, and a Discord application ([Guests and members](HOSTING.md#guests-and-members)). The commands below that run on your PC are PowerShell; the others run on the VPS.
 
 ## 1. Prepare the VPS
 
@@ -73,13 +73,13 @@ cp .env.example .env
 chmod 600 .env
 ```
 
-Edit `.env` (README step 3 explains each line). At least:
+Edit `.env` (step 3 of [On the internet (Caddy)](HOSTING.md#on-the-internet-caddy) explains each line). At least:
 
 ```sh
 RG_DOMAIN=play.example.com
 RG_DISCORD_CLIENT_ID=
 RG_DISCORD_CLIENT_SECRET=
-# The admin's account delete (README, "Delete an account"). A long random value, for example from: openssl rand -hex 24
+# The admin's account delete (docs/HOSTING.md, "Delete an account"). A long random value, for example from: openssl rand -hex 24
 RG_ADMIN_TOKEN=
 ```
 
@@ -139,7 +139,7 @@ sudo chown 1000:1000 data/accounts.db
 docker compose start rg
 ```
 
-(A server without Discord sign-in keeps `accounts-names.db` instead.) Back up `data/templates/` too, as the README says in [Back up and restore](../README.md#back-up-and-restore).
+(A server without Discord sign-in keeps `accounts-names.db` instead.) Back up `data/templates/` too, as [Back up and restore](HOSTING.md#back-up-and-restore) says.
 
 ## 8. Update
 
@@ -169,7 +169,7 @@ If the schema changed between the two, restore the backup from before the update
 - Logs: `docker compose logs -f --tail 100 rg`.
 - Restart the server: `docker compose restart rg`. It loads the battle templates only at start.
 - Stop everything: `docker compose down`. The data stays in `data/`, and the certificates in a volume.
-- Delete an account: README, [Delete an account](../README.md#delete-an-account).
+- Delete an account: [Delete an account](HOSTING.md#delete-an-account).
 
 ## Optional: send the game from your server
 

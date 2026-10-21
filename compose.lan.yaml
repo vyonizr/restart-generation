@@ -1,5 +1,5 @@
 # The server for a private network, or this PC only: name-only login, every story and hero open, bots when RG_GAME_PATH is set.
-# Run it with `docker compose -f compose.lan.yaml up -d --build`. For the internet use compose.yaml. See "Run in Docker" in the README.
+# Run it with `docker compose -f compose.lan.yaml up -d --build`. For the internet use compose.yaml. See "Run in Docker" in docs/HOSTING.md.
 services:
   rg:
     build: .

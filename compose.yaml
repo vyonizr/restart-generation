@@ -1,5 +1,5 @@
 # The public server: Caddy serves https://${RG_DOMAIN} with a certificate it gets and renews itself, and is the only way in.
-# The gateway publishes no port. For a private network use compose.lan.yaml instead. See "Run in Docker" in the README.
+# The gateway publishes no port. For a private network use compose.lan.yaml instead. See "Run in Docker" in docs/HOSTING.md.
 services:
   rg:
     build: .
@@ -9,7 +9,7 @@ services:
     environment:
       # Set only if RG_GAME_PATH is set: the server then sends that game copy to every visitor. A public server never runs bots.
       RG_GAME: ${RG_GAME_PATH:+/game}
-      # Guests and members: all three are needed (see the README). The address defaults to the domain Caddy serves.
+      # Guests and members: all three are needed (see docs/HOSTING.md). The address defaults to the domain Caddy serves.
       RG_DISCORD_CLIENT_ID: ${RG_DISCORD_CLIENT_ID:-}
       RG_DISCORD_CLIENT_SECRET: ${RG_DISCORD_CLIENT_SECRET:-}
       RG_PUBLIC_URL: ${RG_PUBLIC_URL:-https://${RG_DOMAIN:?Set RG_DOMAIN in .env, for example play.example.com}}

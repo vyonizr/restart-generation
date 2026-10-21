@@ -8,7 +8,7 @@ web
 
 ## Users
 
-People who own Reset Generation (RedLynx, 2008) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in the README, not on the page.
+People who own Reset Generation (RedLynx, 2008) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in `docs/HOSTING.md`, not on the page.
 
 ## Product Purpose
 
