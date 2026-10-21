@@ -1,16 +1,18 @@
-// Self-check for the battle host with two fake clients: node server/battle.test.js
-// Needs a 2-player template in data/templates (see tools/rgtrace/import-template.js).
+// Self-check for the battle host with fake clients: node server/battle.test.js
+// Uses made-up templates (battle.fixture.js); with --real, the ones in data/templates (see tools/rgtrace/import-template.js).
 const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
 const battle = require('./battle');
+const fixture = require('./battle.fixture');
 const gm = require('./gamemsg');
 const g = require('./gameblob');
 const { createReader, frames, T } = require('./mt');
 
+const templates = process.argv.includes('--real') ? battle.loadTemplates() : fixture.templates();
+const template = name => templates.find(t => t.name === name);
+
 // Fake gateway: collects what each session receives, decoded back to GameMessages.
 const inbox = new Map();
-const api = { log() {}, send(s, data) { inbox.get(s).push(...s.read(data)); } };
+const api = { log() {}, templates, send(s, data) { inbox.get(s).push(...s.read(data)); } };
 const client = name => { const s = { name, read: createReader() }; inbox.set(s, []); return s; };
 // The scenarios below drive a table in seat order, so they join players in seat order 1, 2, ...
 const inSeatOrder = table => { table?.freeSeats.sort((x, y) => x - y); return table; };
@@ -23,7 +25,7 @@ const fromClient = (host, s, m) => {
 const host = inSeatOrder(battle.createTable(2, api));
 assert(host, 'no 2-player template');
 const [a, b] = [client('a'), client('b')];
-const hero = g.parseGame(fs.readFileSync(path.join(__dirname, '..', 'data', 'templates', `${host.template}.game`))).heroes[1];
+const hero = g.parseGame(host.game).heroes[1];
 const join = name => { const info = g.writeJoinInfo({ type: 0, slot: -1, aiType: 0, color: -1, name, random: 0, hero });
   return { seq: 1, type: gm.TYPE.INIT, sender: 0, body: Buffer.concat([Buffer.from(new Int32Array([info.length]).buffer), info]) }; };
 
@@ -171,7 +173,14 @@ battle.tick(late, api); // seat 1 ran out of time
 fromClient(late, g2, { seq: 2, type: gm.TYPE.END_TURN_REQUEST, sender: 2, turn: 1, phase: 4 });
 assert.equal(late.phase, 5, 'seat 2 could not end its turn after seat 1 was forced');
 
-const templateDir = path.join(__dirname, '..', 'data', 'templates');
+// The same random source gives the same table: template, battle seed, environment and seat order.
+const mulberry = seed => () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const drawn = seed => { const t = battle.createTable(4, { ...api, random: mulberry(seed) });
+  return [t.template, t.seed, g.parseGame(t.game).environment, t.freeSeats.join()]; };
+assert.deepEqual(drawn(7), drawn(7));
+assert.notDeepEqual(drawn(7), drawn(8));
+
 // A table picks its environment (the look of the playfield, 0 to 4) at random, as the engine does when a map names
 // none, whatever environment the template was captured with; everything else stays as captured.
 const environments = new Map(); // template -> environments its tables got
@@ -181,7 +190,7 @@ for (let n = 0; n < 80; n++) {
   assert(Number.isInteger(game.environment) && game.environment >= 0 && game.environment <= 4, `environment ${game.environment}`);
   if (!environments.has(table.template)) environments.set(table.template, []);
   environments.get(table.template).push(game.environment);
-  const was = g.parseGame(fs.readFileSync(path.join(templateDir, `${table.template}.game`)));
+  const was = template(table.template).game;
   assert.deepEqual(game.blocks, was.blocks);
   assert.deepEqual(game.castles, was.castles);
 }
@@ -199,9 +208,9 @@ for (let n = 0; n < 12; n++) {
   const at = bf.indexOf(rng);
   assert(at >= 0 && bf.indexOf(rng, at + 1) < 0, 'the snapshot carries the table\'s RNG exactly once');
   seen.add(rng.toString('hex'));
-  const original = fs.readFileSync(path.join(templateDir, `${table.template}.snap`));
-  const was = g.parseSnapshot(original);
-  const wasRng = rngLayout(g.parseGame(fs.readFileSync(path.join(templateDir, `${table.template}.game`))).rng);
+  const was = template(table.template).snapshot;
+  const original = g.writeSnapshot(was);
+  const wasRng = rngLayout(template(table.template).game.rng);
   assert.equal(table.snap.length, original.length);
   assert.deepEqual([...bf.subarray(0, at)], [...was.battlefield.subarray(0, at)]);
   assert.deepEqual([...bf.subarray(at + rng.length)], [...was.battlefield.subarray(at + rng.length)]);
@@ -223,4 +232,53 @@ for (let n = 0; n < 40; n++) {
 }
 assert.deepEqual([...firstSeats].sort(), [1, 2], 'the first player to join always got the same seat');
 
+// Phase 4: when the player holding the last turn leaves, every client is already in phase 5, so the host follows.
+const left4 = inSeatOrder(battle.createTable(3, api));
+const [m1, m2, m3] = ['m1', 'm2', 'm3'].map(client);
+let mseq = 0;
+const say = (table, s, sender, type, turn, phase) => fromClient(table, s, { seq: ++mseq, type, sender, turn, phase, body: Buffer.from(new Int32Array([3, 4]).buffer) });
+for (const s of [m1, m2, m3]) { battle.seat(left4, s, api); fromClient(left4, s, join(s.name)); }
+[m1, m2, m3].forEach((s, i) => say(left4, s, i + 1, gm.TYPE.PLACE_TILE, 1, 2));
+say(left4, m1, 1, gm.TYPE.END_TURN_REQUEST, 1, 4); say(left4, m2, 2, gm.TYPE.END_TURN_REQUEST, 1, 4);
+assert.equal(left4.phase, 4, 'm3 still holds the turn');
+battle.leave(left4, left4.players[2], api);
+assert.deepEqual([left4.turn, left4.phase], [1, 5]);
+
+// Phase 4: a team that was silent for a whole turn may be defeated (the clients skip it) or only stopped (they wait
+// for it); the host can't tell, so it neither skips nor ends that turn on silence. It follows the clients instead.
+const gap = inSeatOrder(battle.createTable(3, api));
+const [n1, n2, n3] = ['n1', 'n2', 'n3'].map(client);
+for (const s of [n1, n2, n3]) { battle.seat(gap, s, api); fromClient(gap, s, join(s.name)); }
+[n1, n2, n3].forEach((s, i) => say(gap, s, i + 1, gm.TYPE.PLACE_TILE, 1, 2)); // n3 is defeated right after its tile
+say(gap, n1, 1, gm.TYPE.END_TURN_REQUEST, 1, 4); say(gap, n2, 2, gm.TYPE.END_TURN_REQUEST, 1, 4);
+for (const n of [1, 2]) for (let i = 0; i < 2; i++) say(gap, [n1, n2][n - 1], n, gm.TYPE.FIRE_CANNON, 1, 5);
+assert.deepEqual([gap.turn, gap.phase], [1, 5], 'n3 may still owe shots: nothing shows it is defeated yet');
+gap.phaseStart = Date.now() - 51000; battle.tick(gap, api);
+assert.deepEqual([gap.turn, gap.phase], [2, 2]);
+say(gap, n1, 1, gm.TYPE.PLACE_TILE, 2, 2); say(gap, n2, 2, gm.TYPE.PLACE_TILE, 2, 2);
+assert.equal(gap.phase, 4, 'n3 has been silent for a whole turn');
+say(gap, n1, 1, gm.TYPE.END_TURN_REQUEST, 2, 4); say(gap, n2, 2, gm.TYPE.END_TURN_REQUEST, 2, 4);
+gap.phaseStart = Date.now() - 16000; battle.tick(gap, api);
+assert.equal(gap.phase, 4, 'silence alone moved the host past n3\'s turn');
+say(gap, n1, 1, gm.TYPE.FIRE_CANNON, 2, 5); // the clients skipped the defeated n3 and are in phase 5
+assert.deepEqual([gap.turn, gap.phase], [2, 5]);
+say(gap, n1, 1, gm.TYPE.FIRE_CANNON, 2, 5); say(gap, n2, 2, gm.TYPE.FIRE_CANNON, 2, 5); say(gap, n2, 2, gm.TYPE.FIRE_CANNON, 2, 5);
+assert.deepEqual([gap.turn, gap.phase], [3, 2], 'phase 5 waited for the silent n3');
+
+// A person who left turn 1's cannon phase unfinished is presumed defeated, and phase 2 stops waiting for them
+// after 30 s: 3 minutes on a relaxed table would look like a hang.
+const dropout = inSeatOrder(battle.createTable(3, api, true));
+const [r1, r2, r3] = ['r1', 'r2', 'r3'].map(client);
+for (const s of [r1, r2, r3]) { battle.seat(dropout, s, api); fromClient(dropout, s, join(s.name)); }
+[r1, r2, r3].forEach((s, i) => say(dropout, s, i + 1, gm.TYPE.PLACE_TILE, 1, 2));
+[r1, r2, r3].forEach((s, i) => say(dropout, s, i + 1, gm.TYPE.END_TURN_REQUEST, 1, 4));
+for (const [s, n] of [[r1, 1], [r2, 2]]) for (let i = 0; i < 2; i++) say(dropout, s, n, gm.TYPE.FIRE_CANNON, 1, 5);
+say(dropout, r3, 3, gm.TYPE.FIRE_CANNON, 1, 5); // r3's castle falls to r2's shots after its first
+dropout.phaseStart = Date.now() - 61000; battle.tick(dropout, api);
+assert.deepEqual([dropout.turn, dropout.phase], [2, 2]);
+say(dropout, r1, 1, gm.TYPE.PLACE_TILE, 2, 2); say(dropout, r2, 2, gm.TYPE.PLACE_TILE, 2, 2);
+dropout.phaseStart = Date.now() - 29000; battle.tick(dropout, api);
+assert.equal(dropout.phase, 2, 'waited less than 30 s for r3');
+dropout.phaseStart = Date.now() - 31000; battle.tick(dropout, api);
+assert.equal(dropout.phase, 4, 'r3 is presumed defeated');
 console.log('battle host ok');
