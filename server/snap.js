@@ -11,6 +11,8 @@ const CMD_FLAGS = [2051, 4228, 2048, 137441053697, 1026, 2336478988293, 13744000
   137438953589, 4217, 4218, 2178, 4227, 4229, 8326, 8327, 412316863689, 35046933921994,
   0x20000020cc, 114941, 412316863789, 8495, 8497, 8498, 1334, 2359].map(BigInt);
 
+// The password keys: what an unmodified Java client scrambles with and an original gateway unscrambles with, so this server can serve
+// that client (ADR 0002). The browser doesn't use them; it sends a plain base64 password and no K (see parseRequest).
 const KEYS = ['318838622AB4EAF53C47A99A7E1D6D6F992212B1F0D55E11C9D1E23865586B78',
   'E39022408F7555A6D72E1FA3919543A0A5F372D252DDA646EAEB7826A3A4851F',
   '31EC97F2DD25C3AE7DC2DF3A4BC21431D32DB86F300B4B6BC96480293CF117E4',
@@ -68,7 +70,7 @@ function frame(type, seq, payload = Buffer.alloc(0)) {
 }
 
 // Parses "R=1&A=..&V=..&S=..&K=..&C=126&P1=..". Values are not URL-encoded.
-// Params come back decoded: base64 params as Buffers, scrambled params as strings.
+// Params come back decoded: base64 params as Buffers, scrambled params as strings. A scrambled param sent without K is plain base64.
 function parseRequest(text) {
   const kv = {};
   for (const part of text.split('&')) {
@@ -83,6 +85,8 @@ function parseRequest(text) {
     const n = Number(k.slice(1));
     if (kv.K !== undefined && bit(flags, n - 1 + 36)) {
       params[n] = unscramble(Buffer.from(v, 'base64'), Number(kv.K)).toString('utf8');
+    } else if (bit(flags, n - 1 + 36)) {
+      params[n] = Buffer.from(v, 'base64').toString('utf8');
     } else if (bit(flags, n - 1 + 12)) {
       params[n] = Buffer.from(v, 'base64');
     } else {

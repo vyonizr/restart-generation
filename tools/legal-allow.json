@@ -1,0 +1,24 @@
+{
+  "_": "Exceptions to tools/legal-check.mjs (docs/LEGAL.md). Every entry says where the file comes from. A file that is not here and is not text is refused.",
+  "media": {
+    "web/fonts/anton.woff2": "Anton, SIL Open Font License 1.1 (web/fonts/OFL-anton.txt)",
+    "web/fonts/raleway.woff2": "Raleway, SIL Open Font License 1.1 (web/fonts/OFL-raleway.txt)",
+    "web/fonts/roboto-mono.woff2": "Roboto Mono, SIL Open Font License 1.1 (web/fonts/OFL-robotomono.txt)",
+    "web/public/favicon.svg": "Drawn for this project: the letters RG in Anton on a dark square",
+    "web/public/favicon.ico": "Made from favicon.svg",
+    "web/public/icon-512.png": "Made from favicon.svg: the Discord application icon",
+    "web/public/apple-touch-icon.png": "Made from favicon.svg",
+    "web/public/wake.mp4": "Generated for this project: a few seconds of black video that keeps a phone awake (wake.js)",
+    "web/wake.mp4": "The same generated video, kept where the page's source expects it"
+  },
+  "hex": {
+    "server/snap.js": "The password scrambling keys and per-command flags that the original Java client and gateway agree on, kept so this server can serve an unmodified Java client (ADR 0002). Interoperability constants, not code or content.",
+    "web/snap.js": "Only in older commits: the browser client once held the same protocol constants as server/snap.js. It no longer does (ADR 0018)."
+  },
+  "samples": {
+    "tools/legal-check.test.mjs": "Holds samples of what the check refuses (pseudocode, a secret, a local path), to test that it does"
+  },
+  "large": {
+    "package-lock.json": "npm's lock file"
+  }
+}

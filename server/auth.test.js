@@ -8,6 +8,9 @@ assert.strictEqual(configFrom({}).enabled, false);
 assert.strictEqual(configFrom({ RG_DISCORD_INVITE: 'https://discord.gg/abc-123' }).invite, 'https://discord.gg/abc-123');
 assert.strictEqual(configFrom({ RG_DISCORD_INVITE: 'javascript:alert(1)' }).invite, ''); // the page links to it, so only Discord addresses pass
 assert.strictEqual(configFrom({ RG_DISCORD_INVITE: 'https://discord.gg.evil.test/x' }).invite, '');
+assert.strictEqual(configFrom({ RG_CONTACT: 'removals@example.org' }).contact, 'removals@example.org');
+assert.strictEqual(configFrom({ RG_CONTACT: 'https://example.org/contact' }).contact, 'https://example.org/contact');
+for (const bad of ['javascript:alert(1)', 'http://example.org', 'a b@example.org', '<x@example.org>', 'no-at-sign.org', '']) assert.strictEqual(configFrom({ RG_CONTACT: bad }).contact, '', bad); // the page links to it
 assert.strictEqual(configFrom({ RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b' }).enabled, false); // no public address
 assert.strictEqual(configFrom({ RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b', RG_PUBLIC_URL: 'https://x.test/' }).enabled, true);
 

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Refuses a commit that adds what docs/LEGAL.md forbids. Turn it on once per clone with: npm run hooks
+exec node tools/legal-check.mjs --staged

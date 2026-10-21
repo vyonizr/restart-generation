@@ -14,7 +14,7 @@ assert.equal(frames.length, 0);
 assert.deepEqual(frames.map(x => [x.type, x.seq, x.payload.toString()]), [[4, 7, 'R=1&C=0'], [7, 8, '']]);
 assert.equal(rest.length, 0);
 
-// Login: P2 is scrambled with key K, then base64.
+// Login from an original Java client: P2 is scrambled with key K, then base64.
 const pw = scramble(Buffer.from('hunter2'), 5).toString('base64');
 // P10 (presence) is base64: command 1 flags are 0x2000200C01.
 const presence = Buffer.from('SM2.0.1,').toString('base64');
@@ -23,6 +23,10 @@ assert.equal(login.cmd, 1);
 assert.equal(login.params[1], 'bob');
 assert.equal(login.params[2], 'hunter2');
 assert.equal(login.params[10].toString(), 'SM2.0.1,');
+// Login from the browser: P2 is the plain password in base64, with no K.
+const plain = parseRequest(`R=4&V=1.4.4&C=1&P1=bob&P2=${Buffer.from('hunter2').toString('base64')}&P5=42713&P10=${presence}`);
+assert.equal(plain.params[2], 'hunter2');
+assert.equal(plain.params[1], 'bob');
 
 // Game packets: P1 is base64 for command 133.
 const pkt = parseRequest(`R=9&S=abc&C=133&P1=${Buffer.from([1, 2, 255]).toString('base64')}`);

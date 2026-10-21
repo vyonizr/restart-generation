@@ -4,6 +4,8 @@ These notes record how the game's native engine talks to the server. The server 
 
 The repository doesn't include the analysis output the notes were written from: the decompiled C and Java, the disassembly, the extracted Mac binary and the Ghidra projects. That output is derived from RedLynx's copyrighted code, so it isn't published. If you own the game, you can rebuild it from the standalone `.zip`. See [Regenerate the analysis](#regenerate-the-analysis).
 
+These notes are ours, written in our own words (docs/LEGAL.md). They name functions and addresses so that someone with their own copy can find what a note is about, and they describe byte layouts and behaviour because a server has to match them. They must not hold pasted pseudocode, listings, game text or data, and nothing here may be translated line by line into code: write what the original does here first, then implement from the note. The scripts in `tools/re/` and `tools/rgtrace/` only run on a copy of the game that you own. If a rights holder asks, these notes and scripts are the first thing to remove (ADR 0018).
+
 ## Notes
 
 | File | Covers |

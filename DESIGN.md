@@ -191,7 +191,7 @@ The game screen is centred in the main area. Its height is `clamp(300px, 100dvh 
 
 The key legend is one wrapping row: `10px` between rows, `28px` between groups, `6px` between caps and their label.
 
-The footer is a two-column grid (`1fr auto`, `48px` gap): the disclaimer on the left (max `110ch`) and notes right-aligned on the right.
+The footer is a two-column grid (`1fr auto`, `48px` gap): the disclaimer on the left (max `110ch`) and the notes right-aligned on the right: the file note, or on a server that sends the game the notice that it does and where to ask for its removal; on a server with accounts, what it keeps; and the licence line with its links to the licences and to the source.
 
 Below `1000px` wide, the footer stacks into one left-aligned column. Below `760px` wide, the page scrolls. The header shrinks to `64px` with `16px` gutters and hides the words after **Sign in**. Main pads `24px 16px 48px`. The footer stacks into one left-aligned column with `32px 16px` padding.
 
