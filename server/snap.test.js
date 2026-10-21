@@ -1,6 +1,6 @@
 // Self-check for the SNAP codec: node server/snap.test.js
 const assert = require('assert');
-const { readFrames, frame, parseRequest, scramble } = require('./snap');
+const { readFrames, frame, parseRequest } = require('./snap');
 
 // Byte layout of a hello frame with seq 1.
 const hello = Buffer.from('534d4f42' + '00' + '00' + '0001' + '00000000' + '00000000' + '00000000', 'hex');
@@ -14,14 +14,15 @@ assert.equal(frames.length, 0);
 assert.deepEqual(frames.map(x => [x.type, x.seq, x.payload.toString()]), [[4, 7, 'R=1&C=0'], [7, 8, '']]);
 assert.equal(rest.length, 0);
 
-// Login from an original Java client: P2 is scrambled with key K, then base64.
-const pw = scramble(Buffer.from('hunter2'), 5).toString('base64');
+// Login from an original Java client: P2 is scrambled with a key that K selects. It isn't decoded (the server holds no key table); the
+// rest of the request parses as usual.
+const scrambled = Buffer.from([0x8a, 0x13, 0xf0, 0x55, 0x2c, 0x9e, 0x01]).toString('base64');
 // P10 (presence) is base64: command 1 flags are 0x2000200C01.
 const presence = Buffer.from('SM2.0.1,').toString('base64');
-const login = parseRequest(`R=3&V=1.4.4&C=1&K=5&P1=bob&P2=${pw}&P5=42713&P10=${presence}`);
+const login = parseRequest(`R=3&V=1.4.4&C=1&K=5&P1=bob&P2=${scrambled}&P5=42713&P10=${presence}`);
 assert.equal(login.cmd, 1);
 assert.equal(login.params[1], 'bob');
-assert.equal(login.params[2], 'hunter2');
+assert.equal(login.params[2], '');
 assert.equal(login.params[10].toString(), 'SM2.0.1,');
 // Login from the browser: P2 is the plain password in base64, with no K.
 const plain = parseRequest(`R=4&V=1.4.4&C=1&P1=bob&P2=${Buffer.from('hunter2').toString('base64')}&P5=42713&P10=${presence}`);

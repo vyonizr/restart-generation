@@ -5,7 +5,7 @@ The project is published on GitHub and run as a public server (ADRs 0001, 0002).
 - **Licence.** Our code is GPL-3.0-or-later (`LICENSE`), as EKA2L1's is. The fonts and the Svelte runtime keep theirs (`THIRD_PARTY_NOTICES.md`), and the built page serves both as `/licenses.txt`.
 - **History.** Only the `development` branch is published, through `tools/export-public.mjs`, which rewrites every author to a GitHub no-reply address and runs the check over every commit. The other branches stay local; some of them hold reference screenshots of third-party websites.
 - **Rules and a check.** `docs/LEGAL.md` holds the rules for every commit. `tools/legal-check.mjs` enforces the file-level ones in `npm test`, in a pre-commit hook (`npm run hooks`) and in GitHub Actions. `AGENTS.md` points every agent session at the rules.
-- **Protocol code.** `web/snap.js` no longer says it is a port of the Java client or names its classes, its internals use our own vocabulary, and the browser sends a plain base64 password with no `K`, so it carries none of the SDK's password keys. `server/snap.js` accepts that, and keeps the keys for an unmodified Java client.
+- **Protocol code.** `web/snap.js` no longer says it is a port of the Java client or names its classes, its internals use our own vocabulary, and the browser sends a plain base64 password with no `K`, so it carries none of the SDK's password keys. `server/snap.js` accepts that, and holds no key table either: a password scrambled by an unmodified Java client is read as empty, which logs in as before, because a name-only server ignores the password (ADR 0009) and the account token never comes from that client (ADR 0011). A scrambled login was checked against a running gateway.
 - **Serving the game.** ADR 0001 lets an admin send their copy. A `--public` server that does must set `RG_CONTACT`, where a rights holder can ask for its removal, or it won't start; the Notices dialog shows it. No ads, donations or payments on such a server.
 - **Names.** The page stays "Restart Generation" with a footer line, and a Notices dialog, that say it isn't affiliated with RedLynx, Ubisoft or Nokia. Documentation uses `example.com`, not a domain with the game's name.
 - **Privacy.** The README and the Notices dialog of a server with accounts say what is kept: a Discord ID and a name, no email.
@@ -17,12 +17,12 @@ The project is published on GitHub and run as a public server (ADRs 0001, 0002).
 - **Keep the reverse-engineering notes private.** Rejected for now: `docs/re/` is the evidence that this is interoperability work and what a contributor needs to maintain the server. It is the first thing to remove if asked (`docs/LEGAL.md`).
 - **MIT or AGPL.** Rejected: MIT would let a closed commercial fork profit from a fan revival; AGPL asks more of hosts than GPL for little gain here.
 - **Send the game only to signed-in members.** Rejected: it breaks the first-visit flow of ADR 0011 and changes nothing about distribution.
-- **Drop the SDK keys from the server too.** Not possible while an unmodified Java client has to log in (ADR 0002).
+- **Keep the SDK keys in the server for the Java client.** Rejected: the server never needs the password that client scrambles, so the table bought nothing.
 
 ## Consequences
 
 - Publishing can't be undone: what is pushed may be copied. That is why the check runs before it and not after.
-- Older commits of `web/snap.js` still carry the keys and the earlier comments. The check allows that file's hex strings for this reason only (`tools/legal-allow.json`).
+- Older commits of the source checkout still carry the keys. In the published history each is replaced by a digest of it (`tools/scrub-tree.mjs`), and the check allows those hex strings in `server/snap.js` and `web/snap.js` for that reason only (`tools/legal-allow.json`). Old commits of those two files stay self-consistent but no longer match what an original client scrambles.
 - The check can't see a screenshot or a recording of the game. Rule 2 of `docs/LEGAL.md` depends on people.
 - A server that sends the game is still distributing it. The contact and the switch-off make a takedown easy to honour; they don't make the distribution lawful.
 - This is not legal advice. If a notice arrives, follow `docs/LEGAL.md` and get a lawyer before replying.

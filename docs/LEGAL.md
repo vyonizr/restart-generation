@@ -31,7 +31,7 @@ We say so plainly so that nobody has to find it out:
 
 - **The emulator runs RedLynx's engine.** The page and the server execute the original code from a copy the player or the admin supplies (ADR 0003). The repository contains none of it.
 - **`docs/re/` and `tools/re/`** are our notes and scripts about the engine, made by decompiling it. They hold no decompiled code, but they are derived from it (ADR 0001). They are the first thing to remove if asked.
-- **`server/snap.js` keeps the Java client's password keys and command flags**, so that an unmodified Java client can log in (ADR 0002). The browser client no longer carries them (ADR 0018). Older commits of `web/snap.js` still do (the keys are why `tools/legal-allow.json` lists it); the wording that named the original classes is rewritten in the published history by `tools/scrub-tree.mjs`.
+- **`server/snap.js` keeps the original protocol's per-command flags** (which parameters are base64 or scrambled), as wire facts a server has to match. It holds no password keys: an unmodified Java client's scrambled password is read as empty, and any password is accepted with a name only (ADR 0018). Older commits of the source checkout still hold the key table; `tools/scrub-tree.mjs` replaces each key in the published history by a digest of it, and rewrites the wording that named the original classes.
 - **A server that sends the game** (`RG_GAME`) distributes it. See below.
 
 ## Serving the game

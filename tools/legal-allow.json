@@ -12,8 +12,8 @@
     "web/wake.mp4": "The same generated video, kept where the page's source expects it"
   },
   "hex": {
-    "server/snap.js": "The password scrambling keys and per-command flags that the original Java client and gateway agree on, kept so this server can serve an unmodified Java client (ADR 0002). Interoperability constants, not code or content.",
-    "web/snap.js": "Only in older commits: the browser client once held the same protocol constants as server/snap.js. It no longer does (ADR 0018)."
+    "server/snap.js": "Only in older commits: a table of 16 keys for the password scrambling of the original Java client. The tree no longer has it, and the published history holds a digest of each key instead (tools/scrub-tree.mjs). Interoperability constants, not code or content.",
+    "web/snap.js": "Only in older commits: the same key table, as in server/snap.js. The tree no longer has it (ADR 0018)."
   },
   "samples": {
     "tools/legal-check.test.mjs": "Holds samples of what the check refuses (pseudocode, a secret, a local path), to test that it does"

@@ -4,6 +4,7 @@
 // and --drop, which also deletes DROP; run it by hand without --drop in this checkout to see what it would change. It only changes
 // comments and prose. It never touches docs/re, which describes the original on purpose.
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -35,6 +36,18 @@ export const RULES = [
   [/, but it's a port of the Java client's SNAP code, so the engine sees/, ' from docs/protocol.md, so the engine sees'],
   // an example domain that held the game's name
   [/\bresetgeneration\.[a-z0-9-]+\.[a-z]{2,}/g, 'play.example.com'],
+  // The original client's password keys (64 uppercase hex digits in quotes, in older server/snap.js and web/snap.js): each becomes a
+  // digest of itself, so that old commits still unscramble what they scramble but no longer match an original client.
+  [/'[0-9A-F]{64}'/g, m => `'${crypto.createHash('sha256').update(m.slice(1, -1)).digest('hex').toUpperCase()}'`],
+  // design and branch wording that points at the rights holder's site
+  [/The world is inspired by RedLynx: near-black/g, 'The palette is near-black'],
+  [/RedLynx Crimson/g, 'Crimson'],
+  [/OWN-WORLD: Inspired by RedLynx, dark only\./g, 'OWN-WORLD: A dark stage, dark only.'],
+  [/ \(`\.scratch\/redlynx-ui\/issues\/[^`]*`\)/g, ''],
+  [/ The prototype is on branch `prototype\/redlynx-direction`\./g, ''],
+  [/Two of them \(`research\/redlynx-style`, `prototype\/redlynx-direction`\) hold screenshots of RedLynx's website and must never be\./g, 'Some of them hold reference screenshots of third-party websites and must never be.'],
+  [/two of them hold screenshots of RedLynx's website\./g, 'some of them hold reference screenshots of third-party websites.'],
+  [/two branches hold screenshots of RedLynx's website,/g, 'some branches hold reference screenshots of third-party websites,'],
 ];
 
 // Folders that stay in the working checkout but not in the published history: a design critique that says the page's look is borrowed

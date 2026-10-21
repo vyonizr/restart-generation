@@ -21,7 +21,7 @@ const dest = path.resolve(out);
 if (fs.existsSync(dest)) { console.error(`${dest} exists; give a folder that doesn't.`); process.exit(2); }
 
 const run = (cmd, args, opts = {}) => {
-  const r = spawnSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts });
+  const r = spawnSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 29, ...opts });
   if (r.status !== 0) { console.error(`${cmd} ${args.join(' ')} failed:\n${r.stderr || r.stdout}`); process.exit(1); }
   return r.stdout.trim();
 };
@@ -46,12 +46,15 @@ const commits = authors.length;
 const check = spawnSync(process.execPath, [path.join(root, 'tools', 'legal-check.mjs'), '--history', 'HEAD', '--repo', dest], { encoding: 'utf8' });
 process.stdout.write(check.stdout); process.stderr.write(check.stderr);
 // Nothing that the scrub rewrites may be left in any commit (the notes in docs/re, and the files that talk about the scrub, say it on purpose).
-const left = run('git', ['log', '--format=%h', '-G', 'Browser port of the Java|recovered from lib/rg-signed|SNAPMobileClient\\.(processServerError|netBuffer)|ServerComm\'s listener|LoginScreen in the Java|Java applet did|resetgeneration\\.[a-z0-9-]+\\.[a-z]{2,}', '--', '.', ':!docs/re', ':!docs/adr/0018*', ':!docs/LEGAL.md', ':!tools'], { cwd: dest });
+const left = run('git', ['log', '--format=%h', '-G', 'Browser port of the Java|recovered from lib/rg-signed|SNAPMobileClient\\.(processServerError|netBuffer)|ServerComm\'s listener|LoginScreen in the Java|Java applet did|resetgeneration\\.[a-z0-9-]+\\.[a-z]{2,}', '--', '.', ':!docs/re', ':!docs/adr/0018*', ':!docs/LEGAL.md', ':!tools'], { cwd: dest })
+  || run('git', ['log', '--format=%h', '-G', 'screenshots of RedLynx|redlynx-(style|direction|ui)|nspired by RedLynx|Crimson', '--', '.', ':!docs/re', ':!tools'], { cwd: dest });
 const dropped = run('git', ['log', '--format=%h', '--', ...DROP], { cwd: dest });
+// The original client's password keys, as they stand in the source's history: none may be in the result (the scrub replaced them by digests).
+const realKeys = [...new Set(run('git', ['log', '-p', '--format=', '-G', '[0-9A-F]{64}', branch], { cwd: root }).match(/(?<=')[0-9A-F]{64}(?=')/g) || [])];
 // The source commits' real author and committer addresses must appear nowhere in the result: not in an author field (rewritten above),
 // and not in the text of any file in any commit (someone may have put it in a README).
 const realEmails = [...new Set(run('git', ['log', '--format=%ae%n%ce', branch], { cwd: root }).split('\n').filter(Boolean))].filter(e => e !== email);
-const leaked = [...realEmails, ...realNames].filter(s => run('git', ['log', '--format=%h', '-S' + s, '--', '.'], { cwd: dest }) || run('git', ['log', '--format=%h', '-i', '--grep=' + s], { cwd: dest }));
+const leaked = [...realEmails, ...realNames, ...realKeys].filter(s => run('git', ['log', '--format=%h', '-S' + s, '--', '.'], { cwd: dest }) || run('git', ['log', '--format=%h', '-i', '--grep=' + s], { cwd: dest }));
 console.log(`\n${commits} commits on main (from ${branch}) in ${dest}; identities in them: ${[...identities].join(', ')}`);
 console.log(`commits that still hold scrubbed wording: ${left ? left.split('\n').length : 0}; dropped folders still in history: ${dropped ? dropped.split('\n').length : 0}; author names or addresses found in files or messages: ${leaked.length}`);
 if (check.status !== 0 || left || dropped || leaked.length) { console.error('Something above needs fixing in the source checkout (a legal check refusal, wording the scrub missed, or a personal name or address in a file). Export again after; nothing was pushed.'); process.exit(1); }

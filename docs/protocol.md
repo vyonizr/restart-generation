@@ -59,7 +59,7 @@ R=<request id>&A=<acked ids>&V=1.4.4&S=<session id>&K=<key 0-15>&C=<command>&P1=
 - `S` is omitted before login.
 - A per-command flag table decides the encoding of each `Pn`:
   - Bits 12 to 35 mark base64 params (P1 is bit 12).
-  - Bits 36 to 59 mark scrambled params (P1 is bit 36). A scrambled param is base64 of `rotr(b, k & 7) ^ k` per byte, with `k` cycling through one of 16 fixed 32-byte keys selected by `K`. Only the login password uses this.
+  - Bits 36 to 59 mark scrambled params (P1 is bit 36). A scrambled param is base64 of `rotr(b, k & 7) ^ k` per byte, with `k` cycling through one of 16 fixed 32-byte keys selected by `K`. Only the login password uses this. This server doesn't decode it and the key table is not reproduced here (ADR 0018).
   - Bit 11 (`0x800`) selects the long timeout (35 s + 5 s) instead of the short one (15 s + 5 s).
 
 ## Responses (class `r`)
