@@ -6,6 +6,7 @@ export const page = $state({
   start: false,     // the Start button is ready
   recover: false,   // a failure: offer Reload
   forgettable: false, // and, if the stored copy may be at fault, a different copy
+  unsent: false,    // Quit couldn't upload a member's latest saved game: offer Try again or Quit anyway
   playing: false,   // the game is running
   ownCopy: false,   // the player brings their own game files (the footer says so)
   slow: null,       // text of the slow-device notice, once shown

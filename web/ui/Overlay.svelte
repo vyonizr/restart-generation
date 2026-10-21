@@ -1,20 +1,21 @@
-<!-- Over the game screen until the game starts, and again when it fails: what the page is doing, the file picker, Start, and the
-     way out of an error. -->
+<!-- Over the game screen until the game starts, and again when it fails or the player quits: what the page is doing, the file
+     picker, Start, and the way out of an error. -->
 <script>
   import { page } from './page.svelte.js';
   import Who from './Who.svelte';
   import Online from './Online.svelte';
   import { changeName } from './login.js';
   import { chooseZip, chooseFolder } from './gamefiles.js';
-  import { pressStart, reload, useDifferentCopy } from './game.js';
+  import { pressStart, reload, useDifferentCopy, retryQuit } from './game.js';
   import { focusTarget } from './focus.js';
 
-  let zipInput, folderInput, zipButton, startButton, reloadButton;
+  let zipInput, folderInput, zipButton, startButton, reloadButton, retryButton;
 
   // Whatever the page now asks the player to press has focus.
   $effect(() => { if (page.start) startButton?.focus(); });
   $effect(() => { if (page.pick) zipButton?.focus(); });
   $effect(() => { if (page.recover) reloadButton?.focus(); });
+  $effect(() => { if (page.unsent) retryButton?.focus(); });
 </script>
 
 <div id="overlay" hidden={!page.overlay} inert={page.dialogs > 0}>
@@ -36,5 +37,9 @@
   <div id="recover" hidden={!page.recover}>
     <button id="reload" bind:this={reloadButton} onclick={reload}>Reload</button>
     <button id="forget" class="secondary" hidden={!page.forgettable} onclick={useDifferentCopy}>Use a different copy</button>
+  </div>
+  <div id="unsent" hidden={!page.unsent}>
+    <button id="retry-quit" bind:this={retryButton} onclick={retryQuit}>Try again</button>
+    <button id="quit-anyway" class="secondary" onclick={reload}>Quit anyway</button>
   </div>
 </div>

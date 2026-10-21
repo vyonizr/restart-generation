@@ -67,6 +67,12 @@ async function flushNow(keepalive) {
 
 const flush = keepalive => (running = running.then(() => flushNow(keepalive)));
 
+// Quitting: send what is pending and wait for it. False if some of it didn't reach the server.
+export async function upload() {
+  await flush();
+  return pending.size === 0;
+}
+
 // Signing out: send what is pending, then clear this browser's copy so the next guest here doesn't inherit it.
 export async function leave() {
   await flush();

@@ -8,7 +8,7 @@ import { javaKey } from './keys.js';
 import { Audio } from './audio.js';
 import { stayAwake } from './wake.js';
 import { loadFiles, overlaySaved, store, forgetCopy, source } from './gamefiles.js';
-import { syncProgress, track } from './progress.js';
+import { syncProgress, track, upload } from './progress.js';
 import { createAccounts } from './accounts.js';
 import { createNameLogin, showOnlineName } from './login.js';
 import { botQuestion } from './bots.js';
@@ -148,7 +148,8 @@ async function main(canvas) {
       // engine to its next frame. A late frame slows the game instead of bursting catch-up ticks.
       if (game.time < now - t0) {
         while (input.length) input.shift()();
-        game.tick(); snap.pump();
+        const running = game.tick(); snap.pump();
+        if (!running) { clearInterval(slowTimer); quit(saveNow, snap); return; } // the loop stops here: no more ticks, input or saves
         if (game.time < now - t0) t0 = now - game.time; // drop the backlog
         draw(game); // the framebuffer only changes inside a tick
       }
@@ -171,6 +172,25 @@ function fail(message, e, forgettable = true) {
   page.forgettable = forgettable && (source === 'stored' || source === 'picked');
 }
 
+// Quit (CONTEXT.md, docs/re/re_quit.md): the engine has ended, so save, leave Arena and start the page over as a refresh would.
+async function quit(saveNow, snap) {
+  page.playing = false;
+  page.overlay = true; page.start = false;
+  page.status = 'Saving your game…';
+  saveNow();
+  if (snap.loggedIn) await snap.signOut(false).catch(() => {}); // best effort: the server drops a silent session after 45 s
+  await retryQuit();
+}
+
+// A member's latest files must reach the server first, or its older copy wins at the next start (ADR 0014).
+export async function retryQuit() {
+  page.unsent = false;
+  page.status = 'Saving your game…';
+  if (await upload()) return reload();
+  page.status = "Your latest progress didn't reach the server and will be lost if you quit now.";
+  page.unsent = true;
+}
+
 // Starts the page: the canvas is the game screen.
 export function startGame(canvas) {
   ctx = canvas.getContext('2d');
@@ -179,6 +199,6 @@ export function startGame(canvas) {
   main(canvas).catch(e => fail("The game couldn't start with this copy.", e));
 }
 
-// The recovery buttons of the failure screen.
+// The recovery buttons of the failure screen; Reload is also Quit anyway.
 export const reload = () => location.reload();
 export const useDifferentCopy = () => forgetCopy().finally(reload);

@@ -66,6 +66,10 @@ _Avoid_: applet, launcher
 The web page that runs the original engine in an emulator and connects it to Arena.
 _Avoid_: web version, port
 
+**Quit**:
+The player confirming Quit on the game's main menu, which ends the engine; the browser client then starts over as a refresh would. Leaving a battle or leaving Arena is not quitting.
+_Avoid_: exit, close, shut down
+
 **Screen finish**:
 How the browser client shows the game screen: soft, with the pixels smoothed and a faint pixel grid like a 2008 phone's display, or sharp, as the engine drew them. It's on by default and a player's choice, kept in their browser. It changes only how the screen looks, never what the engine draws.
 _Avoid_: filter, shader, CRT mode, retro mode
