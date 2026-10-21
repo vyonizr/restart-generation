@@ -1,6 +1,7 @@
 // Self-check for bot logins: node server/bots.test.js
 // A bot account must come only from this process's key and a running bot's id.
 const assert = require('assert');
+for (const k of Object.keys(process.env)) if (k.startsWith('RG_')) delete process.env[k]; // the shell's .env mustn't change the result
 const bots = require('./bots');
 
 assert.strictEqual(bots.account('CPU_1', ''), null);

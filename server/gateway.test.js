@@ -1,5 +1,6 @@
 // Self-check for idle session expiry and LAN addresses: node server/gateway.test.js
 const assert = require('assert');
+for (const k of Object.keys(process.env)) if (k.startsWith('RG_')) delete process.env[k]; // the shell's .env mustn't change the result
 process.env.RG_DB = ':memory:';
 const { staleSessions, lanAddresses, handle } = require('./gateway');
 

@@ -1,5 +1,6 @@
 // Self-check for the bot question at a friendly Start: node server/casino.test.js
 const assert = require('assert');
+for (const k of Object.keys(process.env)) if (k.startsWith('RG_')) delete process.env[k]; // the shell's .env mustn't change the result
 const { botChoice, fillsWithBots } = require('./casino');
 
 const room = n => ({ lobby: Array(n).fill({}) });

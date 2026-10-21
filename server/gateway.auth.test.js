@@ -1,5 +1,6 @@
 // Self-check for SNAP login on a server with Discord sign-in: node server/gateway.auth.test.js
 const assert = require('assert');
+for (const k of Object.keys(process.env)) if (k.startsWith('RG_')) delete process.env[k]; // the shell's .env mustn't change the result
 Object.assign(process.env, { RG_DB: ':memory:', RG_DISCORD_CLIENT_ID: 'id', RG_DISCORD_CLIENT_SECRET: 'secret', RG_PUBLIC_URL: 'https://x.test' });
 const { handle, db } = require('./gateway');
 
