@@ -277,7 +277,7 @@ if (require.main !== module) return; // tests import the module without starting
 // that never start, so it refuses to start. Any other server only warns: the page and single-player play don't need templates.
 const seatCounts = require('./battle').seatCounts();
 if (!seatCounts.size) {
-  const why = 'no usable battle template in data/templates, so no online battle can start (docs/HOSTING.md: "Battle templates")';
+  const why = 'no usable battle template in data/templates or data/battle-templates.zip, so no online battle can start (docs/HOSTING.md: "Battle templates")';
   if (MODE.public) { console.error(`Refusing to start a --public server: ${why}`); process.exitCode = 1; return; }
   log(`Warning: ${why}`);
 } else {

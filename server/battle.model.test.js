@@ -10,7 +10,7 @@
 //    one forced phase, the first one where nothing yet shows it (see `exempt`); every later phase ends in 32 s;
 //  - in the player-turns phase, a turn ends as soon as its player ends it, and a stopped player's turn by the
 //    forced end at the latest.
-// Uses made-up templates (battle.fixture.js); with --real, the 2, 3 and 4-player ones in data/templates.
+// Uses made-up templates (battle.fixture.js); with --real, the 2, 3 and 4-player ones in data/templates and data/battle-templates.zip.
 const assert = require('assert');
 const battle = require('./battle');
 const fixture = require('./battle.fixture');

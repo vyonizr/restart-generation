@@ -50,21 +50,20 @@ cd restart-generation
 
 ## 4. Send the private files
 
-Battle templates (ADR 0006) come from a capture on your PC and are never in the repository (`docs/LEGAL.md`). Without a usable template the server refuses to start. From the folder on your PC that holds `data/templates/`:
-
-```powershell
-tar -czf rg-templates.tar.gz data/templates
-scp rg-templates.tar.gz <user>@<server>:restart-generation/
-```
-
-On the VPS, in `restart-generation/`:
+Battle templates (ADR 0006) come from a capture on your PC and are never in the repository (`docs/LEGAL.md`). Without a usable template the server refuses to start. On the VPS, in `restart-generation/`, make the `data` folder:
 
 ```sh
-tar -xzf rg-templates.tar.gz && rm rg-templates.tar.gz
-sudo chown -R 1000:1000 data
+mkdir -p data && sudo chown -R 1000:1000 data
 ```
 
-`1000` is the user the container runs as; without it Docker creates `data` as root and the server stops with `EACCES`. Send only `data/templates/`. Leave out the rest of your PC's `data/` (its accounts, `capture.log`, `oracle/`): they are your test data. Make the `.env` on the VPS from the example and don't copy the one from your PC, whose settings (a local address, a Windows path) are wrong here.
+`1000` is the user the container runs as; without it Docker creates `data` as root and the server stops with `EACCES`. Then, from the folder on your PC that holds `data`, zip your templates (see [Back up and restore](HOSTING.md#back-up-and-restore)) and send the zip:
+
+```powershell
+Compress-Archive -Force data\templates data\battle-templates.zip
+scp data\battle-templates.zip <user>@<server>:restart-generation/data/
+```
+
+The server reads `data/battle-templates.zip` as it is. Send only the zip. Leave out the rest of your PC's `data/` (its accounts, `capture.log`, `oracle/`): they are your test data. Make the `.env` on the VPS from the example and don't copy the one from your PC, whose settings (a local address, a Windows path) are wrong here.
 
 ## 5. Configure
 
@@ -139,7 +138,7 @@ sudo chown 1000:1000 data/accounts.db
 docker compose start rg
 ```
 
-(A server without Discord sign-in keeps `accounts-names.db` instead.) Back up `data/templates/` too, as [Back up and restore](HOSTING.md#back-up-and-restore) says.
+(A server without Discord sign-in keeps `accounts-names.db` instead.) Keep `data/battle-templates.zip` as your templates' backup, as [Back up and restore](HOSTING.md#back-up-and-restore) says.
 
 ## 8. Update
 
