@@ -13,6 +13,7 @@ assert.strictEqual(configFrom({ RG_CONTACT: 'https://example.org/contact' }).con
 for (const bad of ['javascript:alert(1)', 'http://example.org', 'a b@example.org', '<x@example.org>', 'no-at-sign.org', '']) assert.strictEqual(configFrom({ RG_CONTACT: bad }).contact, '', bad); // the page links to it
 assert.strictEqual(configFrom({ RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b' }).enabled, false); // no public address
 assert.strictEqual(configFrom({ RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b', RG_PUBLIC_URL: 'https://x.test/' }).enabled, true);
+assert.strictEqual(configFrom({}).guestsPerIpHour, 30); // phones behind one carrier address share it
 
 // The server's mode: --lan is name-only whatever the Discord settings, --public and a plain start use Discord when it is configured,
 // and the two kinds of server keep separate account files.
@@ -100,6 +101,18 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
   await call(auth, 'POST', '/auth/guest', { headers: { 'x-forwarded-for': 'forged, 5.5.5.5' } });
   assert.strictEqual((await call(auth, 'POST', '/auth/guest', { headers: { 'x-forwarded-for': 'other, 5.5.5.5' } })).code, 429);
   assert.strictEqual((await call(auth, 'POST', '/auth/guest', { headers: { 'x-forwarded-for': 'other, 6.6.6.6' } })).code, 200);
+  // One IPv6 /64 network counts as one address, whichever way it is written; an IPv4-mapped address counts as its IPv4 address.
+  ({ auth } = setup({ config: { guestsPerIpHour: 1 } }));
+  assert.strictEqual((await call(auth, 'POST', '/auth/guest', { ip: '2001:db8:0:1::5' })).code, 200);
+  assert.strictEqual((await call(auth, 'POST', '/auth/guest', { ip: '2001:DB8:0000:0001:ffff:1:2:3' })).code, 429);
+  assert.strictEqual((await call(auth, 'POST', '/auth/guest', { ip: '2001:db8::1:2:3:4' })).code, 200); // 2001:db8:0:0, another /64
+  assert.strictEqual((await call(auth, 'POST', '/auth/guest', { ip: '2001:db8:0:0:9::' })).code, 429);
+  assert.strictEqual((await call(auth, 'POST', '/auth/guest', { ip: '7.7.7.7' })).code, 200);
+  assert.strictEqual((await call(auth, 'POST', '/auth/guest', { ip: '::ffff:7.7.7.7' })).code, 429);
+  assert.strictEqual((await call(auth, 'POST', '/auth/guest', { ip: '::ffff:7.7.7.8' })).code, 200);
+  ({ auth } = setup({ config: { guestsPerIpHour: 1, trustProxy: true } }));
+  await call(auth, 'POST', '/auth/guest', { headers: { 'x-forwarded-for': '2001:db8:5:6::1' } });
+  assert.strictEqual((await call(auth, 'POST', '/auth/guest', { headers: { 'x-forwarded-for': '2001:db8:5:6:7::2' } })).code, 429);
 
   // Signing in: a guest with progress becomes a member, keeping its account.
   ({ auth, store, live, removed, who } = setup());

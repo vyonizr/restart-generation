@@ -95,7 +95,7 @@ The following table lists the variables for guests and members:
 | `RG_PUBLIC_URL` | The address players use, such as `https://play.example.com`, with no path. |
 | `RG_DISCORD_INVITE` | Optional. Your community's `https://discord.gg/...` link, which the page shows as **Join the Discord** in its footer. |
 | `RG_TRUST_PROXY` | Set to `1` behind one reverse proxy, so the limit on new guests uses the client address the proxy appends to `X-Forwarded-For`. Leave it unset otherwise: anyone can forge that header. |
-| `RG_GUESTS_PER_IP_HOUR` | New guests one address can make per hour. Default 10. |
+| `RG_GUESTS_PER_IP_HOUR` | New guests one address can make per hour. An IPv6 address's `/64` network counts as one address. Default 30, because phones on one mobile network often share an address. |
 | `RG_GUEST_CAP` | Guest accounts the server holds at once. Default 5,000. |
 
 `RG_DISCORD_CLIENT_ID`, `RG_DISCORD_CLIENT_SECRET`, and `RG_PUBLIC_URL` are all required. With all three set, every player is a guest or a member:

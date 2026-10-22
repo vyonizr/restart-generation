@@ -27,7 +27,7 @@ function configFrom(env) {
     invite: DISCORD_INVITE.test(env.RG_DISCORD_INVITE || '') ? env.RG_DISCORD_INVITE : '',
     contact: CONTACT.test(env.RG_CONTACT || '') ? env.RG_CONTACT : '',
     trustProxy: env.RG_TRUST_PROXY === '1',
-    guestsPerIpHour: Number(env.RG_GUESTS_PER_IP_HOUR || 10),
+    guestsPerIpHour: Number(env.RG_GUESTS_PER_IP_HOUR || 30),
     guestCap: Number(env.RG_GUEST_CAP || 5000),
   };
   config.enabled = Boolean(config.clientId && config.clientSecret && config.publicUrl);
@@ -50,6 +50,17 @@ function modeFrom(argv, env) {
     ignoredDiscord: lan && configured.enabled, // Discord is configured but --lan turns it off
     db: discord ? 'accounts.db' : 'accounts-names.db',
   };
+}
+
+// What the guest limit counts as one address: an IPv6 address's /64 network (the first four groups, after expanding ::), since
+// one subscriber holds a whole /64; an IPv4-mapped IPv6 address (::ffff:a.b.c.d) as its IPv4 address; IPv4 as it is.
+function network(ip) {
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
+  if (mapped) return mapped[1];
+  if (!ip.includes(':')) return ip;
+  const groups = part => (part ? part.split(':') : []).flatMap(g => (g.includes('.') ? ['0', '0'] : [g])); // a dotted tail is two groups
+  const [head, tail] = ip.split('::'), a = groups(head), b = groups(tail);
+  return [...a, ...Array(Math.max(0, 8 - a.length - b.length)).fill('0'), ...b].slice(0, 4).map(g => parseInt(g, 16).toString(16)).join(':') + '::/64';
 }
 
 // Discord's side of the sign-in: the authorization address and the code exchange, asking for `identify` only.
@@ -113,9 +124,9 @@ function createAuth({ store, config, busy, remove, discord = config.enabled ? di
   const ipOf = req => {
     if (config.trustProxy) {
       const last = String(req.headers['x-forwarded-for'] || '').split(',').pop().trim();
-      if (last) return last;
+      if (last) return network(last);
     }
-    return req.socket.remoteAddress || '';
+    return network(req.socket.remoteAddress || '');
   };
   const guestAllowed = ip => {
     const t = now(), recent = (created.get(ip) || []).filter(x => x > t - HOUR);
