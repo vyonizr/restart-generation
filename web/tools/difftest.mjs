@@ -13,7 +13,7 @@ const state = g => {
   return JSON.stringify({ r: [...c.r], eip: c.eip >>> 0, fl: c.lflags, df: c.df, fpu: [...c.fpu.st], top: c.fpu.top, now: g.m.win.now, heap: g.m.heap.top });
 };
 // The CRT security cookie (0x101b725c) is seeded from the wall clock, so it differs between runs.
-const cookie = 0x101b725c - 0x10000000 + 0x400000;
+const cookie = a.m.addr(0x101b725c);
 const memHash = g => { const m = g.m.cpu.m8; m.fill(0, cookie, cookie + 4); return crypto.createHash('sha1').update(m.subarray(0, g.m.heap.top)).digest('hex'); };
 let ta = 0, tb = 0;
 for (let i = 1; i <= ticks; i++) {

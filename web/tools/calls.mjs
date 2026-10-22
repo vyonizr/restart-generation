@@ -2,13 +2,14 @@
 // tick N. Usage: node web/tools/calls.mjs <tick> [maxLines]
 import { loadGame } from './game.mjs';
 import { GameHost } from '../emu/host.js';
+import { ORIGINAL_BASE } from '../emu/machine.js';
 
 const which = +(process.argv[2] || 5), maxLines = +(process.argv[3] || 400);
 const files = await loadGame();
 const g = new GameHost(files, { log: s => console.log('  log:', s) });
 g.boot();
 for (let i = 1; i < which; i++) g.tick(i * 33);
-const cpu = g.m.cpu, base = g.m.pe.base, va = a => ((a >>> 0) - base + 0x10000000).toString(16);
+const cpu = g.m.cpu, base = g.m.pe.base, va = a => ((a >>> 0) - base + ORIGINAL_BASE).toString(16);
 const run = cpu.run.bind(cpu), top = cpu.r[4];
 let lines = 0;
 cpu.run = function (max) {

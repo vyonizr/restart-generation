@@ -2,13 +2,14 @@
 // (as original DLL addresses, 0x10xxxxxx) and the JS-handled calls it makes.
 import { loadGame } from './game.mjs';
 import { GameHost } from '../emu/host.js';
+import { ORIGINAL_BASE } from '../emu/machine.js';
 
 const warm = +(process.argv[2] || 60);
 const files = await loadGame();
 const g = new GameHost(files, { log: s => console.log('  log:', s) });
 g.boot();
 for (let i = 1; i <= warm; i++) g.tick(i * 33);
-const cpu = g.m.cpu, base = g.m.pe.base, va = a => ((a >>> 0) - base + 0x10000000).toString(16);
+const cpu = g.m.cpu, base = g.m.pe.base, va = a => ((a >>> 0) - base + ORIGINAL_BASE).toString(16);
 const seen = [];
 const run = cpu.run.bind(cpu);
 cpu.run = function (max) {

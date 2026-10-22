@@ -9,7 +9,9 @@ import { CPU, ESP } from './cpu.js';
 import { loadPE } from './pe.js';
 import { Traps, Heap, VFS, Win32 } from './win32.js';
 
-export const IMAGE_BASE = 0x400000;
+export const IMAGE_BASE = 0x400000;      // where the engine's image is loaded
+export const ORIGINAL_BASE = 0x10000000; // the engine's own base; every address in docs/re is relative to it
+const STACK_TOP = 0x400000;              // the stack grows down from here
 
 export class Machine {
   // 96 MB: the heap top peaked at 19 MB (title, Arcade battle, online ranked match), rounded up to 32 MB, plus
@@ -24,7 +26,7 @@ export class Machine {
     this.log = log;
     const teb = 0x10000, dv = cpu.dv;
     dv.setInt32(teb, -1, true);              // SEH ExceptionList: empty
-    dv.setUint32(teb + 4, 0x400000, true);   // stack base
+    dv.setUint32(teb + 4, STACK_TOP, true);  // stack base
     dv.setUint32(teb + 8, 0x100000, true);   // stack limit
     dv.setUint32(teb + 0x18, teb, true);     // self
     dv.setUint32(teb + 0x30, 0x11000, true); // PEB
@@ -39,7 +41,7 @@ export class Machine {
   }
   // Address of an export by name, or of a DLL address given as in the original image (0x10xxxxxx).
   addr(nameOrVa) {
-    if (typeof nameOrVa === 'number') return nameOrVa - 0x10000000 + this.pe.base;
+    if (typeof nameOrVa === 'number') return nameOrVa - ORIGINAL_BASE + this.pe.base;
     const a = this.pe.exports.get(nameOrVa);
     if (a === undefined) throw new Error(`no export ${nameOrVa}`);
     return a;
