@@ -45,7 +45,7 @@ const rooms = new Map();    // roomId -> { id, name, max, members: Set<session>,
 let nextRoomId = 1;
 // The native client joins this room after login and talks to the game server through it.
 rooms.set('0', { id: '0', name: 'CasinoSystem', max: 100000, members: new Set(), permanent: true });
-const replies = new Map();  // "<S|addr>:<R>" -> cached response, for client retransmits
+const replies = new Map();  // "<S>:<R>", or "<addr>:<request>" without a session -> cached response, for client retransmits
 
 const authConfig = MODE.config;
 const busy = id => [...sessions.values()].some(s => s.userId === id);
@@ -262,11 +262,13 @@ function handle(req, s, send) {
 }
 
 // One SNAP request (TCP frame payload or HTTP body) -> reply(Buffer). Retransmits get the cached reply.
+// A request without a session (INIT, login) is keyed by its whole text, not by R: behind a proxy every browser has the proxy's
+// address, and two players whose R matched would otherwise get one login reply, session included.
 function processRequest(text, addr, reply) {
   const req = parseRequest(text);
   const s = sessions.get(req.session);
   if (s) s.lastSeen = Date.now();
-  const cacheKey = `${req.session || addr}:${req.rid}`;
+  const cacheKey = req.session ? `${req.session}:${req.rid}` : `${addr}:${text}`;
   if (replies.has(cacheKey)) return reply(replies.get(cacheKey));
   if (req.cmd !== CMD.RETRIEVE_ALL_EVENTS) log(`<- ${s?.name || addr} C=${req.cmd}`, req.cmd === CMD.EXTENDED_LOGIN ? `user=${req.params[1]}` : '');
   handle(req, s, body => {
@@ -281,7 +283,7 @@ function processRequest(text, addr, reply) {
 const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, list]) =>
   list.filter(a => a.family === 'IPv4' && !a.internal).map(a => [name, a.address]));
 
-module.exports = { staleSessions, lanAddresses, handle, db };
+module.exports = { staleSessions, lanAddresses, handle, processRequest, db };
 if (require.main !== module) return; // tests import the module without starting the servers
 
 // Online battles are hosted from captured templates (ADR 0006). A public server without one would let players queue for matches

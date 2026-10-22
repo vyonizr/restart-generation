@@ -2,7 +2,7 @@
 const assert = require('assert');
 for (const k of Object.keys(process.env)) if (k.startsWith('RG_')) delete process.env[k]; // the shell's .env mustn't change the result
 process.env.RG_DB = ':memory:';
-const { staleSessions, lanAddresses, handle } = require('./gateway');
+const { staleSessions, lanAddresses, handle, processRequest } = require('./gateway');
 
 const now = 100000;
 const sessions = new Map([['a', { name: 'gone', lastSeen: now - 46000 }], ['b', { name: 'here', lastSeen: now - 44000 }]]);
@@ -31,3 +31,15 @@ assert.match(names[0], /^200 /);
 assert.match(names[1], /^200 /);
 assert.notStrictEqual(names[0].split('\n')[1], names[1].split('\n')[1]); // a new session each time
 console.log('gateway name login ok');
+
+// Behind a proxy (Caddy) every browser has the proxy's address. Two players whose login R happens to match must each get their
+// own session, and a retransmitted login must get its first reply again, not a second session.
+const proxied = (text) => { let out; processRequest(text, '172.18.0.2', b => { out = b.toString('utf8'); }); return out; };
+const sid = reply => reply.split('\n')[1].split('|')[0];
+const bob = proxied('R=4242&V=1.4.4&C=1&P1=Bob&P2=');
+const carol = proxied('R=4242&V=1.4.4&C=1&P1=Carol&P2=');
+assert.match(bob, /^200 /);
+assert.match(carol, /^200 /);
+assert.notStrictEqual(sid(bob), sid(carol));
+assert.strictEqual(proxied('R=4242&V=1.4.4&C=1&P1=Bob&P2='), bob);
+console.log('gateway shared-address logins ok');
