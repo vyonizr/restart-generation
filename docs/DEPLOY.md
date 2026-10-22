@@ -43,16 +43,16 @@ You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a 
 
 ## 2. Configure DNS
 
-Create an `A` record (and `AAAA` for IPv6) that points your domain straight at the VPS's address, with the provider's proxy turned off ("DNS only"). Don't put a content delivery network or another proxy, such as Cloudflare's proxy (the orange cloud), in front: Caddy sets `X-Forwarded-For` to the visitor's address and the server trusts it (`RG_TRUST_PROXY`), so a second proxy would make every visitor look like one address and share one guest limit. A second proxy can also stop Caddy from getting its certificate.
+Create an `A` record that points your domain straight at the VPS's address, with the provider's proxy turned off ("DNS only"). Create only an `A` record for now, not an `AAAA` record for IPv6: with `compose.yaml` as written, Docker may show every IPv6 visitor as one address, and so give them one shared guest limit. Don't put a content delivery network or another proxy, such as Cloudflare's proxy (the orange cloud), in front: Caddy sets `X-Forwarded-For` to the visitor's address and the server trusts it (`RG_TRUST_PROXY`), so a second proxy would make every visitor look like one address and share one guest limit. A second proxy can also stop Caddy from getting its certificate.
 
 Before you go on, check that the name already points at this VPS, because Caddy asks Let's Encrypt for the certificate as soon as it starts, and a wrong record makes that fail:
 
 ```sh
 getent hosts play.example.com
-curl -s ifconfig.me
+curl -4 -s ifconfig.me
 ```
 
-Replace `play.example.com` with your domain. Both commands print the same address (the first may also print an IPv6 address). If they differ, wait for DNS to update and check again.
+Replace `play.example.com` with your domain. Both commands print the same address. If they differ, wait for DNS to update and check again.
 
 ## 3. Get the code
 

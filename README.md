@@ -106,14 +106,22 @@ Your server starts an online battle only from a battle template. A fresh copy of
 
 ## Play on other devices
 
-A phone, tablet, or other computer on the same network can play the game that your PC serves. Both devices must be on the same private network, such as your home Wi-Fi.
+A phone, tablet, or other computer can play on a public server, or on your own network from a PC that runs the server. Phones and tablets play in portrait, with a touch pad under the game screen. A keyboard on a tablet also works.
+
+### On your own network
+
+Both devices must be on the same private network, such as your home Wi-Fi.
 
 1. Run the server with `npm run start:lan` (not `npm start`).
 
    The server shows one `http://ADDRESS:8080/` line for each network, with the name of the network. `ADDRESS` is your PC's address on that network.
 2. On the other device, open the address of the network that both devices use, such as `http://192.168.1.20:8080/`.
 
-Phones and tablets play in portrait, with a touch pad under the game screen. A keyboard on a tablet also works.
+### On a public server
+
+1. On the phone or tablet, open the server's address, such as `https://play.example.com/`, as you would on a desktop.
+2. Unless the server sends the game, the page asks for your game files: choose the `.zip` on the device.
+3. Select **Start**, and play with the touch pad.
 
 To play with friends over the internet, see [Run the server with Node.js](docs/HOSTING.md#run-the-server-with-nodejs).
 

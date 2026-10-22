@@ -8,7 +8,7 @@ web
 
 ## Users
 
-People who own Reset Generation (RedLynx, 2008) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in [Run a server](docs/HOSTING.md), not on the page.
+People who own Reset Generation (RedLynx, 2008) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet that opens a public server's address or is on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in [Run a server](docs/HOSTING.md), not on the page.
 
 ## Product Purpose
 
@@ -38,7 +38,7 @@ When a server answers, the page shows how many players are online: in the online
 
 - Runs only the Windows standalone build. A player who owns only the Mac copy can't play.
 - Runs in any desktop browser on any operating system. On a keyboard, arrow keys move, Ctrl or Enter selects, Shift goes back, and Esc opens the menu. A keyboard works on every device, including a tablet with one attached. Those are the default keys. A player changes them in the game's own Custom Keys screen, and the page's key legend and touch pad follow their choice (see [custom keys](CONTEXT.md)).
-- Phones and tablets (touch devices) play over the LAN: a PC runs the server with `--lan`, and the device opens the page it serves in Android Chrome or in Safari on iOS and iPadOS. The game plays in portrait with a touch pad under the game screen: a D-pad, with **Select** and **Back** side by side to its right, level with Up; **Keyboard** for typing; **Soft screen** to switch the screen finish; and **Fullscreen** where the browser supports it. Online modes work as on desktop. As of October 2026, the touch layout has been tested only in emulation, not on a real device.
+- Phones and tablets (touch devices) play on a public server over HTTPS, or over the LAN from a PC that runs the server with `--lan`, and open the page in Android Chrome or in Safari on iOS and iPadOS. The game plays in portrait with a touch pad under the game screen: a D-pad, with **Select** and **Back** side by side to its right, level with Up; **Keyboard** for typing; **Soft screen** to switch the screen finish; and **Fullscreen** where the browser supports it. Online modes work as on desktop. As of October 2026, the touch layout has been tested only in emulation, not on a real device.
 - Every story and hero is open from the start only on a server that isn't `--public` ([ADR 0007](docs/adr/0007-patch-the-engine-in-memory.md)); elsewhere they are earned. A member's saved game (story progress, settings, and achievements) is kept on the server, so it follows them across browsers; a guest's stays in one browser ([ADR 0014](docs/adr/0014-a-members-saved-game-is-kept-on-the-server.md)).
 - The game screen is drawn by the engine at 240 × 320; the page frames it and never redraws it. By default, the soft [screen finish](CONTEXT.md) smooths how the screen is shown. The player can switch to sharp, and the engine's output is never altered.
 - The page is built with Vite and Svelte ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)). The server, the emulator, and the other modules Node imports stay plain JavaScript with no build step and no dependencies.
@@ -74,4 +74,4 @@ When a server answers, the page shows how many players are online: in the online
 
 ## Accessibility & Inclusion
 
-The game plays with a keyboard or with the touch pad on phones and tablets, so a player without a keyboard can play too, as long as a PC on their network hosts the game. The touch pad's controls are real buttons with names for screen readers, and the rest of the page still scrolls and zooms on touch devices. If a device runs the game too slowly or lacks the memory for it, the page says so plainly.
+The game plays with a keyboard or with the touch pad on phones and tablets, so a player without a keyboard can play too, on a public server or on a LAN that a PC hosts. The touch pad's controls are real buttons with names for screen readers, and the rest of the page still scrolls and zooms on touch devices. If a device runs the game too slowly or lacks the memory for it, the page says so plainly.

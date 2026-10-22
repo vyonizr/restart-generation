@@ -144,7 +144,7 @@ For the whole procedure on a virtual private server (VPS), from a bare host to u
 
 `compose.yaml` runs the server behind [Caddy](https://caddyserver.com), which gets and renews the HTTPS certificate by itself, redirects HTTP to HTTPS, and forwards the client's address (the server's `RG_TRUST_PROXY`, on by default here, reads it). The server publishes no port of its own, so Caddy is the only way in. The page needs HTTPS for features such as the screen wake lock, and Discord needs an `https://` address.
 
-1. Point your domain's DNS `A` record (and `AAAA` record, if you have IPv6) at the host, and open ports 80 and 443 (443 for UDP too, for HTTP/3) in its firewall. Check that nothing else on the host uses port 80 or 443.
+1. Point your domain's DNS `A` record at the host, and open ports 80 and 443 (443 for UDP too, for HTTP/3) in its firewall. Create no `AAAA` record for now: with `compose.yaml` as written, Docker may show every IPv6 visitor as one address, and so give them one shared guest limit. Check that nothing else on the host uses port 80 or 443.
 2. Register the Discord application as described in [Guests and members](#guests-and-members), with `https://DOMAIN/auth/discord/callback` as its redirect. Replace `DOMAIN` with your domain.
 3. Copy `.env.example` to `.env` in the repository root (it lists every setting, all empty), and fill in at least these:
 
