@@ -35,15 +35,27 @@ const snap = new SnapClient({ url, ui });
 const game = new GameHost(aiProfiles.apply(await loadGame(), deltas), { snap: snap.methods(), patches: [...UNLOCKS, ...AI] });
 snap.attach(game);
 game.boot();
-// FUN_10006840 runs once the battle is over, after the engine has ranked every player (rank 1 won) and
-// before it leaves the table. Its ECX is the ClientBattleLogic: +0x14 the Game (+0x9c turn), +0x1c the stats
-// list (count at +0xc, entry pointers at +0x10, rank at entry +0x134), +0x28 finished, +0x84 own player index.
-if (report) game.watch(0x10006840, c => {
+// The engine calls BATTLE_OVER.CALL (FUN_10006840) once the battle is over, after it has ranked every player
+// (rank 1 won) and before it leaves the table, with the ClientBattleLogic in ECX. The other keys are where the
+// bot reads the result (docs/re/re_rules.md §3.1 and §5, docs/re/re_match.md §3).
+const BATTLE_OVER = {
+  CALL: 0x10006840,
+  FINISHED: 0x28,      // logic: a byte, nonzero once the battle is finished
+  OWN_INDEX: 0x84,     // logic: this client's player index
+  GAME: 0x14,          // logic: the Game
+  TURN: 0x9c,          // Game: the battle turn
+  STATS: 0x1c,         // logic: the per-player stats list
+  STATS_COUNT: 0xc,    // stats list: how many entries it has
+  STATS_ENTRIES: 0x10, // stats list: the entry pointers
+  RANK: 0x134,         // stats entry: the player's rank
+};
+if (report) game.watch(BATTLE_OVER.CALL, c => {
   const at = a => c.dv.getInt32(a >>> 0, true), logic = c.r[1] >>> 0;
-  if (!c.m8[logic + 0x28]) return;
-  const stats = at(logic + 0x1c), list = at(stats + 0x10), ranks = {};
-  for (let i = 0; i < at(stats + 0xc); i++) { const e = at(list + 4 * i); if (e) ranks[i] = at(e + 0x134); }
-  parentPort.postMessage({ ended: { me: at(logic + 0x84), turn: at(at(logic + 0x14) + 0x9c), ranks } });
+  if (!c.m8[logic + BATTLE_OVER.FINISHED]) return;
+  const stats = at(logic + BATTLE_OVER.STATS), list = at(stats + BATTLE_OVER.STATS_ENTRIES), ranks = {};
+  for (let i = 0; i < at(stats + BATTLE_OVER.STATS_COUNT); i++) { const e = at(list + 4 * i); if (e) ranks[i] = at(e + BATTLE_OVER.RANK); }
+  const me = at(logic + BATTLE_OVER.OWN_INDEX), turn = at(at(logic + BATTLE_OVER.GAME) + BATTLE_OVER.TURN);
+  parentPort.postMessage({ ended: { me, turn, ranks } });
 });
 
 const press = k => { game.key(true, VK[k]); game.tick(); snap.pump(); game.key(false, VK[k]); };
