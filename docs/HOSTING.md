@@ -23,7 +23,7 @@ Use the following npm scripts:
 
 - `npm start`, or `npm run start:lan` for `--lan`: starts the server. If `web/dist` is missing, it builds the page first, and if Vite isn't installed, it tells you to run `npm install`.
 - `npm run build`: rebuilds the page after you change anything in `web/`.
-- `npm run dev:web`: serves the page while a gateway runs. A style change swaps in place, and a script or component change reloads the page. It forwards `/snap`, `/status`, `/auth`, `/bots`, and `/game` to port 8080 (or `HTTP_PORT`).
+- `npm run dev:web`: serves the page while a gateway runs. A style change swaps in place, and a script or component change reloads the page. It forwards `/snap`, `/status`, `/auth`, `/bots`, `/replays`, `/replay/ID/data`, and `/game` to port 8080 (or `HTTP_PORT`).
 - `npm run dev`, or `npm run dev:lan` for `--lan`: runs `npm run seed`, then starts a development server that restarts on file changes. It keeps its accounts and replays in `data/dev/`, apart from the files `npm start` uses ([ADR 0023](adr/0023-development-servers-load-seed-accounts.md)).
 - `npm run seed`: upserts the seed accounts from `server/seed.json` into `data/dev/`, with their friends, tokens, saved games, and replays. Stop the development server first, because it doesn't read accounts that change under it. Add `-- --lan` for the name-only files. Add `-- --play` to also play the seed's `played` battles between bots, for replays the engine can play. That needs `RG_GAME` and battle templates, and takes a few minutes for each battle. The other seed replays show their players and result, and about 10 seconds after **Watch** the page says they can't be played.
 
