@@ -1,4 +1,5 @@
-// Account storage (ADR 0010): SQLite through node:sqlite. Every SQL statement in the server lives here.
+// Account storage (ADR 0010): SQLite through node:sqlite. Every account SQL statement in the server lives here; replays have their
+// own file and module (server/replays.js).
 // An account is one object per id for as long as it is cached, so sessions can compare accounts by identity.
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('crypto');

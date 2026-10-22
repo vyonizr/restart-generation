@@ -19,6 +19,7 @@ The following table lists the notes and what each covers:
 | [`re_friends.md`](re_friends.md) | The native friend list, casino friend messages, friendly rooms, and messages that crash the client. |
 | [`re_rules.md`](re_rules.md) | ServerBattleLogic rules: turn structure, phase time limits, game end, and results. |
 | [`re_witness.md`](re_witness.md) | Following a relayed battle with the engine's own battle logic: building it outside the menus, its three patches, feeding it messages, and reading defeats and ranks. |
+| [`re_replay.md`](re_replay.md) | The engine's replay player: player mode, the replay text it reads, playback and seeking, the original player's controls, and the snapshot field a relayed battle must fix to replay as played. |
 | [`re_settings.md`](re_settings.md) | The settings file: its layout, the custom keys it holds, and what a rebind does. |
 | [`re_quit.md`](re_quit.md) | How the engine reports Quit through `tick`, and what the Java client did then. |
 | [`re_render.md`](re_render.md) | The engine's hottest drawing and update routines in a battle: the run-length sprite blitters, their data format and span routines; the scene object draw, its image cache and the run-length image; the curved band; the line blends; the sprung points; the tile grid edge pass; and the loop states `web/emu/fast.js` reproduces. |

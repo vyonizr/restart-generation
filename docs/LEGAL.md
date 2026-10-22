@@ -49,7 +49,7 @@ A `--public` server keeps players' personal data and lets strangers talk to each
 ADR 0001 lets an admin set `RG_SEND_GAME=1` and send their copy, the server copy in `RG_GAME`, to every visitor, at their own risk. A server copy alone sends nothing: the server only runs it ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). A server that sends the game must follow these rules, on top of the rules for every public server:
 
 - Its `RG_CONTACT` is where a rights holder can ask for the game's removal, and the page shows it in its Notices dialog. Answer it: a rights holder who gets no answer writes to your hosting provider or to GitHub instead.
-- The templates in `data/templates/` and `data/battle-templates.zip` are only used by the server and are never sent to a browser. Never commit them, and never publish a backup of `data/`.
+- The templates in `data/templates/` and `data/battle-templates.zip` are only used by the server and are never sent to a browser as they are. A battle's Game blob, made from a template, goes to its players when the battle starts and, in its replay, to anyone with the replay's link ([ADR 0022](adr/0022-replays-send-a-battles-game-blob-to-anyone-with-the-link.md)); `RG_REPLAYS=0` stops the replays. Never commit the templates, and never publish a backup of `data/`.
 - Keep a way to stop at once: unset `RG_SEND_GAME`, with npm or with Docker Compose, and then restart the server.
 - Say nothing that claims the copy is licensed or official.
 

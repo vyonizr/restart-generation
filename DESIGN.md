@@ -142,14 +142,14 @@ The page draws no game art of its own. The only imagery is the engine's screen a
 A near-black blue ink ramp with white text and one saturated crimson.
 
 ### Primary
-- **Crimson** (`crimson`): button fills, the `4px` bar under titles, and text selection. It never sets running text.
+- **Crimson** (`crimson`): button fills, the `4px` bar under titles, text selection, and on the replay page the REPLAY tag, the play button, and the played part of a slider. It never sets running text.
 
 ### Neutral
-- **Deep Ink** (`ink-0`): the screen overlay, at `82%`, one step below the ground.
+- **Deep Ink** (`ink-0`): the screen overlay, at `82%`, one step below the ground, and the replay's control strip.
 - **Stage Ink** (`ink-1`): the page ground, text input fills, and key-cap fills. Also the `theme-color`.
-- **Strip Ink** (`ink-2`): the footer strip, the name dialog, and the touch pad's D-pad and **Back** fills.
-- **Rule Ink** (`ink-3`): the scrollbar thumb and the touch pad's borders.
-- **White** (`white`): primary text, headings, button labels, key-cap labels, the default focus ring, and the primary-button hover fill.
+- **Strip Ink** (`ink-2`): the footer strip, the name dialog, the replay's lower third, and the touch pad's D-pad and **Back** fills.
+- **Rule Ink** (`ink-3`): the scrollbar thumb, the touch pad's borders, and on the replay page the seat squares, the lower third's dividers, the slider tracks, and the quiet controls' borders.
+- **White** (`white`): primary text, headings, button labels, key-cap labels, the default focus ring, the primary-button hover fill, the slider thumbs, and the place chips at the end of a replay.
 - **Pale Steel** (`light-2`): supporting text that still needs to read, such as the status line, the online row, the key legend, secondary button labels, and bold footer text.
 - **Muted Steel** (`light-3`): quiet text, such as form labels, dialog notes, and footer body text. Also the secondary button, text input, and key-cap borders.
 - **Screen Black** (`screen-black`): the game screen's backing, under an `8px` dot grid of white at 16%.
@@ -176,16 +176,18 @@ All three faces are self-hosted as `woff2` and load with `font-display: swap`. A
 - **Button** (Anton 400, `22px`, line height `1`, `0.01em`, uppercase): all buttons. **Start** steps up to `34px`; the small buttons in the header step down to `13px`; dialog buttons step down to `18px`.
 - **Body** (Raleway 400, `16px`, line height `1.8`): the base. The status line uses `15px` at line height `1.7` with a `30ch` measure. The key legend uses `14px`.
 - **Label** (Raleway 500, `13px`, line height `1`): form labels. Dialog notes use Raleway `13px` at line height `1.6`.
-- **Mono** (Roboto Mono): the player's name in the header (500, `13px`), the online count in the online row (400, `15px`, line height `1.6`), and on touch devices the count beside its icon (500, `13px`), the footer (400, `12px`, line height `1.7`, bold runs at 500), and key-cap labels (500, `13px`).
+- **Mono** (Roboto Mono): the player's name in the header (500, `13px`), the online count in the online row (400, `15px`, line height `1.6`), and on touch devices the count beside its icon (500, `13px`), the footer (400, `12px`, line height `1.7`, bold runs at 500), key-cap labels (500, `13px`), and the replay's clock, a measurement (500, `13px`, tabular figures).
 
 ### Named Rules
 **The Display Is Uppercase Rule.** Anton is always uppercase, weight 400, with line height `0.9` for headings and `1` for single-line labels. Headings use `text-wrap: balance`.
 
-**The Mono Is An Aside Rule.** Roboto Mono is limited to the header's name, the online count, the footer, and key caps. Don't use it for headings, buttons, or form text.
+**The Mono Is An Aside Rule.** Roboto Mono is limited to the header's name, the online count, the footer, key caps, and the replay's clock. Don't use it for headings, buttons, or form text.
 
 ## Layout
 
 The page is at least one viewport tall (`min-height: 100dvh`) and clips the ghost name to its box. At common desktop sizes, from about `1280 × 600` up, everything fits without scrolling; shorter or zoomed windows scroll rather than clip. It is a three-row grid: a `72px` header, a centered main area, and a footer strip. The header and footer use `48px` side gutters.
+
+The game page and the replay page share this stage, `web/ui/stage.css` on `base.css`: the page grid, the ghost, the screen with its finish, the overlay, the dialogs, the Soft screen toggle, and the key legend. Each page sets only its screen's size and frame.
 
 The game screen is centered in the main area. Its height is `clamp(300px, 100dvh - 330px, 640px)` at a `3 / 4` aspect ratio, and it is a size container so content inside it scales with `cqi` units. Overlays inside the screen pad by `6cqi`, stack centered with a `3cqh` gap, and scroll if their content is taller than the screen. The file picker carries a one-line hint under its buttons; error states carry **Reload** and, for a stored or chosen copy, **Use a different copy**. After a [quit](CONTEXT.md), the overlay says the game is being saved, and the page then reloads to **Start**; if a member's saved game can't reach the server, the overlay carries **Try again** and a secondary **Quit anyway**. Below the screen sit the online row and the key legend, `18px` apart. The online row shows the online count in its center and the **Soft screen** toggle at its right end. A notice or the offer to sign in replaces the count while it is shown.
 
@@ -208,7 +210,7 @@ In fullscreen (the pad's **Fullscreen** button) the browser pins the page to the
 The page is flat. Depth comes from the ink ramp: `ink-1` ground, `ink-2` for the footer strip and dialog. Two soft, dark shadows lift the only objects that sit above the stage.
 
 ### Shadow Vocabulary
-- **Screen lift** (`box-shadow: 0 2px 16px rgb(0 0 0 / 40%), 0 2px 4px rgb(0 0 0 / 30%)`): the game screen only.
+- **Screen lift** (`box-shadow: 0 2px 16px rgb(0 0 0 / 40%), 0 2px 4px rgb(0 0 0 / 30%)`): the game screen and the replay's battle view only.
 - **Dialog lift** (`box-shadow: 0 2px 16px rgb(0 0 0 / 50%)`): the name dialog over the screen. The notices dialog is the exception: it covers the page (fixed, centered, up to `520px` wide, scrolling inside if the viewport is short) and dims everything else with a `65%` black shade instead of a lift.
 
 ### Named Rules
@@ -231,6 +233,7 @@ Poster-loud and square.
 - **Secondary:** transparent fill, `light-2` label, `light-3` border.
 - **Start:** primary at `34px` with `18px 56px` padding, the single largest action.
 - **Dialog size:** `18px` label with `12px 20px` padding.
+- **Link button:** a link that does a button's job (`a.button`) looks like one, primary or secondary, with the same hover and no underline, such as the replay notice's **Watch replay** and the gone replay's **Play Restart Generation**.
 
 ### Cards / Containers
 - **Name dialog:** `ink-2` fill, square, `24px` padding, `14px` gap, width `min(320px, 86%)`, centered over the screen with the dialog lift. Its title carries the crimson bar. It holds one field, **Player name**, and its actions, **Cancel** and **Play online**, sit right-aligned, `10px` apart, secondary before primary.
@@ -241,6 +244,7 @@ Poster-loud and square.
 - **Online count:** `3 online` in Roboto Mono `15px` in `light-2`, centered in the online row under the game screen, on desktop only; the online row also holds the **Soft screen** toggle at its right end. On a touch device the count moves to the last row of the Start screen's overlay, as a `16px` two-person line icon (`1.4` square-capped stroke in `light-3`) and the number in Roboto Mono `13px` at 500, with "players online" visually hidden for screen readers. Both hide when there is no server to ask, and "0 online" is shown, not hidden. A notice replaces the count while it is up; the toggle stays. The admin's "Join the Discord" link, when set, sits in the footer after the credit line, underlined in `light-2`.
 - **Soft screen toggle:** a pressed-state button for the [screen finish](CONTEXT.md). On desktop it is the right end of the online row, a secondary button at `13px` with `4px 8px` padding labeled **Soft screen**, with an `8px` square before the label, filled while the finish is soft and hollow while it is sharp; pressed, it takes white text and border. Pressing it hands focus back to the game screen, and its keys never reach the game. On a touch device it is a quiet icon in the touch pad (a square cut by a 3 × 3 pixel grid), pressed in white. Its choice is kept in this browser (`rg:finish`), never on the account. It hides under `prefers-contrast: more`.
 - **Notice line:** one line of Raleway `15px` in `light-2` under the screen, with small buttons at `16px` with `8px 14px` padding. It holds sign-in results and the once-a-day offer to sign in after a guest earns fame. It also says "Gamepad connected." for about 3 s when a gamepad becomes the one in use, and "Gamepad disconnected." when that gamepad disconnects during play, until the next key, touch pad, or gamepad press. A gamepad notice never replaces a notice with actions, a pad the page ignores gets neither, and the page has no other gamepad wording.
+- **Replay notice:** after an online battle, the notice line says "This battle is saved as a replay." with a primary link-button **Watch replay**, which opens the replay page in a new tab, a secondary **Copy link**, and a secondary **Dismiss**. **Copy link** keeps the notice and says "Link copied" or "Couldn't copy" for `2.5s`. The notice stays until it is dismissed or the next battle starts.
 - **Slowness notice:** one line of Raleway `13px` in `light-2` under the touch pad, as wide as it, with a secondary **Dismiss** button at `16px` with `6px 12px` padding. It appears at most once per visit.
 
 ### Terms and Privacy policy
@@ -249,6 +253,22 @@ Two reading pages, `/terms` and `/privacy`, on the same stage (`web/ui/doc.css` 
 - **Title:** Anton uppercase at `clamp(48px, 6.4vw, 88px)` with the crimson bar, then "Last changed" in Raleway `13px` `light-3`.
 - **Facts band:** one `ink-2` band, `24px` padding, with three pairs: **Run by**, **Data stored by**, and **Write to**. Labels are the form label (Raleway 500 `13px` `light-3`), values Anton uppercase `20px` in white. Below `1000px` the pairs stack.
 - **Text:** a lede in Raleway `19px` white, then sections whose headings are Anton `30px` with `64px` above and `18px` below. Body is Raleway `16px` at `1.8` in `light-2`; lists use square markers in crimson; links are white with a `light-3` underline that turns white on hover; bold runs are white at 600.
+
+### Replay page
+`/replay/<id>` plays one online battle again, framed as a television replay, on the shared stage (`web/ui/replay.css` on `stage.css`). The engine's `420 × 378` battle view is the screen; the REPLAY tag, the lower third, and the control strip are exactly as wide as it and sit flush under it as one block. Main's gap tightens to `14px`.
+- **Header:** the wordmark, as a white link home, and a secondary **Copy link** at `13px` with `6px 12px` padding. It copies the page's address and says "Link copied" or "Couldn't copy" for `2.5s`.
+- **View:** height `min(clamp(260px, 100dvh - 400px, 640px), (100vw - 96px) × 378 / 420)`, which leaves room for the strip, the facts line, and the legend; below `760px`, `clamp(220px, 100dvh - 320px, 640px)` and `100vw - 32px`. It keeps the screen's dot grid, finish, and lift.
+- **REPLAY tag:** a crimson block `25px` tall standing on the frame's top-left corner, above it, in Anton `15px` uppercase at `0.04em` with `5px 10px` padding. It sits outside the frame so it never covers the engine's corner panel.
+- **Lower third:** an `ink-2` band, one equal cell per seat with `8px 10px` padding and a `10px` gap, cells divided by `1px` `ink-3`. Each cell holds the seat number in a `30px` `ink-3` square (Anton `18px`), then the name in Anton `17px` white uppercase over the hero in Raleway `13px` `light-3`, both cut with an ellipsis. When the view is at most `640px` wide (a container query) and has three or four seats, the band becomes two rows of two.
+- **Control strip:** an `ink-0` band at least `48px` tall, `6px 10px` padding, `10px` gap: play, the time slider, the clock, **Skip idle**, **2×**, mute, and volume. Play is a `36px` crimson square with a drawn triangle or pause bars, the strip's only crimson. The rest are quiet: Anton `13px`, `7px 10px` padding, transparent, `light-2` label, `ink-3` border, white on hover and while pressed (**Skip idle** and **2×** are toggles); mute is a borderless `36px` square with a `20px` drawn speaker (`1.4` square-capped stroke). Until the battle is built, all but mute and volume are disabled at `45%`. Below `760px` the strip wraps and the time slider takes the last row alone.
+- **Sliders:** `24px` tall, a `4px` `ink-3` track, a `14px` square white thumb, and crimson for the played part where the browser draws it. Time steps by `5s`; volume is `72px` wide.
+- **Clock:** `m:ss / m:ss` in Roboto Mono 500 `13px`, tabular figures, `light-2`.
+- **Overlay:** the game page's, titled **Replay** with the crimson bar, with the same file picker; **Watch** takes the size of **Start**.
+- **End screen:** when the battle ends, `ink-0` at `82%` covers the view and fades in over `0.4s` (`cubic-bezier(.16, 1, .3, 1)`): the result in Anton `9cqi` at line height `0.9`, the places (ordinal in Anton `18px` white, name in Raleway `15px` `light-2`), a hint when the server guessed the result, and a primary **Watch again**, which takes focus. With the same fade, each seat in the lower third gets its place: a white chip at its right end, crimson Anton `15px`, `4px 8px` padding. Nothing covers the view while it plays.
+- **Gone:** a missing or expired replay keeps the overlay, titled **Replay gone**, saying replays are kept for 30 days, with a primary link-button **Play Restart Generation** at `18px` with `12px 18px` padding. **Copy link**, the strip, the facts line, and the legend hide.
+- **Facts line:** under the strip, as wide as the view, on a `1fr auto` grid with a `16px` gap: "Ranked match on …" or "Friendly match on …", the environment and the date, in Raleway `13px` at `1.6` in `light-3` on the left, and **Soft screen** on the right.
+- **Key legend:** the game page's legend with the replay's keys: Space plays or pauses, ← and → go back or on 5 s, F doubles the speed, M mutes, wherever focus is unless the focused control uses that key. After a gamepad press it shows the bottom button (play or pause) and the D-pad (back or on).
+- **Touch:** the legend and the ghost hide and the header stays. Every control is at least `44px` square, the volume slider hides (the device's buttons set the volume), and the screen stays awake after **Watch**.
 
 ### App icon
 The favicon and the Discord app icon are one mark: white **RG** in Anton on `ink-0` (`#11141b`), as a full-bleed square with no crimson and no rounded corners, because browsers, iOS, and Discord apply their own masks. The letters are outlines (Anton is under the SIL Open Font License, see `web/fonts/OFL-anton.txt`), `64%` of the tile wide and centered, so their corners stay inside the circle Discord crops icons to. They are drawn once as `web/public/favicon.svg`; `favicon.ico` (16, 32, and 48), `apple-touch-icon.png` (180), and `icon-512.png` (the file to upload as the Discord application's icon) are renders of it. Both names, Reset Generation and Restart Generation, abbreviate to RG, and the mark uses no RedLynx lettering or logo.
@@ -294,6 +314,6 @@ The engine's canvas fills a `3 / 4` frame. By default it is shown soft (the [scr
 - **Don't** use crimson for body or running text.
 - **Don't** introduce a second accent color or a light theme.
 - **Don't** round corners.
-- **Don't** use Roboto Mono beyond the header's name, the online count, the footer, and key caps.
+- **Don't** use Roboto Mono beyond the header's name, the online count, the footer, key caps, and the replay's clock.
 - **Don't** add shadows to anything except the game screen and dialogs over it.
 - **Don't** add game art, screenshots, or RedLynx or Ubisoft logos to the page.

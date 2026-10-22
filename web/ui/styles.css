@@ -1,39 +1,8 @@
-@import './base.css';
-:root { --screen-h: clamp(300px, 100vh - 330px, 640px); }
+/* The game page (DESIGN.md): the Stage (stage.css) around the engine's 240 × 320 screen. */
+@import './stage.css';
+:root { --screen-w: 240; --screen-h-px: 320; --screen-h: clamp(300px, 100vh - 330px, 640px); }
 @supports (height: 100dvh) { :root { --screen-h: clamp(300px, 100dvh - 330px, 640px); } }
 
-.page { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; overflow: clip; }
-.ghost { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 400 23vw/.82 var(--display); text-transform: uppercase; text-align: center;
-  color: transparent; -webkit-text-stroke: 1px rgb(255 255 255 / 12%); white-space: nowrap; pointer-events: none; user-select: none; }
-main { position: relative; min-height: 0; display: grid; place-content: center; justify-items: center; gap: 18px; padding: 0 48px 24px; }
-
-/* The engine draws 240 × 320; the page only frames and scales it */
-.screen { position: relative; height: var(--screen-h); aspect-ratio: 3 / 4; container-type: size;
-  overflow: hidden; background: #000 radial-gradient(rgb(255 255 255 / 16%) 1px, transparent 1.5px) 0 0 / 8px 8px;
-  box-shadow: 0 2px 16px rgb(0 0 0 / 40%), 0 2px 4px rgb(0 0 0 / 30%); }
-.screen:has(canvas:focus-visible) { outline: 2px solid var(--light-3); outline-offset: 4px; }
-canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; outline: none; }
-/* Screen finish (CONTEXT.md). Soft smooths the engine's pixels at every size. Where each game pixel is wide enough in device pixels to
-   keep a grid clean (data-grid, set from the screen's size in App.svelte), it also lays a faint pixel grid over them, one cell per game
-   pixel, under the overlay and the dialogs, which are page UI and stay sharp. Sharp is the engine's pixels as drawn. */
-.screen[data-finish=soft] canvas { image-rendering: auto; }
-.screen[data-finish=soft][data-grid]::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background: linear-gradient(90deg, transparent 55%, rgb(0 0 0 / 22%)) 0 0 / calc(100% / 240) 100%,
-    linear-gradient(180deg, transparent 55%, rgb(0 0 0 / 22%)) 0 0 / 100% calc(100% / 320); }
-#overlay { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 3cqh; padding: 6cqi; text-align: center; overflow-y: auto;
-  background: rgb(17 20 27 / 82%); }
-#overlay h2 { font-size: 15cqi; }
-#status { max-width: 30ch; text-wrap: balance; font-size: 15px; line-height: 1.7; color: var(--light-2); }
-#pick, #recover, #unsent { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-.hint { flex-basis: 100%; text-wrap: balance; font-size: 13px; line-height: 1.6; color: var(--light-3); }
-
-/* Buttons: square, crimson, inverting to white on hover */
-button { font: 400 22px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; padding: 16px 28px; border: 1px solid var(--red); border-radius: 0;
-  background: var(--red); color: #fff; cursor: pointer; transition: background-color .2s, color .2s, border-color .2s; }
-button:hover { background: #fff; color: var(--red); border-color: #fff; }
-button.secondary { background: transparent; color: var(--light-2); border-color: var(--light-3); }
-button.secondary:hover { background: transparent; color: #fff; border-color: #fff; }
-#start { font-size: 34px; padding: 18px 56px; }
 #online-as button { font-size: 13px; padding: 4px 8px; }
 
 /* Who you are: the header on a desktop, a line under Start on a touch device */
@@ -55,63 +24,19 @@ button.secondary:hover { background: transparent; color: #fff; border-color: #ff
 /* The line under the screen: notices, and the offer to sign in */
 .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; max-width: 70ch; font: 15px/1.6 var(--body); color: var(--light-2); text-align: center; }
 .nudge-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-.nudge button { font-size: 16px; padding: 8px 14px; }
+.nudge button, .nudge a.button { font-size: 16px; padding: 8px 14px; }
 .online-line { align-items: center; justify-content: center; gap: 6px; font: 500 13px/1 var(--mono); color: var(--light-2); }
 .online-line svg { width: 16px; height: 16px; fill: none; stroke: var(--light-3); stroke-width: 1.4; stroke-linecap: square; }
 
-/* Arena login dialog, over the screen */
-.login { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(320px, 86%); max-height: calc(100% - 12px); overflow-y: auto; display: grid; gap: 14px; padding: 24px;
-  background: var(--ink-2); box-shadow: 0 2px 16px rgb(0 0 0 / 50%); }
-.login h2 { font-size: 30px; }
-.login label { display: grid; gap: 6px; font: 500 13px/1 var(--body); color: var(--light-3); }
-.login input { font: 15px/1.4 var(--body); padding: 10px 12px; border: 1px solid var(--light-3); border-radius: 0; background: var(--ink-1); color: #fff; caret-color: #fff; }
-.login input:focus-visible { outline-offset: 2px; }
-.login p { font: 13px/1.6 var(--body); color: var(--light-3); }
-.login .row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
-.login button { font-size: 18px; padding: 12px 18px; white-space: nowrap; }
-.login .error { font-weight: 600; color: #fff; }
-
-.sub { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: calc(var(--screen-h) * 3 / 4); font: 15px/1.6 var(--mono); color: var(--light-2); text-align: center; }
 .sub-online { grid-column: 2; }
-.sub .finish { grid-column: 3; justify-self: end; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 8px; white-space: nowrap; }
-.sub .finish::before { content: ''; width: 8px; height: 8px; border: 1px solid currentColor; }
-.sub .finish[aria-pressed=true]::before { background: currentColor; }
-.sub .finish[aria-pressed=true] { color: #fff; border-color: #fff; }
-.keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; margin: 0; font: 14px/1 var(--body); color: var(--light-2); }
-.keys div { display: flex; align-items: center; gap: 6px; }
-.keys dt { display: flex; align-items: center; gap: 6px; margin-right: 2px; }
-.keys dd, .keys .or { margin: 0; }
-kbd { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; border: 1px solid var(--light-3); background: var(--ink-1);
-  font: 500 13px/1 var(--mono); color: #fff; }
-kbd svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
-kbd.gamepad { padding: 0; }
-kbd.gamepad svg { width: 16px; height: 16px; }
-kbd .on { fill: currentColor; }
 
 .pad, .touch-only { display: none; }
 .typing, .wake { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .typing { font-size: 16px; } /* iOS zooms into smaller fields */
 :fullscreen { background: var(--ink-1); }
 
-/* The footer's Notices button, and the overlay's links to the Terms and the Privacy policy */
-.notes { text-align: right; }
-.notes button { font-size: 13px; padding: 6px 12px; }
-#overlay a { color: var(--light-2); text-underline-offset: 3px; }
-#overlay a:hover { color: #fff; }
-/* The notices cover the page, not the game screen: they are too long for it. */
-#notices { position: fixed; z-index: 10; width: min(520px, 92vw); max-height: calc(100dvh - 32px); overflow-x: hidden; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 65%); }
-.login a { color: var(--light-2); text-underline-offset: 3px; }
-.login a:hover { color: #fff; }
-#notices strong { font-weight: 500; color: var(--light-2); }
-
-@media (max-width: 999px) {
-  .notes { text-align: left; }
-}
 @media (max-width: 759px) {
   .who .long { display: none; }
-  .ghost { font-size: 34vw; }
-  main { padding: 24px 16px 48px; }
-  .notes { text-align: left; }
 }
 
 /* Touch devices: no header, and the touch pad under the game screen, both as wide as fits the height */
@@ -167,10 +92,4 @@ kbd .on { fill: currentColor; }
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
   :root { --cross: min(clamp(116px, 32dvh, 240px), calc(60vw - 40px)); --chrome: 16px; }
   main { padding-bottom: 4px; }
-}
-/* A player who asks for more contrast gets the engine's pixels as drawn, and no toggle */
-@media (prefers-contrast: more) {
-  .screen[data-finish=soft] canvas { image-rendering: pixelated; }
-  .screen[data-finish=soft]::before { display: none; }
-  .finish { display: none !important; }
 }

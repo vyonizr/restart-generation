@@ -74,8 +74,10 @@ const tables = new Set();    // SNAP rooms hosting a battle
 async function finishMatch(host, api) {
   if (host.finished) return;
   host.finished = true;
-  const { winners, players, guessed } = await battle.result(host, WITNESS_WAIT_MS);
+  const outcome = await battle.result(host, WITNESS_WAIT_MS);
+  const { winners, players, guessed } = outcome;
   battle.forget(host);
+  keepReplay(host, outcome, api);
   const names = winners.map(p => p.s.name);
   const won = names.length ? `${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ` : ''}${names.at(-1)} won` : 'no winner';
   api.log(`battle over: ${guessed ? `result guessed (${guessed}): ` : ''}${won}`);
@@ -88,6 +90,26 @@ async function finishMatch(host, api) {
     st.highestFame = Math.max(st.highestFame ?? 0, st.fame);
     api.save(p.s.account);
   }
+}
+
+// Everyone left the table room before the battle ended: its witness lets go, and a battle that began still gets its replay,
+// without a result.
+function abandonMatch(host, api) {
+  if (host.finished) return;
+  host.finished = true;
+  battle.forget(host);
+  keepReplay(host, null, api);
+}
+
+// A battle that began becomes a replay (CONTEXT.md), unless the admin turned replays off (api.replays is null). Each person who
+// played it in the browser client is told its id; the Java client never reads that event. A replay that can't be kept costs
+// nobody their match: the caller goes on to score it.
+function keepReplay(host, outcome, api) {
+  if (!host.started || !api.replays) return;
+  let id;
+  try { id = api.replays.save(battle.replay(host, outcome)); } catch (e) { api.log(`battle ${host.seed}: replay not kept: ${e.message}`); return; }
+  api.log(`battle ${host.seed} kept as replay ${id}`);
+  for (const p of host.players) if (!p.bot && p.s.web) api.replaySaved(p.s, id);
 }
 
 const fameLevel = acc => 1 + Math.floor(stats(acc).fame / 100);
@@ -363,7 +385,7 @@ function onMessage(s, msg, api) {
 }
 
 module.exports = {
-  botChoice, fillsWithBots, finishMatch,
+  botChoice, fillsWithBots, finishMatch, abandonMatch,
   waiting: () => queue.length, // players waiting in the ranked Quick Match
   botQuestion: id => botChoice(friendly.get(id), canFillWithBots()),
   onPacket(s, data, api) {
@@ -385,7 +407,7 @@ module.exports = {
     // Bots left alone at a table have no one to play for.
     if (room.battle && ![...room.members].some(m => !m.account.bot)) for (const m of room.members) bots.stop(m);
     // A finished battle's witness lets go once the result is in (finishMatch); an abandoned one's, when everyone has left.
-    if (room.members.size === 0) { tables.delete(room); if (room.battle && !room.battle.finished) battle.forget(room.battle); }
+    if (room.members.size === 0) { tables.delete(room); if (room.battle) abandonMatch(room.battle, api); }
   },
   start(api) {
     setInterval(() => { matchmake(api); for (const room of tables) battle.tick(room.battle, api); }, 1000);

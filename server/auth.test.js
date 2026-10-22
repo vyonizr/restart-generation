@@ -41,7 +41,7 @@ const setup = (over = {}) => {
   const who = { id: 'd1', username: 'Cool User!' };
   const auth = createAuth({
     store, config, now: () => clock,
-    busy: id => live.has(id), remove: acc => removed.push(acc.name),
+    busy: id => live.has(id), remove: acc => removed.push(acc.name), replaysOf: over.replaysOf,
     discord: { authorizeUrl: s => `https://discord.test/authorize?state=${s}`, identify: async () => who },
   });
   return { store, auth, live, removed, who };
@@ -228,8 +228,8 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
   assert.strictEqual((await call(auth, 'POST', '/auth/delete', { token: packedToken })).code, 204);
   assert.deepStrictEqual(store.saves(packed), []);
 
-  // Download my data: everything the server keeps about the account, for that account only.
-  ({ auth, store } = setup());
+  // Download my data: everything the server keeps about the account, for that account only, with the replays of its battles.
+  ({ auth, store } = setup({ replaysOf: acc => (acc.name === 'Owner' ? [{ id: 'r1', created: Date.UTC(2026, 0, 3) }] : []) }));
   const owner = store.create('Owner', 'member', Date.UTC(2026, 0, 2), 'd42'), ownerToken = store.issueToken(owner);
   const buddy = store.create('Buddy', 'member', clock, 'd43'), buddyToken = store.issueToken(buddy);
   store.setLinks(owner, buddy, 'to', 'from');
@@ -242,9 +242,11 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
     stats: { fame: 30, matches: 3, wins: 2, rescues: 0, highestFame: 30, favouriteHero: -1 }, achievements: 'ach',
     friends: [{ name: 'Buddy', state: 'to' }],
     savedGame: { 'single_player_game.save': Buffer.from([5, 6]).toString('base64') },
+    replays: [{ link: 'https://x.test/replay/r1', created: '2026-01-03T00:00:00.000Z' }],
   });
   assert.deepStrictEqual((await call(auth, 'GET', '/auth/data', { token: buddyToken })).body.friends, [{ name: 'Owner', state: 'from' }]);
   assert.deepStrictEqual((await call(auth, 'GET', '/auth/data', { token: buddyToken })).body.savedGame, {});
+  assert.deepStrictEqual((await call(auth, 'GET', '/auth/data', { token: buddyToken })).body.replays, []);
   assert.strictEqual((await call(auth, 'GET', '/auth/data', { token: 'nope' })).code, 401);
 
   // Without a Discord application there is no /auth at all.

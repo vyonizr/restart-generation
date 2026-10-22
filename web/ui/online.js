@@ -3,6 +3,9 @@
 import { page } from './page.svelte.js';
 
 const REFRESH_MS = 30000;
+
+// What the server says about itself (GET /status): whether it has accounts, and who is online. Null on a static host with no server.
+export const serverStatus = () => fetch('status', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(s => (typeof s?.accounts === 'boolean' ? s : null), () => null);
 const count = status => (Number.isInteger(status?.online) && status.online >= 0 ? status.online : null);
 
 async function refresh() {

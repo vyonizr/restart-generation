@@ -5,8 +5,9 @@ const crypto = require('crypto');
 const digest = s => crypto.createHash('sha256').update(String(s)).digest();
 
 // opts: store, token (RG_ADMIN_TOKEN, or empty to switch the endpoint off), discord (whether accounts have Discord IDs),
-// busy(id) -> whether that account has a live session, remove(acc) to end its sessions, log.
-function createAdmin({ store, token, discord, busy, remove, log = () => {} }) {
+// busy(id) -> whether that account has a live session, remove(acc) to end its sessions, dropReplays(acc) to delete the replays of
+// the battles it played, log.
+function createAdmin({ store, token, discord, busy, remove, dropReplays = () => {}, log = () => {} }) {
   const json = (res, code, body) => {
     res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
@@ -38,11 +39,12 @@ function createAdmin({ store, token, discord, busy, remove, log = () => {} }) {
         friends: store.friends(acc).length, files: store.saveUsage(acc, '').files, online: busy(acc.id),
       });
     },
-    // The same path as a player deleting their own account (POST /auth/delete): sessions end, then the row and what hangs off it.
+    // The same path as a player deleting their own account (POST /auth/delete): sessions end, then the row and what hangs off it,
+    // and the replays of the battles it played.
     'DELETE /admin/account': (req, res, url) => {
       const acc = accountOf(url, res);
       if (!acc) return;
-      remove(acc); store.remove(acc);
+      remove(acc); store.remove(acc); dropReplays(acc);
       log(`admin deleted ${acc.name}`);
       res.writeHead(204); res.end();
     },

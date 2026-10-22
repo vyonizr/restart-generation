@@ -22,7 +22,8 @@ const GIVE_UP_MS = 40000;
 const CLOCK = { now: () => Date.now(), setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: id => clearTimeout(id) };
 
 export class SnapClient {
-  // ui: { startLogin(onReady, onCancel), stopLogin(), attempting(), rejected(), accepted() (optional), credentials() -> {username, password} }
+  // ui: { startLogin(onReady, onCancel), stopLogin(), attempting(), rejected(), accepted() (optional), credentials() -> {username, password},
+  //   replaySaved(id) and battleJoined() (optional): the battle just played is kept as a replay with this id; the next one began }
   // fetch and clock ({ now, setTimeout, clearTimeout }) are the browser's unless a test supplies its own.
   constructor({ url = 'snap', ui, log = () => {}, fetch: fetchFn = (...a) => fetch(...a), clock = CLOCK }) {
     this.url = url; this.ui = ui; this.log = log; this.fetch = fetchFn; this.clock = clock;
@@ -230,6 +231,7 @@ export class SnapClient {
       case EVENT.FRIEND_REQUEST_RECEIVED: { const name = f[2], msg = text(f[3]); this.events.push(() => { if (!this.friends.has(name)) this.friends.set(name, { presence: '', state: STATE.UNCONFIRMED }); this.native('onFriendRequestReceived@16', this.str(name), this.str(msg)); }); return; }
       case EVENT.FRIEND_REQUEST_ANSWERED: { const name = f[2], ok = f[3] === '1', msg = text(f[4]); this.events.push(() => this.native(ok ? 'onFriendRequestAccepted@16' : 'onFriendRequestRejected@16', this.str(name), this.str(msg))); return; }
       case 310: case EVENT.FRIEND_REMOVED: { const name = f[2]; this.events.push(() => { this.native('onFriendRemoved@12', this.str(name)); this.friends.delete(name); }); return; }
+      case EVENT.REPLAY_SAVED: this.ui.replaySaved?.(f[1]); return; // the page's, not the engine's
     }
   }
 
@@ -248,7 +250,11 @@ export class SnapClient {
     const id = await this.findRoom(name);
     let ok = false;
     if (id) { const r = await this.request(CMD.JOIN_GAME_ROOM, { 1: id }); ok = r.code === REPLY.OK || r.code === 708; }
-    if (ok) { this.room = name; this.inRoom = true; this.events.push(() => this.native('onConnected@8')); }
+    if (ok) {
+      this.room = name; this.inRoom = true; this.events.push(() => this.native('onConnected@8'));
+      // The server names each battle's room table_<n> (server/casino.js): the player's next battle has begun.
+      if (/^table_\d+$/.test(name)) this.ui.battleJoined?.();
+    }
     return ok;
   }
   async openRoom(name) {

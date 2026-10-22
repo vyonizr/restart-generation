@@ -8,17 +8,10 @@ import { touch } from './device.js';
 import { stayAwake, needsVideo } from './wake.js';
 import { soundContext } from './audio.js';
 import { NO_DIRECTION, nextDirection } from './direction.js';
+import { BUTTONS, usable } from './pads.js';
 
-// The buttons the page reads, by their position in the standard mapping: bottom, right, Start, and the D-pad. No other button
-// does anything.
-const BUTTONS = { select: 0, back: 1, menu: 9, up: 12, down: 13, left: 14, right: 15 };
 const RELEASED = { select: false, back: false, menu: false, up: false, down: false, left: false, right: false, x: 0, y: 0 };
 const CONNECTED = 'Gamepad connected.', DISCONNECTED = 'Gamepad disconnected.';
-
-// Android Chrome puts the buttons of a pad it has no mapping for in the standard order anyway, but reports its mapping as ''.
-// Elsewhere such a pad's buttons are in an order of its own, so it is ignored.
-const android = navigator.userAgentData ? navigator.userAgentData.platform === 'Android' : /Android/.test(navigator.userAgent);
-const usable = pad => Boolean(pad?.connected) && (pad.mapping === 'standard' || (android && pad.mapping === ''));
 
 let pressStart = null;
 let index = null; // the pad in use: its index in navigator.getGamepads(), or null until a usable pad sends a press

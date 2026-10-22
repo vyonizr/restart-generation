@@ -197,9 +197,16 @@ for (let n = 0; n < 80; n++) {
 for (const [name, list] of environments) assert(new Set(list).size > 1, `every table from ${name} got environment ${list[0]}`);
 
 // Every table gets its own battle seed, in the Game and in the snapshot's copy of the RNG; the rest of the
-// template reaches the clients unchanged. The expected bytes are built here from the RNG layout (i, j, 11, then
-// the 11 state words), not by the server's code.
+// template reaches the clients unchanged, except the battlefield's next-monster kind (below). The expected bytes are built
+// here from the RNG layout (i, j, 11, then the 11 state words), not by the server's code.
 const rngLayout = r => Buffer.concat([new Int32Array([r.i, r.j, 11]), new Uint32Array(r.state)].map(a => Buffer.from(a.buffer)));
+// Where the next-monster kind sits after the RNG (docs/re/re_replay.md, last section).
+const kindAt = (bf, rngAt) => {
+  let o = rngAt + 56 + 8;
+  o += 4 + 4 * bf.readInt32LE(o);
+  o += 4 + 8 * bf.readUInt32LE(o);
+  return o + 6;
+};
 const seen = new Set();
 for (let n = 0; n < 12; n++) {
   const table = battle.createTable(2, api);
@@ -211,14 +218,26 @@ for (let n = 0; n < 12; n++) {
   const was = template(table.template).snapshot;
   const original = g.writeSnapshot(was);
   const wasRng = rngLayout(template(table.template).game.rng);
+  const kind = kindAt(bf, at);
   assert.equal(table.snap.length, original.length);
   assert.deepEqual([...bf.subarray(0, at)], [...was.battlefield.subarray(0, at)]);
-  assert.deepEqual([...bf.subarray(at + rng.length)], [...was.battlefield.subarray(at + rng.length)]);
+  assert.deepEqual([...bf.subarray(at + rng.length, kind)], [...was.battlefield.subarray(at + rng.length, kind)]);
+  assert.deepEqual([...bf.subarray(kind + 4)], [...was.battlefield.subarray(kind + 4)]);
   assert.equal(was.battlefield.indexOf(wasRng), at, 'the template holds its RNG where the table does');
   assert.deepEqual([...g.parseSnapshot(table.snap).players], [...was.players]);
   assert.deepEqual([...g.parseSnapshot(table.snap).third], [...was.third]);
 }
 assert.equal(seen.size, 12, 'two tables shared a battle seed');
+
+// The next-monster kind is the one the engine's own battlefield takes from the seed, so a replay, which builds the battlefield
+// from the Game alone, starts where the players started. Seeds and kinds measured in the engine (research replay-feasibility.md).
+for (const [seed, kind] of [[1542061598, 2], [-1935092673, 2], [797437583, 0], [1982280396, 0], [-996939403, 1]]) {
+  const draws = [0, (seed >>> 0) / 2 ** 32]; // the template, then the battle seed (see randomInt)
+  const table = battle.createTable(2, { ...api, random: () => draws.length ? draws.shift() : 0 });
+  assert.equal(table.seed, seed);
+  const bf = g.parseSnapshot(table.snap).battlefield;
+  assert.equal(bf.readInt32LE(kindAt(bf, template(table.template).rngAt)), kind, `seed ${seed}`);
+}
 
 // Seats are handed out at random, each seat number once.
 const firstSeats = new Set();

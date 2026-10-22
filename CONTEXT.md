@@ -225,3 +225,7 @@ _Avoid_: referee, oracle, observer
 **Guessed result**:
 A battle result the server decides without a witness: the last player standing, or else the team that sent the last order.
 _Avoid_: heuristic result, fallback result
+
+**Replay**:
+An online battle, ranked or friendly, that the server keeps after it ends so the engine can play it again for anyone given its link. Someone watching a replay is a visitor, not an observer.
+_Avoid_: recording (that word means a video of the game, which `docs/LEGAL.md` forbids committing), video, demo

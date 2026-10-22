@@ -12,6 +12,7 @@ const gm = require('./gamemsg');
 const g = require('./gameblob');
 const { zipEntries } = require('../web/zip.js');
 const defaultWitness = require('./witness');
+const { encode: replayText } = require('./replay');
 
 const DATA = path.join(__dirname, '..', 'data');
 const ZIP = 'battle-templates.zip';
@@ -42,6 +43,15 @@ function snapshotRngAt(game, snapshot) {
   const at = snapshot.battlefield.indexOf(rng);
   if (at < 0 || snapshot.battlefield.indexOf(rng, at + 1) >= 0) throw new Error('the snapshot does not hold the Game RNG exactly once');
   return at;
+}
+
+// The battlefield's next-monster kind, after the RNG copy: two i32s, an i32 list, a list of 8-byte pairs, two bytes and an i32
+// come first (docs/re/re_replay.md, last section).
+function nextMonsterKindAt(battlefield, rngAt) {
+  let at = rngAt + 56 + 8;
+  at += 4 + 4 * battlefield.readInt32LE(at);
+  at += 4 + 8 * battlefield.readUInt32LE(at);
+  return at + 6;
 }
 
 // The .game and .snap files in a zip, by file name, whatever folder holds them: a zip of the templates folder and a zip
@@ -98,13 +108,15 @@ function loadTemplates(dir = DATA) {
 const randomInt = (api, n) => (api.random ? Math.floor(api.random() * n) : crypto.randomInt(n));
 
 // The Game and snapshot for a fresh online table: no join infos yet (players arrive through the handshake)
-// and a new battle seed, written into both copies of the RNG.
+// and a new battle seed, written into both copies of the RNG. The snapshot also gets the next-monster kind the engine takes from
+// that seed, where a capture keeps its own battle's: a replay builds its battlefield from the Game alone (docs/re/re_replay.md).
 function tableState(t, timeLimit, api) {
   const seed = randomInt(api, 2 ** 32) | 0;
   const rng = g.seedRng(seed);
-  g.rngNext(rng); // captures hold the seeded state plus one draw
+  const firstDraw = g.rngNext(rng); // captures hold the seeded state plus the battlefield's first draw
   const battlefield = Buffer.from(t.snapshot.battlefield);
   g.rngBytes(rng).copy(battlefield, t.rngAt);
+  battlefield.writeInt32LE(firstDraw % 3, nextMonsterKindAt(battlefield, t.rngAt));
   return {
     seed,
     // The engine picks the environment (0 space, 1 clouds and grass, 2 speedball, 3 soccer, 4 racetrack) at random
@@ -137,14 +149,16 @@ function createTable(seats, api, relaxed = false) {
   const limits = t.game.timeLimit;
   const { seed, game, snap } = tableState(t, relaxed ? limits.map(() => -1) : limits, api);
   api.log(`table uses template ${t.name}, seed ${seed}${relaxed ? ' without phase time limits' : ''}`);
+  const now = api.now ?? Date.now; // the clock, injectable so tests can run a battle in simulated time
   const table = {
     seats, template: t.name, seed, game, snap,
     freeSeats: shuffledSeats(seats, api), // handed out in this order as players send their join info
-    players: [],        // { s, index, team, state, lastSeq, seen }
+    players: [],        // { s, index, team, hero, state, lastSeq, seen }
     history: [],        // raw reliable GameMessages, replayed to late joiners (handshake step 4)
+    times: [],          // when each of them reached the relay, in ms since the table was made: its replay's pacing
     seq: 3, started: false, // server seq continues after the handshake messages (1-3)
-    now: api.now ?? Date.now, // the clock, injectable so tests can run a battle in simulated time
-    deadline: (api.now ?? Date.now)() + START_DEADLINE_MS,
+    now, createdAt: now(),
+    deadline: now() + START_DEADLINE_MS,
     turn: 0, phase: 0, phaseStart: 0, done: new Set(), ended4: new Set(),
     cannons: cannonCount(t.game), fired: new Map(), // team -> FireCannon count this phase
     forceAfter: limits.map((l, phase) => l === -1 ? -1 : relaxed ? (phase === PHASE.CANNONS ? RELAXED_CANNON_MS : RELAXED_MS) : l + OVERTIME_MS), // ms, per phase
@@ -155,9 +169,11 @@ function createTable(seats, api, relaxed = false) {
   return table;
 }
 
-// Every reliable message, in the order the clients get it: replayed to late joiners (handshake step 4) and fed to the witness.
+// Every reliable message, in the order the clients get it: replayed to late joiners (handshake step 4), fed to the witness, and
+// kept with its time for the battle's replay.
 function record(table, raw) {
   table.history.push(raw);
+  table.times.push(table.now() - table.createdAt);
   table.witness?.feed(table, raw);
 }
 
@@ -183,6 +199,7 @@ function seat(table, s, api) {
 
 function onJoinInfo(table, p, body, api) {
   const info = g.parseJoinInfo(body.subarray(4));
+  p.hero = info.hero.type;
   // Step 3: index and team are the next free seat number (FUN_10023f40, FUN_10024c60 hand out the lowest).
   p.index = p.team = table.freeSeats.shift();
   sendMsg(table, p, { seq: 2, type: gm.TYPE.INIT, body: initBody(Buffer.concat([i32(p.index), i32(p.team)])) }, api);
@@ -345,19 +362,37 @@ function leave(table, p, api) {
   p.state = 'left';
 }
 
-// The result once the battle is over: { winners, players, guessed }. With a witness that waits up to `waitMs` for its ranks,
-// the winners are every player it ranks first (two after a tie, none if nobody is first) and `guessed` is null.
-// Otherwise the result is guessed (CONTEXT.md "Guessed result"), and `guessed` says why: the last player standing,
-// else the one who made the final move before the game ended (clients compute the result locally and never upload it).
+// The result once the battle is over: { winners, players, ranks, guessed }. With a witness that waits up to `waitMs` for its ranks,
+// the winners are every player it ranks first (two after a tie, none if nobody is first), `ranks` are its ranks by seat, and
+// `guessed` is null. Otherwise the result is guessed (CONTEXT.md "Guessed result"), `ranks` is null, and `guessed` says why: the
+// last player standing, else the one who made the final move before the game ended (clients compute the result locally and
+// never upload it).
 async function result(table, waitMs) {
   let timer;
   const seen = table.witness && await Promise.race([table.witness.result(table),
     new Promise(resolve => { timer = setTimeout(resolve, waitMs, { failed: 'no result in time' }); })]);
   clearTimeout(timer);
-  if (seen?.ranks) return { winners: table.players.filter(p => seen.ranks[p.index] === 1), players: table.players, guessed: null };
+  if (seen?.ranks) return { winners: table.players.filter(p => seen.ranks[p.index] === 1), players: table.players, ranks: seen.ranks, guessed: null };
   const standing = table.players.filter(p => !table.losers.includes(p));
   const winner = standing.length === 1 ? standing[0] : standing.find(p => p.team === table.lastOrderTeam);
-  return { winners: winner ? [winner] : [], players: table.players, guessed: seen ? `witness failed: ${seen.failed}` : 'no server copy' };
+  return { winners: winner ? [winner] : [], players: table.players, ranks: null, guessed: seen ? `witness failed: ${seen.failed}` : 'no server copy' };
+}
+
+// The battle's replay (CONTEXT.md), for server/replays.js: the engine's replay text, the accounts that played, and what the replay
+// page shows around it. `outcome` is result()'s, or null for a battle everyone left before it ended.
+function replay(table, outcome) {
+  const players = [...table.players].sort((x, y) => x.team - y.team);
+  return {
+    created: table.now(),
+    text: replayText(table.game, table.history.map((raw, i) => ({ t: table.times[i], raw }))),
+    accounts: players.filter(p => !p.bot).map(p => p.s.account.id),
+    meta: {
+      ranked: Boolean(table.ranked),
+      environment: g.parseGame(table.game).environment,
+      players: players.map(p => ({ name: p.s.name, hero: p.hero, seat: p.team, bot: p.bot })),
+      result: outcome && { winners: outcome.winners.map(p => p.team).sort((x, y) => x - y), ranks: outcome.ranks, guessed: Boolean(outcome.guessed) },
+    },
+  };
 }
 
 // The table is gone or its result is in: the witness stops following it.
@@ -379,4 +414,4 @@ function tick(table, api) {
   }
 }
 
-module.exports = { PHASE, seatCounts, loadTemplates, createTable, seat, onGame, leave, result, forget, tick };
+module.exports = { PHASE, seatCounts, loadTemplates, createTable, seat, onGame, leave, result, replay, forget, tick };

@@ -314,6 +314,8 @@ Besides SNAP at `POST /snap`, the HTTP server answers the following requests, wh
 | --- | --- |
 | `GET /status` | A JSON object with the fields in the following table. |
 | `GET /bots` | `{ available }`: whether the server can run bots. |
+| `GET /replay/ID` | The replay page ([CONTEXT.md](../CONTEXT.md) "Replay"), with the battle's players, heroes, kind of match, environment and day in its head for link previews; HTTP `404 Not Found` with the same page, which says the replay is gone, when no replay `ID` is kept. |
+| `GET /replay/ID/data` | `{ text, meta }`: the engine's replay text ([re_replay.md](re/re_replay.md)) and what the page shows around it, or HTTP `404 Not Found` with `{ error: "gone" }`. |
 
 The `GET /status` reply has the following fields:
 
@@ -327,6 +329,7 @@ The `GET /status` reply has the following fields:
 | `contact` | Where a rights holder can ask for the game's removal, or empty ([legal notes](LEGAL.md)). |
 | `online` | Players online, bots excluded. |
 | `waiting` | Players waiting in the ranked Quick Match. |
+| `replays` | Whether the server keeps replays: false with `RG_REPLAYS=0`. |
 
 The page also sends two SNAP commands that only this server defines:
 
@@ -343,6 +346,12 @@ The page sends 901 when the player presses Start in a friendly room. The answer 
 - `gone`: the room is gone or already starting, so the page drops the Start.
 
 When the page asked the player, it sends 900 with their answer before it passes the Start on. If the answer is `1` or `2`, the server fills the room's empty seats with bots of that difficulty when this player's Start arrives.
+
+The server also sends one event that only this server defines, and only to a browser: its own session is the one whose requests come over `POST /snap`. The Java client never gets it.
+
+| Id | Fields | Effect |
+| --- | --- | --- |
+| 902 | `replayID` | The battle this player just played is kept as replay `replayID`: the page offers to watch it or copy its link. |
 
 With Discord sign-in on (otherwise every `/auth/` path answers HTTP `404 Not Found`), a request carries its token as `Authorization: Bearer TOKEN`, where `TOKEN` is the guest's or member's token:
 

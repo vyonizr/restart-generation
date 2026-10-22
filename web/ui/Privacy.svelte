@@ -7,14 +7,15 @@
   const admin = $derived(server?.adminName || 'the admin'), Admin = $derived(server?.adminName || 'The admin');
   const storedBy = $derived(server?.hosting || 'The hosting provider');
   const discord = $derived(Boolean(server?.accounts)); // guests and members with Discord sign-in, rather than a name alone
-  const toc = [
-    ['who', 'Who answers for your data'], ['keeps', 'What the server keeps'], ['passes', 'What it passes on and forgets'],
-    ['sees', 'What other players see'], ['logs', 'Logs and backups'], ['browser', 'Your browser'], ['why', 'Why'],
-    ['rights', 'Your choices'], ['children', 'Children'], ['changes', 'Changes'],
-  ];
+  const replays = $derived(server?.replays !== false); // kept unless the admin turned them off (RG_REPLAYS=0)
+  const toc = $derived([
+    ['who', 'Who answers for your data'], ['keeps', 'What the server keeps'], ...(replays ? [['replays', 'Replays']] : []),
+    ['passes', 'What it passes on and forgets'], ['sees', 'What other players see'], ['logs', 'Logs and backups'], ['browser', 'Your browser'],
+    ['why', 'Why'], ['rights', 'Your choices'], ['children', 'Children'], ['changes', 'Changes'],
+  ]);
 </script>
 
-<DocPage title="Privacy policy" ghost="Privacy" changed="22 October 2026" {toc} {server}>
+<DocPage title="Privacy policy" ghost="Privacy" changed="23 October 2026" {toc} {server}>
   <p class="lede">This page says what this Restart Generation server keeps about you when you play online, why, for how long, and how to have it removed. It keeps only what online play needs. It sells nothing, shows no ads, and runs no analytics.</p>
 
   <section id="who">
@@ -42,10 +43,18 @@
     {/if}
   </section>
 
+  {#if replays}
+    <section id="replays">
+      <h2>Replays</h2>
+      <p>The server keeps every online battle that began as a replay, so its players and anyone they share its link with can watch it again. A replay holds the players' names as they were in that battle, their heroes and seats, every move, and the chat sent during the battle, with when each arrived. It is kept for 30 days and then deleted. Anyone who has a replay's link can watch it; the server lists replays nowhere.</p>
+      <p>A replay is kept for its 30 days even after a guest account in it is deleted. {#if discord}When a member deletes their account{:else}When {admin} deletes an account{/if}, the replays of every battle it played are deleted with it.</p>
+    </section>
+  {/if}
+
   <section id="passes">
     <h2>What it passes on and forgets</h2>
     <ul>
-      <li>Chat in a battle, and the message with a friend request, go to the players they're for. The server doesn't store them.</li>
+      <li>{#if replays}Chat in a battle goes to the other players, and stays in the battle's replay for 30 days. {:else}Chat in a battle goes to the players it's for. The server doesn't store it. {/if}The message with a friend request goes to the player it's for, and the server doesn't store it.</li>
       <li>Room names are shown to everyone in the lobby while the room is open.</li>
       {#if discord}<li>Your IP address limits how many guest accounts one network can make. The server keeps it in memory for at most an hour, and never writes it down.</li>{/if}
     </ul>
@@ -76,16 +85,16 @@
 
   <section id="why">
     <h2>Why</h2>
-    <p>The server keeps your account, stats and friends{#if discord}, and a member's saved game,{/if} because you play online and they're what online play is. It keeps logs and backups to run the server and to recover it{#if discord}, and limits guest accounts to protect it from abuse{/if}.</p>
+    <p>The server keeps your account, stats and friends{#if discord}, and a member's saved game,{/if} because you play online and they're what online play is.{#if replays} It keeps replays so that players can watch their battles again and share them.{/if} It keeps logs and backups to run the server and to recover it{#if discord}, and limits guest accounts to protect it from abuse{/if}.</p>
   </section>
 
   <section id="rights">
     <h2>Your choices</h2>
     {#if discord}
       <ul>
-        <li><strong>Download my data</strong>, in a member's Account menu, saves everything the server keeps about your account in one file.</li>
-        <li><strong>Delete my account</strong>, in the same menu, removes it for good: your name, stats, friends and saved game.</li>
-        <li>A guest account is deleted 24 hours after you last play, with everything the server keeps about it. A sign-in token stops working 90 days after you last use it.</li>
+        <li><strong>Download my data</strong>, in a member's Account menu, saves everything the server keeps about your account in one file{#if replays}, with links to the replays of your battles{/if}.</li>
+        <li><strong>Delete my account</strong>, in the same menu, removes it for good: your name, stats, friends and saved game{#if replays}, and the replays of your battles{/if}.</li>
+        <li>A guest account is deleted 24 hours after you last play, with everything the server keeps about it{#if replays} except the replays of its battles, which stay for their 30 days{/if}. A sign-in token stops working 90 days after you last use it.</li>
       </ul>
       <p>A member's account stays until you or {admin} delete it. For anything else, such as a correction or a question, write to {admin} at the address at the top of this page. If that address is a public page, don't post anything there that you want kept private. You can also complain to the data protection authority where you live.</p>
     {:else}

@@ -54,6 +54,16 @@ With `RG_GAME` set, the server runs a witness: one more engine, in a worker thre
 
 Without `RG_GAME`, or when the witness fails, the server guesses the result: the last player standing, or else the one who made the last move. At startup a server without `RG_GAME` logs that battle results will be guessed, and each battle whose result is guessed logs one `battle over: result guessed (...)` line with the reason: `no server copy`, or `witness failed:` and the cause. Players are never told.
 
+### Replays
+
+Every online battle that began, ranked or friendly, becomes a replay ([CONTEXT.md](../CONTEXT.md) "Replay"): after the battle, each player in the browser client is offered **Watch replay** and **Copy link**, and the replay page at `/replay/ID` plays the battle again in the game's own replay player ([ADR 0022](adr/0022-replays-send-a-battles-game-blob-to-anyone-with-the-link.md)). Anyone with the link can watch it; nothing lists replays. Watching needs the game, like playing: the visitor's own copy, or the server copy with `RG_SEND_GAME=1`. The server needs no server copy to keep them.
+
+Replays are kept apart from the accounts, beside the accounts they name: in `data/replays.db` on a Discord server and in `data/replays-names.db` on a name-only one. Each is kept for 30 days, and the server deletes older ones every hour. Each is a few kilobytes. When a member deletes their account, or you delete one with `delete-user`, the replays of its battles go with it; a guest's stay for their 30 days. `npm run backup` doesn't back them up.
+
+To keep no replays, set `RG_REPLAYS=0`: the server then keeps no new ones and serves none of those it kept, and the Privacy policy leaves them out. To delete every replay at once, stop the server and delete the replay file with its `-wal` and `-shm` files.
+
+To check that replays play back the battles as they were played, run self-play with `--replays` (`npm run selfplay -- --battles 2 --replays`, needs `RG_GAME`): each battle's replay is played to its end in the engine, which must end on the bots' final turn with their ranks.
+
 ### Bots
 
 If `RG_GAME` is set, the server can fill friendly matches with bots, players that the server controls. A `--public` server never runs bots, whatever `RG_GAME` says.

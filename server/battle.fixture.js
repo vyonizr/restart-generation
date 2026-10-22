@@ -26,7 +26,10 @@ function template(seats, name) {
     environment: 0, f188: [Array(W).fill(0), Array(H).fill(0), Array(W).fill(0), Array(H).fill(0)], triggers: Buffer.alloc(0), rng,
   };
   const pad = Buffer.alloc(16, 0x5a);
-  const snapshot = { battlefield: Buffer.concat([pad, g.rngBytes(rng), pad]), players: Buffer.alloc(8, 1), third: Buffer.alloc(8, 2), b28: 0, b29: 0, i30: 0 };
+  // After the RNG, the battlefield fields up to its next-monster kind (docs/re/re_replay.md, last section): two i32s, an empty
+  // i32 list, an empty pair list, two bytes, an i32, and the kind itself, here 1, a template's stale value.
+  const tail = Buffer.concat([Buffer.alloc(8 + 4 + 4 + 2 + 4), Buffer.from([1, 0, 0, 0]), pad]);
+  const snapshot = { battlefield: Buffer.concat([pad, g.rngBytes(rng), tail]), players: Buffer.alloc(8, 1), third: Buffer.alloc(8, 2), b28: 0, b29: 0, i30: 0 };
   // Through the codecs both ways, as loadTemplates() reads real ones, so a field the server needs can't be missing.
   return { name, game: g.parseGame(g.writeGame(game)), snapshot: g.parseSnapshot(g.writeSnapshot(snapshot)), rngAt: pad.length, seats };
 }

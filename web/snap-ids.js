@@ -37,6 +37,8 @@ export const EVENT = {
   FRIEND_REQUEST_RECEIVED: 308,
   FRIEND_REQUEST_ANSWERED: 309,
   FRIEND_REMOVED: 311, // the client also reads 310 as a removal
+  // Not a SNAP Mobile event: this server's own, sent only to the browser client, which reads it in web/snap.js.
+  REPLAY_SAVED: 902, // P1 replay id: the battle this player just played is kept as a replay (CONTEXT.md)
 };
 
 // Reply codes (the number on a reply's status line).

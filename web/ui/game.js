@@ -2,6 +2,7 @@
 // touch pad and the gamepad and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page`
 // (page.svelte.js).
 import { GameHost, WIDTH, HEIGHT, UNLOCKS, LONE_START } from '../emu/host.js';
+import { screenPainter } from './screen.js';
 import { SnapClient } from '../snap.js';
 import { page, padSession } from './page.svelte.js';
 import { touch } from './device.js';
@@ -15,21 +16,10 @@ import { createNameLogin, showOnlineName } from './login.js';
 import { botQuestion } from './bots.js';
 import { watchGamepad, gamepadSound } from './gamepad.js';
 import { createPresses } from './presses.js';
-import { startOnlineCount } from './online.js';
+import { replaySaved, battleJoined } from './replaynotice.js';
+import { startOnlineCount, serverStatus } from './online.js';
 
-let ctx, image, rgba;
-
-// Converts the engine's BGRX framebuffer to the canvas's RGBA. About a quarter of battle frames leave the picture as it was,
-// and those skip the upload and the browser's redraw of the screen, which saves phones power.
-function draw(game) {
-  const px = game.pixels;
-  let changed = false;
-  for (let i = 0; i < px.length; i++) {
-    const v = px[i], c = (0xff000000 | ((v & 0xff) << 16) | (v & 0xff00) | ((v >> 16) & 0xff)) >>> 0;
-    if (rgba[i] !== c) { rgba[i] = c; changed = true; }
-  }
-  if (changed) ctx.putImageData(image, 0, 0);
-}
+let draw; // paints the engine's frame (screen.js)
 
 // A one-line notice under the pad when the device can't run the game at full speed.
 function slowNotice() {
@@ -40,9 +30,6 @@ function slowNotice() {
 
 // Whether the server can run bots (GET /bots).
 const botsAvailable = () => fetch('bots').then(r => r.json()).then(b => b.available, () => false);
-
-// What the server says about itself (GET /status): whether it has accounts, and who is online. Null on a static host with no server.
-const serverStatus = () => fetch('status', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(s => (typeof s?.accounts === 'boolean' ? s : null), () => null);
 
 // With accounts the engine logs in as the page's guest or member, with no dialog: the token goes in the password slot (ADR 0011).
 function accountLogin(accounts) {
@@ -70,7 +57,8 @@ async function main(canvas) {
   page.keys = customKeys(files['settings.cfg']);
   page.status = 'Starting the engine…';
   await new Promise(r => setTimeout(r));
-  const login = accounts ? accountLogin(accounts) : createNameLogin(), snap = new SnapClient({ url: 'snap', ui: login, log: s => console.warn('[snap]', s) });
+  const login = accounts ? accountLogin(accounts) : createNameLogin();
+  const snap = new SnapClient({ url: 'snap', ui: { ...login, replaySaved, battleJoined }, log: s => console.warn('[snap]', s) });
   const bots = await botsAvailable();
   if (bots) snap.bots = botQuestion;
   // Every story and hero is open only on a server that isn't public (ADR 0007); elsewhere they are earned.
@@ -210,11 +198,7 @@ export async function retryQuit() {
 
 // Starts the page: the canvas is the game screen.
 export function startGame(canvas) {
-  ctx = canvas.getContext('2d');
-  image = ctx.createImageData(WIDTH, HEIGHT);
-  rgba = new Uint32Array(image.data.buffer);
-  // A browser may drop a hidden page's canvas; the first frame after it returns is always uploaded.
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) rgba.fill(0); });
+  draw = screenPainter(canvas, WIDTH, HEIGHT);
   watchGamepad(pressStart); // from the start, so the first gamepad press can start the sound while the game loads
   main(canvas).catch(e => fail("The game couldn't start with this copy.", e));
 }

@@ -14,6 +14,8 @@ const bots = require('./bots');
 const store = require('./store');
 const { modeFrom, createAuth } = require('./auth');
 const { createAdmin } = require('./admin');
+const replays = require('./replays');
+const { replayPage } = require('./replaypage');
 
 // The release this server runs (ADR 0019): RG_VERSION, which the Docker build sets, else what git says of this clone (a tag
 // such as v0.1.2, or a commit for a clone of development, which has no tags), else dev.
@@ -38,6 +40,12 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 // Accounts (ADR 0010): accounts-names.db for name-only servers, accounts.db for Discord ones. RG_DB overrides the file; tests use ':memory:'.
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = store.open(process.env.RG_DB || path.join(DATA_DIR, MODE.db));
+// Replays (CONTEXT.md), kept for 30 days in a file beside the accounts they name: replays.db, or replays-names.db for the name-only
+// accounts, so an account id never matches replays the other kind of account played. RG_REPLAYS=0 keeps no new ones and serves
+// none; the file stays open so an account deleted meanwhile still takes its replays with it. RG_REPLAYS_DB overrides the file, as
+// RG_DB does for tests.
+const REPLAYS = process.env.RG_REPLAYS !== '0';
+const replayStore = replays.open(process.env.RG_REPLAYS_DB || (process.env.RG_DB === ':memory:' ? ':memory:' : path.join(DATA_DIR, MODE.db.replace(/^accounts/, 'replays'))));
 
 const LOBBY = { id: '1', name: 'resgen' };
 const sessions = new Map(); // sid -> session
@@ -50,8 +58,9 @@ const replies = new Map();  // "<S>:<R>", or "<addr>:<request>" without a sessio
 const authConfig = MODE.config;
 const busy = id => [...sessions.values()].some(s => s.userId === id);
 const remove = acc => { for (const s of [...sessions.values()]) if (s.userId === acc.id) dropSession(s); };
-const auth = createAuth({ store: db, config: authConfig, log, busy, remove });
-const admin = createAdmin({ store: db, token: process.env.RG_ADMIN_TOKEN || '', discord: auth.enabled, busy, remove, log });
+const dropReplays = acc => replayStore.removeAccount(acc.id);
+const auth = createAuth({ store: db, config: authConfig, log, busy, remove, dropReplays, replaysOf: acc => (REPLAYS ? replayStore.ofAccount(acc.id, Date.now()) : []) });
+const admin = createAdmin({ store: db, token: process.env.RG_ADMIN_TOKEN || '', discord: auth.enabled, busy, remove, dropReplays, log });
 
 // Without Discord a name is the whole identity: no password. Anyone can log in as any name, and that drops the name's other
 // session (ADR 0009). With Discord, the password slot carries the guest's or member's token (ADR 0011).
@@ -129,6 +138,7 @@ function joinRoom(s, room) {
 // What casino.js uses to talk back to clients.
 const api = {
   sessions, rooms, log, save: db.save, link: db.linkState, ranking: db.ranking, rank: db.rank,
+  replays: REPLAYS ? replayStore : null,
   createRoom(name, max) {
     const room = { id: String(nextRoomId++), name, max, members: new Set() };
     rooms.set(room.id, room);
@@ -136,6 +146,8 @@ const api = {
   },
   // The only game-data event the client reads.
   send(s, data, from = '0') { pushEvent(s, `${EVENT.GAME_PACKET_TARGET}|${from}|${data.toString('base64')}`); },
+  // Tells a browser that its battle's replay is kept, under this id (web/snap.js).
+  replaySaved(s, id) { if (sessions.get(s.sid) === s) pushEvent(s, `${EVENT.REPLAY_SAVED}|${id}`); },
 };
 
 function handle(req, s, send) {
@@ -267,10 +279,11 @@ function handle(req, s, send) {
 // One SNAP request (TCP frame payload or HTTP body) -> reply(Buffer). Retransmits get the cached reply.
 // A request without a session (INIT, login) is keyed by its whole text, not by R: behind a proxy every browser has the proxy's
 // address, and two players whose R matched would otherwise get one login reply, session included.
-function processRequest(text, addr, reply) {
+// `web` marks a request that came over HTTP: its session is a browser's, which reads events the Java client doesn't know.
+function processRequest(text, addr, reply, web = false) {
   const req = parseRequest(text);
   const s = sessions.get(req.session);
-  if (s) s.lastSeen = Date.now();
+  if (s) { s.lastSeen = Date.now(); if (web) s.web = true; }
   const cacheKey = req.session ? `${req.session}:${req.rid}` : `${addr}:${text}`;
   if (replies.has(cacheKey)) return reply(replies.get(cacheKey));
   if (req.cmd !== CMD.RETRIEVE_ALL_EVENTS) log(`<- ${s?.name || '(no session)'} C=${req.cmd}`, req.cmd === CMD.EXTENDED_LOGIN ? `user=${req.params[1]}` : '');
@@ -339,6 +352,9 @@ setInterval(() => {
   for (const s of staleSessions(sessions, Date.now(), IDLE_MS)) { log(`idle timeout ${s.name}`); dropSession(s); }
 }, 5000);
 if (auth.enabled) { auth.sweep(); setInterval(auth.sweep, 60000); }
+// Replays older than 30 days are never served (server/replays.js); this deletes them from the file too.
+const sweepReplays = () => { const n = replayStore.sweep(Date.now()); if (n) log(`deleted ${n} replay${n > 1 ? 's' : ''} older than 30 days`); };
+sweepReplays(); setInterval(sweepReplays, 3600000);
 
 // ---- browser client: serves the built page (web/dist) and, if the admin chose to, the server copy of the game ----
 const http = require('http');
@@ -364,7 +380,7 @@ const httpServer = http.createServer((req, res) => {
     req.on('data', c => chunks.push(c));
     req.on('end', () => processRequest(Buffer.concat(chunks).toString('utf8'), req.socket.remoteAddress, payload => {
       res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(payload);
-    }));
+    }, true));
     return;
   }
   if (url === '/bots') { // whether the page shows the bot switch
@@ -375,7 +391,7 @@ const httpServer = http.createServer((req, res) => {
     // The admin's name and hosting provider fill in the Terms and the Privacy policy, which only a public server publishes: the page
     // links them when `adminName` is set (docs/adr/0021).
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: servesGame(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, adminName: MODE.public ? authConfig.adminName : '', hosting: MODE.public ? authConfig.hosting : '', online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
+    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: servesGame(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, adminName: MODE.public ? authConfig.adminName : '', hosting: MODE.public ? authConfig.hosting : '', online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting(), replays: REPLAYS }));
   }
   if (parsed.pathname.startsWith('/admin/')) {
     admin.http(req, res, parsed);
@@ -391,6 +407,20 @@ const httpServer = http.createServer((req, res) => {
     // The size lets the page show its download as a percentage (web/ui/gamefiles.js).
     res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': data.length, 'Cache-Control': 'no-cache' });
     return res.end(data);
+  }
+  // A replay (CONTEXT.md): its page, with the link preview in its head, and the data the page plays. One that doesn't exist, is
+  // 30 days old, or is on a server that turned replays off is gone: the page says so.
+  const replay = /^\/replay\/([\w-]{1,64})(\/data)?$/.exec(url);
+  if (replay) {
+    const found = REPLAYS ? replayStore.get(replay[1], Date.now()) : null;
+    if (replay[2]) {
+      res.writeHead(found ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify(found ?? { error: 'gone' }));
+    }
+    const page = path.join(DIST_DIR, 'replay', 'index.html');
+    if (!fs.existsSync(page)) { res.writeHead(503, { 'Content-Type': 'text/plain' }); return res.end('The page is not built yet. Run `npm run build` (after `npm install`), then reload.'); }
+    res.writeHead(found ? 200 : 404, { 'Content-Type': 'text/html', 'Cache-Control': 'no-cache' });
+    return res.end(replayPage(fs.readFileSync(page, 'utf8'), found?.meta ?? null));
   }
   let file;
   if (url === '/') file = path.join(DIST_DIR, 'index.html');

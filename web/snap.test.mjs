@@ -2,7 +2,7 @@
 // A fake gateway and a fake clock stand in for fetch and timers; the replies are made up, in the protocol's format (docs/protocol.md).
 import assert from 'node:assert';
 import { SnapClient } from './snap.js';
-import { CMD, REPLY } from './snap-ids.js';
+import { CMD, EVENT, REPLY } from './snap-ids.js';
 
 const settle = () => new Promise(r => setImmediate(r));
 
@@ -42,7 +42,7 @@ const presence = name => `307|9|${name}|available|42713|9|1||0|0|0|0|${btoa('SM2
 // fails) or 'hold' (no reply until the page aborts it); undefined falls back to the login replies, and a poll is held. `idle` is
 // how long the page is open before the login.
 async function loggingIn(answer = () => undefined, { idle = 0 } = {}) {
-  const clock = fakeClock(), sent = [], engine = [];
+  const clock = fakeClock(), sent = [], engine = [], replays = [];
   const fetch = (url, { body, signal }) => {
     const field = k => body.split('&').find(f => f.startsWith(`${k}=`)).slice(k.length + 1);
     const req = { body, cmd: +field('C'), rid: field('R') };
@@ -53,7 +53,8 @@ async function loggingIn(answer = () => undefined, { idle = 0 } = {}) {
     const { status = 200, body: text } = typeof a === 'string' ? { body: a } : a;
     return Promise.resolve({ status, text: async () => text });
   };
-  const ui = { startLogin() {}, stopLogin() {}, attempting() {}, rejected() {}, accepted() {}, visible: () => false, credentials: () => ({ username: 'tester', password: 'x' }) };
+  const ui = { startLogin() {}, stopLogin() {}, attempting() {}, rejected() {}, accepted() {}, visible: () => false, credentials: () => ({ username: 'tester', password: 'x' }),
+    replaySaved: id => replays.push(id) };
   const client = new SnapClient({ ui, fetch, clock });
   client.attach({ jni: { str: s => s, ref: x => x }, snapEvent: (...e) => engine.push(e), readNet: len => new Uint8Array(len).fill(5), writeNet() {} });
   const snap = client.methods();
@@ -64,7 +65,7 @@ async function loggingIn(answer = () => undefined, { idle = 0 } = {}) {
   const told = () => { client.pump(); return engine; };
   const disconnects = () => told().filter(e => e[0] === 'onDisconnectedFromNAF@12').map(e => e[1]);
   const polls = () => sent.filter(r => r.cmd === CMD.RETRIEVE_ALL_EVENTS);
-  return { client, snap, clock, sent, told, disconnects, polls };
+  return { client, snap, clock, sent, told, disconnects, polls, replays };
 }
 // A signed-in client, from the same arguments.
 async function signedIn(...args) {
@@ -83,6 +84,15 @@ async function signedIn(...args) {
   assert.notStrictEqual(next.rid, first.rid); // the poll after a reply is a new request
   assert.ok(t.told().some(e => e[0] === 'onPresence@20' && e[1] === 'Pal'));
   assert.deepStrictEqual(t.disconnects(), []);
+}
+
+// The server says the battle the player just played is kept as a replay: the page hears its id; the engine hears nothing.
+{
+  let n = 0;
+  const t = await signedIn(r => r.cmd === CMD.RETRIEVE_ALL_EVENTS ? [, `200 OK\n${EVENT.REPLAY_SAVED}|Zx9_replay-Id\n`][++n] : undefined);
+  await t.clock.advance(1000);
+  assert.deepStrictEqual(t.replays, ['Zx9_replay-Id']);
+  assert.ok(!t.told().some(e => !/Login|Lobby|Connected/.test(e[0])), JSON.stringify(t.told()));
 }
 
 // A proxy's 502, or a page that isn't a SNAP reply, is resent like a dropped request: it never ends the session.

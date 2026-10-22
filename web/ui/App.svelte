@@ -41,7 +41,7 @@
     </div>
     {#if touch}<Pad />{/if}
     <p class="slow" id="slow" role="status" hidden={!page.slow}><span id="slow-text">{page.slow}</span><button id="slow-close" class="secondary" onclick={() => { page.slow = null; }}>Dismiss</button></p>
-    <p class="nudge" id="nudge" role="status" hidden={!page.notice}><span id="nudge-text">{page.notice?.text}</span><span class="nudge-actions" id="nudge-actions">{#if page.notice}{#each page.notice.actions as action}<button type="button" class={action.secondary ? 'secondary' : ''} onclick={() => { page.notice = null; action.run?.(); }}>{action.label}</button>{/each}{/if}</span></p>
+    <p class="nudge" id="nudge" role="status" hidden={!page.notice}><span id="nudge-text">{page.notice?.text}</span><span class="nudge-actions" id="nudge-actions">{#if page.notice}{#each page.notice.actions as action}{#if action.href}<a class="button" href={action.href} target="_blank" rel="noopener">{action.label}</a>{:else}<button type="button" class={action.secondary ? 'secondary' : ''} onclick={() => { if (!action.keep) page.notice = null; action.run?.(); }}>{action.label}</button>{/if}{/each}{/if}</span></p>
     <div class="sub">
       <span class="sub-online" hidden={page.online === null || Boolean(page.notice)}><Online /></span>
       <button type="button" class="secondary finish" aria-pressed={page.finish === 'soft'} onclick={() => { toggleFinish(); focusOn('screen'); }}>Soft screen</button>

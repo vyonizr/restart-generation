@@ -4,10 +4,11 @@
 // (server/bot.mjs), which queue in ranked Quick Match like people and are seated at one table. Each engine
 // reports its own result from the engine's rank table (rank 1 won); the server's guess (server/battle.js) isn't used.
 // The gateway gets the server copy, so its witness follows every battle (docs/adr/0020); a lane fails when the witness's
-// ranks differ from the Bots' rank tables.
+// ranks differ from the Bots' rank tables. With --replays, each battle's replay (CONTEXT.md) is also played to its end in the
+// engine's replay player (tools/playreplay.mjs), and a lane fails when it ends on another turn or with other ranks.
 //
 // Usage: node --env-file=.env tools/selfplay.mjs [--battles 20] [--seed N] [--candidate deltas.json] [--baseline deltas.json]
-//          [--lanes 1] [--speed 1] [--timeout 20] [--pass 0.7] [--same-hero] [--players 2] [--out results.json]
+//          [--lanes 1] [--speed 1] [--timeout 20] [--pass 0.7] [--same-hero] [--players 2] [--replays] [--out results.json]
 //   --candidate  AI profile changes for the candidate (default server/bot-ai.json)
 //   --baseline   AI profile changes for the base Bot (default none: the game's own profiles)
 //   --seed       picks each battle's two heroes and which Bot is queued first (default random, printed)
@@ -18,6 +19,7 @@
 //   --same-hero  both Bots play the same hero in a battle (a random one), so hero strength can't decide the result
 //   --players    Bots per battle, 2 to 4 (default 2); they take turns being base and candidate, the first queued first
 //   --out        write the per-battle results as JSON
+//   --replays    play each battle's replay and check that it ends as the battle did (about 400 MB and half a minute more each)
 // Exit code 0 if the candidate passed, 1 if not, 2 on an error or a failed lane. Needs RG_GAME.
 // A gateway seats a queue of 4 at once, so two battles on one gateway would mix their Bots; that is why each lane has its own.
 import { spawn } from 'child_process';
@@ -36,6 +38,7 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); r
 const BATTLES = +arg('battles', 20), TIMEOUT_MS = +arg('timeout', 20) * 60000, PASS = +arg('pass', 0.7);
 const WANTED_LANES = Math.max(1, +arg('lanes', 1)), SPEED = +arg('speed', 1), OUT = arg('out', ''), SAME_HERO = process.argv.includes('--same-hero');
 const PLAYERS = Math.min(4, Math.max(2, +arg('players', 2)));
+const REPLAYS = process.argv.includes('--replays');
 // Never take more than the machine can spare: a lane needs about 400 MB and a busy thread per Bot, and its gateway with its
 // witness about 700 MB and a thread more; the OS and the user's own programs keep 3 GB and three quarters of the threads.
 // Asking for more is cut down, with a notice.
@@ -68,7 +71,7 @@ async function startLane(id) {
   const [PORT, HTTP_PORT] = [await freePort(), await freePort()];
   const lines = []; // the gateway's log
   const gateway = spawn(process.execPath, [path.join(root, 'server', 'gateway.js')], {
-    cwd: root, env: { ...process.env, PORT, HTTP_PORT, RG_DB: path.join(dir, 'accounts.db'), RG_SEND_GAME: '', RG_GATHER_MS: PLAYERS === 2 ? '500' : '30000',
+    cwd: root, env: { ...process.env, PORT, HTTP_PORT, RG_DB: path.join(dir, 'accounts.db'), RG_REPLAYS_DB: path.join(dir, 'replays.db'), RG_SEND_GAME: '', RG_GATHER_MS: PLAYERS === 2 ? '500' : '30000',
       // Name-only login: the harness's Bots have no tokens, so a Discord setting from .env must not reach this gateway.
       RG_DISCORD_CLIENT_ID: '', RG_DISCORD_CLIENT_SECRET: '', RG_PUBLIC_URL: '' } });
   const feed = chunk => { for (const l of String(chunk).split('\n')) if (l.trim()) { lines.push(l.trim()); if (process.env.SELFPLAY_LOG) console.log(`[${id}] ${l.trim()}`); } };
@@ -131,6 +134,23 @@ async function witnessRanks(lane, mark) {
   return line() && Object.fromEntries([...line().matchAll(/seat (\d+) (-?\d+)/g)].map(m => [m[1], +m[2]]));
 }
 
+// The battle's replay, from the gateway's log line naming it, played to its end in the engine's replay player:
+// { turn, ranks } as the replayed battle ended, or { failed }. The Bots stop before they leave the table, so the server keeps the
+// replay only once their sessions time out (45 s) and the table is left empty.
+async function replayEnd(lane, mark) {
+  const id = () => lane.lines.slice(mark).map(l => / kept as replay ([\w-]+)/.exec(l)?.[1]).find(Boolean);
+  for (let i = 0; i < 700 && !id(); i++) await sleep(100);
+  if (!id()) return { failed: 'no replay kept' };
+  const r = await fetch(`http://127.0.0.1:${lane.HTTP_PORT}/replay/${id()}/data`);
+  if (!r.ok) return { failed: `replay ${id()} answered ${r.status}` };
+  const { text } = await r.json();
+  return new Promise(resolve => {
+    const w = new Worker(new URL('./playreplay.mjs', import.meta.url), { workerData: { text } });
+    w.on('message', m => { resolve(m); w.terminate(); });
+    w.on('error', e => resolve({ failed: e.message }));
+  });
+}
+
 // The whole schedule is drawn up front from the seed, so a run is the same list of matches whatever the lanes finish first.
 const schedule = Array.from({ length: BATTLES }, (_, i) => {
   const a = Math.floor(rand() * 10), b = Math.floor(rand() * 10);
@@ -141,7 +161,7 @@ console.log(`seed ${SEED}, ${BATTLES} battles, ${LANES} lane${LANES > 1 ? 's' : 
 await Promise.all(Array.from({ length: LANES }, (_, i) => startLane(i)));
 
 let next = 0;
-const witnessed = { same: 0, compared: 0 };
+const witnessed = { same: 0, compared: 0 }, replayed = { same: 0, compared: 0 };
 async function work(lane) {
   while (next < schedule.length) {
     const { n, heroes, first } = schedule[next++];
@@ -156,8 +176,14 @@ async function work(lane) {
       if (JSON.stringify(row.witness) === JSON.stringify(r.ranks)) witnessed.same++;
       else lane.failed = `battle ${n}: the witness ranked ${JSON.stringify(row.witness)}, the Bots ${JSON.stringify(r.ranks)}`;
     }
+    if (REPLAYS && r.ranks) {
+      row.replay = await replayEnd(lane, mark);
+      replayed.compared++;
+      if (!row.replay.failed && row.replay.turn === r.turns && JSON.stringify(row.replay.ranks) === JSON.stringify(r.ranks)) replayed.same++;
+      else lane.failed ??= `battle ${n}: the replay ${row.replay.failed ?? `ended in turn ${row.replay.turn} with ${JSON.stringify(row.replay.ranks)}`}, the Bots in turn ${r.turns} with ${JSON.stringify(r.ranks)}`;
+    }
     results.push(row);
-    console.log(`battle ${n}: ${r.winner ?? 'undecided'}${r.turns ? ` in ${r.turns} turns` : ''}; base ${row.heroes.base} (seat ${r.seats?.base ?? '?'}), candidate ${row.heroes.candidate} (seat ${r.seats?.candidate ?? '?'}); ${row.seconds} s${r.why ? `; ${r.why}` : ''}${r.ranks ? `; witness ${row.witness ? JSON.stringify(row.witness) : 'had no ranks'}` : ''}`);
+    console.log(`battle ${n}: ${r.winner ?? 'undecided'}${r.turns ? ` in ${r.turns} turns` : ''}; base ${row.heroes.base} (seat ${r.seats?.base ?? '?'}), candidate ${row.heroes.candidate} (seat ${r.seats?.candidate ?? '?'}); ${row.seconds} s${r.why ? `; ${r.why}` : ''}${r.ranks ? `; witness ${row.witness ? JSON.stringify(row.witness) : 'had no ranks'}` : ''}${row.replay ? `; replay ${row.replay.failed ?? `turn ${row.replay.turn} ${JSON.stringify(row.replay.ranks)}`}` : ''}`);
     if (lane.failed) { console.error(`lane ${lane.id} fails: ${lane.failed}`); return; }
     await sleep(1000);
   }
@@ -171,6 +197,7 @@ const tally = (key, of) => { const t = {}; for (const r of decided) for (const s
 const show = t => Object.entries(t).sort().map(([k, [w, g]]) => `${k} ${w}/${g}`).join(', ');
 console.log(`\nDecided ${decided.length} of ${results.length} battles played (${BATTLES} scheduled) in ${((Date.now() - t0) / 60000).toFixed(1)} min.`);
 console.log(`The witness's ranks were the Bots' in ${witnessed.same} of the ${witnessed.compared} battles whose Bots agreed on them.`);
+if (REPLAYS) console.log(`The replay ended on the Bots' turn and ranks in ${replayed.same} of the ${replayed.compared} battles.`);
 console.log(`Candidate won ${wins('candidate')}, base won ${wins('base')}${decided.length ? ` (candidate ${(100 * wins('candidate') / decided.length).toFixed(0)}%)` : ''}.`);
 console.log(`Wins by seat (player index): ${show(tally('seat', (r, side) => r.seats[side]))}`);
 console.log(`Wins by hero, either side: ${show(tally('hero', (r, side) => r.heroes[side]))}`);

@@ -1,5 +1,6 @@
 // Builds the page (ADR 0013): web/index.html and the Svelte components under web/ui are bundled into web/dist, which the gateway
-// serves and a static host takes as it is, with the Terms and the Privacy policy beside it as terms/ and privacy/ (docs/adr/0021).
+// serves and a static host takes as it is, with the Terms and the Privacy policy beside it as terms/ and privacy/ (docs/adr/0021),
+// and the replay page as replay/, which the gateway serves at /replay/<id>.
 // The emulator, the SNAP client and the other plain modules stay as they are, so Node can import them without this build.
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -21,18 +22,29 @@ const licenses = () => ({
 // `npm run dev:web` serves the page with hot reload and forwards everything the gateway answers to a running gateway.
 const gateway = `http://127.0.0.1:${HTTP_PORT}`;
 
+// In development, /replay/<id> is the replay page, as the gateway serves it; its data still comes from the gateway.
+const replayPage = () => ({
+  name: 'replay-page',
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      if (/^\/replay\/[\w-]+(\?|$)/.test(req.url)) req.url = '/replay/index.html';
+      next();
+    });
+  },
+});
+
 export default defineConfig({
   root: 'web',
   base: './', // relative links, so a static host can serve the page from any folder
-  plugins: [svelte({ configFile: false }), licenses()],
+  plugins: [svelte({ configFile: false }), licenses(), replayPage()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     assetsInlineLimit: 0, // the wake video and the fonts stay files
-    rollupOptions: { input: Object.fromEntries([['index', 'index.html'], ['terms', 'terms/index.html'], ['privacy', 'privacy/index.html']].map(([name, f]) => [name, fileURLToPath(new URL(`./web/${f}`, import.meta.url))])) },
+    rollupOptions: { input: Object.fromEntries([['index', 'index.html'], ['terms', 'terms/index.html'], ['privacy', 'privacy/index.html'], ['replay', 'replay/index.html']].map(([name, f]) => [name, fileURLToPath(new URL(`./web/${f}`, import.meta.url))])) },
   },
   server: {
     // Exact paths: a plain '/snap' would also catch the page's own /snap.js.
-    proxy: Object.fromEntries(['^/(snap|status|bots)$', '^/(auth|game)/'].map(path => [path, gateway])),
+    proxy: Object.fromEntries(['^/(snap|status|bots)$', '^/(auth|game)/', '^/replay/[\\w-]+/data$'].map(path => [path, gateway])),
   },
 });

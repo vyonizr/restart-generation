@@ -20,3 +20,32 @@ export class Audio {
     }
   }
 }
+
+// A replay's sound. The engine's battle moves on only while its sound is drained (docs/re/re_replay.md), so this pulls a block for
+// every 64 ms of engine time whether or not the browser can play it yet, and plays what it pulls while the context runs, through
+// a volume the replay page sets (0 is muted).
+export class ReplaySound {
+  constructor(game) {
+    this.game = game;
+    this.ctx = soundContext();
+    this.gain = this.ctx.createGain();
+    this.gain.connect(this.ctx.destination);
+    this.pulled = 0;
+    this.at = 0;
+  }
+  set volume(v) { this.gain.gain.value = v; }
+  pump() {
+    const ctx = this.ctx;
+    while (this.pulled * 64 < this.game.time) {
+      const pcm = this.game.pullSound();
+      this.pulled++;
+      if (ctx.state !== 'running') continue;
+      if (this.at < ctx.currentTime) this.at = ctx.currentTime + 0.05;
+      const buf = ctx.createBuffer(1, pcm.length, 8000), ch = buf.getChannelData(0);
+      for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.connect(this.gain); src.start(this.at);
+      this.at += pcm.length / 8000;
+    }
+  }
+}

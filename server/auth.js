@@ -94,9 +94,10 @@ function discordClient({ clientId, clientSecret, publicUrl }) {
   };
 }
 
-// opts: store, config, busy(id) -> whether that account has a live session, remove(acc) to end its sessions,
-// discord (default: the real one), now (default: Date.now), log.
-function createAuth({ store, config, busy, remove, discord = config.enabled ? discordClient(config) : null, now = Date.now, log = () => {} }) {
+// opts: store, config, busy(id) -> whether that account has a live session, remove(acc) to end its sessions, dropReplays(acc) to
+// delete the replays of the battles an account played when its player deletes it, replaysOf(acc) -> [{ id, created }] of those
+// replays, discord (default: the real one), now (default: Date.now), log.
+function createAuth({ store, config, busy, remove, dropReplays = () => {}, replaysOf = () => [], discord = config.enabled ? discordClient(config) : null, now = Date.now, log = () => {} }) {
   const states = new Map();   // state -> { guest: account id or null, expires }
   const pending = new Map();  // sign-in code -> { discordId, username, guest, member, expires }
   const created = new Map();  // ip -> [times of new guests in the last hour]
@@ -239,6 +240,7 @@ function createAuth({ store, config, busy, remove, discord = config.enabled ? di
         stats: acc.stats, achievements: acc.achievements,
         friends: store.friends(acc).map(f => ({ name: f.account.name, state: f.state })),
         savedGame: savedFiles(acc),
+        replays: replaysOf(acc).map(r => ({ link: `${config.publicUrl}/replay/${r.id}`, created: new Date(r.created).toISOString() })),
       });
     },
     'POST /auth/discord/start': (req, res) => {
@@ -283,7 +285,7 @@ function createAuth({ store, config, busy, remove, discord = config.enabled ? di
     'POST /auth/delete': (req, res) => {
       const acc = accountOfRequest(req);
       if (!acc) return json(res, 401, { error: 'unknown' });
-      remove(acc); store.remove(acc);
+      remove(acc); store.remove(acc); dropReplays(acc);
       log(`deleted ${acc.name}`);
       res.writeHead(204); res.end();
     },

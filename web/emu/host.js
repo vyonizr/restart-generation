@@ -6,6 +6,8 @@ import { installFastPaths } from './fast.js';
 import { NET_BUFFER_SIZE, MTU, LOGIN_COULD_NOT_CONNECT } from '../snap-ids.js';
 
 export const WIDTH = 240, HEIGHT = 320;
+// Player mode, the engine's replay player (docs/re/re_replay.md): a wider battle view and no menus.
+export const REPLAY_WIDTH = 420, REPLAY_HEIGHT = 378;
 const HOME = 'C:\\RG';
 
 // Java KeyEvent codes for the keys the game uses.
@@ -34,10 +36,13 @@ export const NEVER_BUSY = { what: 'battlefield never busy', va: 0x1000f610, from
 export class GameHost {
   // files: { name: Uint8Array } for the DLL and everything in the ResetGeneration folder.
   // patches: entries like UNLOCKS, applied after the DLL loads.
-  constructor(files, { log = () => {}, warn = console.warn, language = 'en', snap = null, jit = true, fast = true, patches = [] } = {}) {
+  // replay: the text of a replay (server/replay.js) to start the engine in player mode, which plays that battle and nothing else.
+  constructor(files, { log = () => {}, warn = console.warn, language = 'en', snap = null, jit = true, fast = true, patches = [], replay = null } = {}) {
     this.jit = jit; this.fast = fast; this.patches = patches; this.warn = warn;
     this.files = files; this.log = log; this.language = language;
     this.snapMethods = snap; // JS implementation of NativeSNAPMobileInterface (online play)
+    this.replay = replay;
+    [this.width, this.height] = replay === null ? [WIDTH, HEIGHT] : [REPLAY_WIDTH, REPLAY_HEIGHT];
   }
 
   boot() {
@@ -57,7 +62,7 @@ export class GameHost {
     const call = (name, ...args) => m.cpu.call(ex(name), [env, ...args]);
 
     this.engine = new JObject('rg/natives/NativeGameEngine');
-    this.frame = jni.directBuffer('java/nio/DirectIntBufferU', WIDTH * (HEIGHT + 1) * 4);
+    this.frame = jni.directBuffer('java/nio/DirectIntBufferU', this.width * (this.height + 1) * 4);
     this.input = new JObject('rg/natives/NativeInputEventListener');
     this.sound = new JObject('rg/natives/NativeSoundOutputDevice');
     this.soundBuf = jni.directBuffer('java/nio/DirectByteBuffer', 1024);
@@ -68,13 +73,15 @@ export class GameHost {
     this.call = call;
     const ref = o => jni.ref(o);
     call('_Java_rg_natives_NativeGameEngine_setHomeDirectory@12', ref(this.engine), jni.str(HOME));
-    call('_Java_rg_natives_NativeGameEngine_init@44', ref(this.engine), ref(this.frame), jni.str(this.language), 0,
-      WIDTH, HEIGHT, jni.str(''), 0, 0, 0);
+    // The engine reads the replay text only during init, which then picks player mode (1) over the game (0).
+    if (this.replay !== null) call('_Java_rg_natives_NativeGameEngine_setReplayData@12', ref(this.engine), jni.str(this.replay));
+    call('_Java_rg_natives_NativeGameEngine_init@44', ref(this.engine), ref(this.frame), jni.str(this.language), this.replay === null ? 0 : 1,
+      this.width, this.height, jni.str(''), 0, 0, 0);
     call('_Java_com_redlynx_mt_snapmobile_NativeSNAPMobileInterface_initNative@20', ref(this.bridge), ref(this.netBuf), NET_BUFFER_SIZE, MTU);
     for (const name of Object.keys(this.files).filter(n => n.endsWith('.pak')).sort()) {
       call('_Java_rg_natives_NativeGameEngine_notifyDataPackageReady@12', ref(this.engine), jni.str(name));
     }
-    this.pixels = new Int32Array(m.cpu.mem, this.frame.address, WIDTH * HEIGHT);
+    this.pixels = new Int32Array(m.cpu.mem, this.frame.address, this.width * this.height);
     this.clock0 = m.win.now;
   }
 
@@ -85,6 +92,20 @@ export class GameHost {
     return this.call('_Java_rg_natives_NativeGameEngine_tick@8', this.jni.ref(this.engine)) & 0xff;
   }
   get time() { return this.m.win.now - this.clock0; }
+
+  // The replay player's controls, in player mode only (docs/re/re_replay.md "Playback"). Times are whole seconds from BattleBegin.
+  // None may be called before replayLoaded: they reach the replay's battle logic, which the engine builds a few frames in.
+  get replayLogic() { const app = this.m.cpu.rd32(this.m.addr(0x101b828c)) >>> 0; return app ? this.m.cpu.rd32(app + 0x110) >>> 0 : 0; }
+  get replayLoaded() { return this.replayLogic !== 0; }
+  #replayCall(name, ...args) { return this.call(`_Java_rg_natives_NativeGameEngine_${name}`, this.jni.ref(this.engine), ...args); }
+  get replayTime() { return this.#replayCall('getTime@8') | 0; }
+  get replayLength() { return this.#replayCall('getTotalTime@8') | 0; }
+  // Whether the battlefield is still animating; at the end, the replay is over once it stops.
+  get replayAnimating() { return (this.#replayCall('isReplayVisualizationInProgress@8') & 0xff) !== 0; }
+  playReplay() { this.#replayCall('playReplay@8'); }
+  pauseReplay() { this.#replayCall('pauseReplay@8'); }
+  seekReplay(seconds) { this.#replayCall('setTime@12', seconds | 0); }
+  setReplayMode({ skipEmpty, doubleSpeed }) { this.#replayCall('setReplayMode@16', skipEmpty ? 1 : 0, doubleSpeed ? 1 : 0); }
 
   // Calls fn(cpu) each time the guest reaches the original address `va`, then runs the instruction there as
   // usual. It only reads: nothing in the engine changes (ADR 0007's patch rules are about writes). Call it

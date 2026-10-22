@@ -1,5 +1,5 @@
-/* What every page shares (DESIGN.md): the fonts, the tokens, the base type, the header's name and the footer strip. The game page
-   (styles.css) and the Terms and Privacy policy pages (doc.css) build on it. */
+/* What every page shares (DESIGN.md): the fonts, the tokens, the base type, the buttons, the header's name and the footer strip. The
+   game page (styles.css), the replay page (replay.css) and the Terms and Privacy policy pages (doc.css) build on it. */
 @font-face { font-family: 'Anton'; src: url(../fonts/anton.woff2) format('woff2'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Raleway'; src: url(../fonts/raleway.woff2) format('woff2'); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: 'Roboto Mono'; src: url(../fonts/roboto-mono.woff2) format('woff2'); font-weight: 100 700; font-display: swap; }
@@ -18,6 +18,14 @@ p { margin: 0; }
 :focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .bar::after { content: ''; display: block; width: 128px; max-width: 45%; height: 4px; background: var(--red); margin-top: 12px; }
+
+/* Buttons: square, crimson, inverting to white on hover. A link that does a button's job (a.button) looks like one. */
+button, a.button { font: 400 22px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; padding: 16px 28px; border: 1px solid var(--red); border-radius: 0;
+  background: var(--red); color: #fff; cursor: pointer; transition: background-color .2s, color .2s, border-color .2s; }
+a.button { display: inline-block; text-decoration: none; }
+button:hover, a.button:hover { background: #fff; color: var(--red); border-color: #fff; }
+button.secondary, a.button.secondary { background: transparent; color: var(--light-2); border-color: var(--light-3); }
+button.secondary:hover, a.button.secondary:hover { background: transparent; color: #fff; border-color: #fff; }
 
 header { position: relative; z-index: 1; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 48px; }
 .name { font: 400 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; }

@@ -1,0 +1,88 @@
+/* The replay page (DESIGN.md): the Stage (stage.css) around the engine's 420 × 378 replay view, framed as a broadcast replay: a
+   REPLAY tag on its corner, the seats as a lower third under it, then the control strip, all as wide as the view. */
+@import './stage.css';
+:root { --screen-w: 420; --screen-h-px: 378;
+  --screen-h: min(clamp(260px, 100vh - 400px, 640px), (100vw - 96px) * 378 / 420); --view-w: calc(var(--screen-h) * 420 / 378); }
+@supports (height: 100dvh) { :root { --screen-h: min(clamp(260px, 100dvh - 400px, 640px), (100vw - 96px) * 378 / 420); } }
+
+header .name { color: #fff; text-decoration: none; }
+.copy-link { font-size: 13px; padding: 6px 12px; white-space: nowrap; }
+main { gap: 14px; }
+
+.broadcast { position: relative; display: grid; justify-items: center; width: var(--view-w); margin-top: 25px; container-type: inline-size; }
+/* On the frame's top-left corner, above it, so it never covers the engine's corner panel */
+.replay-tag { position: absolute; z-index: 2; left: 0; top: -25px; height: 25px; padding: 5px 10px; background: var(--red); font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; }
+
+/* The lower third: a band one ink step up from the ground, one cell per seat, the seat number in an ink square, the name in Anton
+   over the hero */
+.lower-third { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; margin: 0; padding: 0; list-style: none; background: var(--ink-2); }
+.lower-third li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 10px; }
+.lower-third li + li { border-left: 1px solid var(--ink-3); }
+/* Four seats in one row leave no room for a name and a hero on a smaller view: two rows of two */
+@container (max-width: 640px) {
+  .lower-third:has(li:nth-child(3)) { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lower-third:has(li:nth-child(3)) li:nth-child(odd) { border-left: 0; }
+  .lower-third:has(li:nth-child(3)) li:nth-child(n+3) { border-top: 1px solid var(--ink-3); }
+}
+.lower-third .seat { display: grid; place-items: center; width: 30px; height: 30px; flex: none; background: var(--ink-3); font: 400 18px/1 var(--display); }
+.who-played > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who-played { display: grid; min-width: 0; font: 13px/1.3 var(--body); color: var(--light-3); }
+.who-played b { font: 400 17px/1.15 var(--display); color: #fff; text-transform: uppercase; }
+.lower-third .place { flex: none; margin-left: auto; padding: 4px 8px; background: #fff; color: var(--red); font: 400 15px/1 var(--display); text-transform: uppercase;
+  animation: arrive .4s cubic-bezier(.16, 1, .3, 1); }
+
+/* The control strip: a band one ink step down, the play button the one crimson action in it */
+.controls { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 10px; background: var(--ink-0); }
+.controls button { font-size: 13px; padding: 7px 10px; white-space: nowrap; }
+.controls .ctl:not(.play) { background: transparent; color: var(--light-2); border-color: var(--ink-3); }
+.controls .ctl:not(.play):hover { color: #fff; border-color: #fff; }
+.controls .ctl[aria-pressed=true] { color: #fff; border-color: #fff; }
+.controls button:disabled { opacity: .45; cursor: default; }
+.controls .ctl.play:disabled:hover { background: var(--red); color: #fff; border-color: var(--red); }
+.ctl.play, .ctl.mute { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; flex: none; }
+.ctl svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: square; stroke-linejoin: miter; }
+.ctl.play path { fill: currentColor; stroke: none; }
+.ctl.play[aria-label=Pause] path { fill: none; stroke: currentColor; stroke-width: 3; }
+.controls .ctl.mute { border-color: transparent; }
+.clock { font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--light-2); white-space: nowrap; }
+.volume { display: flex; align-items: center; gap: 4px; }
+.volume input { width: 72px; }
+
+/* Sliders: a thin ink track and a square white thumb, crimson behind the thumb where the browser draws that part */
+input[type=range] { appearance: none; -webkit-appearance: none; height: 24px; margin: 0; background: transparent; accent-color: var(--red); cursor: pointer; }
+input[type=range].time { flex: 1; min-width: 60px; }
+input[type=range]:disabled { cursor: default; opacity: .45; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; background: var(--ink-3); }
+input[type=range]::-moz-range-track { height: 4px; background: var(--ink-3); }
+input[type=range]::-moz-range-progress { height: 4px; background: var(--red); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border: 0; border-radius: 0; background: #fff; }
+input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 0; background: #fff; }
+
+/* The end screen over the battle: the result and Watch again */
+.ending { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 3cqh; padding: 6cqi; text-align: center;
+  background: rgb(17 20 27 / 82%); animation: arrive .4s cubic-bezier(.16, 1, .3, 1); }
+@keyframes arrive { from { opacity: 0; } }
+.ending-headline { font: 400 9cqi/.9 var(--display); text-transform: uppercase; text-wrap: balance; }
+.places { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font: 15px/1.6 var(--body); color: var(--light-2); }
+.places .place { display: inline-block; min-width: 3ch; font: 400 18px/1 var(--display); color: #fff; text-transform: uppercase; }
+.ending .hint { max-width: 40ch; }
+#overlay .button { font-size: 18px; padding: 12px 18px; }
+
+/* Under the strip: what kind of match it was, and the Soft screen toggle */
+.sub { width: var(--view-w); grid-template-columns: 1fr auto; gap: 16px; }
+.sub .facts { grid-column: 1; justify-self: start; font: 13px/1.6 var(--body); color: var(--light-3); text-align: left; }
+.sub .finish { grid-column: 2; }
+
+@media (max-width: 759px) {
+  :root { --screen-h: min(clamp(220px, 100dvh - 320px, 640px), (100vw - 32px) * 378 / 420); }
+  @supports (height: 100dvh) { :root { --screen-h: min(clamp(220px, 100dvh - 320px, 640px), (100vw - 32px) * 378 / 420); } }
+  .controls { flex-wrap: wrap; }
+  input[type=range].time { order: 9; flex-basis: 100%; }
+}
+/* Touch devices: no key legend; every control a full thumb's size */
+@media (hover: none) and (pointer: coarse) {
+  .keys, .ghost { display: none; }
+  .controls button, .ctl.play, .ctl.mute, .copy-link { min-width: 44px; min-height: 44px; }
+  input[type=range].time { height: 44px; }
+  .volume input { display: none; } /* phones and tablets set the volume with their own buttons; mute stays */
+}
