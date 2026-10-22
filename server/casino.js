@@ -32,7 +32,12 @@ function hexdump(buf) {
   }
   return rows.join('\n');
 }
-const record = line => fs.appendFileSync(CAPTURE, `${new Date().toISOString()} ${line}\n`);
+// Room joins, leaves and unknown packets. At 10 MB the file becomes capture.log.1, so a long-running server keeps at most 20 MB.
+const CAPTURE_MAX = 10 * 1024 * 1024;
+function record(line) {
+  try { if (fs.statSync(CAPTURE).size > CAPTURE_MAX) fs.renameSync(CAPTURE, `${CAPTURE}.1`); } catch { /* not there yet */ }
+  fs.appendFileSync(CAPTURE, `${new Date().toISOString()} ${line}\n`);
+}
 
 // Encoders. Strings: u32 flags, u32 len, u32 len, bytes (mt::String).
 const u8 = v => Buffer.from([v]);

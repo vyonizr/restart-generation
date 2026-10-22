@@ -21,3 +21,9 @@ services:
       - ./data:/app/data
       # With no RG_GAME_PATH, this mounts an empty file that the server ignores.
       - ${RG_GAME_PATH:-/dev/null}:/game:ro
+    # Docker keeps a container's output forever by default; the server logs most requests, so keep 3 files of 10 MB.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
