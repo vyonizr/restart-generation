@@ -5,6 +5,34 @@
 
 #online-as button { font-size: 13px; padding: 4px 8px; }
 
+/* Your replays (ReplaysDialog.svelte, docs/adr/0024): over the page, like the notices, because a month of battles is too long for the
+   screen. Each replay is a step down the ink ramp, its seats laid out like the replay page's lower third. */
+#replays { position: fixed; z-index: 10; width: min(560px, 92vw); max-height: calc(100dvh - 32px); grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 65%); }
+#replays .replays-note b { font-weight: 600; color: #fff; }
+.replays-state { display: grid; justify-items: start; gap: 12px; font: 15px/1.6 var(--body); color: var(--light-2); }
+#replays .replays-state p { font: inherit; color: inherit; }
+.replays-state button { font-size: 16px; padding: 8px 14px; }
+.replay-list { display: grid; gap: 8px; margin: 0 -8px 0 0; padding: 0 8px 0 0; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.replay-item { display: grid; gap: 12px; padding: 14px; background: var(--ink-1); }
+#replays .replay-facts { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font: 13px/1.4 var(--body); color: var(--light-3); }
+.replay-facts b { font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; color: #fff; margin-right: 2px; }
+.replay-facts time { font-variant-numeric: tabular-nums; }
+.replay-seats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; list-style: none; background: var(--ink-3); border: 1px solid var(--ink-3); }
+.replay-seats li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; background: var(--ink-2); }
+.replay-seats li:nth-child(odd):last-child { grid-column: 1 / -1; }
+.replay-seats .seat { display: grid; place-content: center; width: 26px; height: 26px; background: var(--ink-3); font: 400 15px/1 var(--display); color: #fff; }
+.replay-seats .player { display: grid; gap: 3px; min-width: 0; }
+.replay-seats .player b, .replay-seats .player span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.replay-seats .player b { font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; color: var(--light-2); }
+.replay-seats .player span { font: 12px/1.2 var(--body); color: var(--light-3); }
+.replay-seats .me .player b { color: #fff; }
+.replay-seats .me .seat { background: var(--light-2); color: var(--ink-1); }
+.replay-seats .place { padding: 4px 7px; background: #fff; font: 400 13px/1 var(--display); text-transform: uppercase; color: var(--red); }
+.replay-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+#replays .replay-actions a.button, #replays .replay-actions button { font-size: 15px; padding: 8px 14px; }
+.replay-expires { margin-left: auto; font: 12px/1.4 var(--body); color: var(--light-3); }
+
 /* Who you are: the header on a desktop, a line under Start on a touch device */
 .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .who-name { font: 500 13px/1 var(--mono); color: #fff; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -87,6 +115,11 @@
   .slow, .nudge { display: flex; align-items: center; justify-content: center; gap: 12px; width: var(--w); justify-self: center;
     font: 13px/1.6 var(--body); color: var(--light-2); }
   .slow button { flex: none; font-size: 16px; padding: 6px 12px; }
+  #replays .replay-actions a.button, #replays .replay-actions button, .replays-state button { padding: 13px 16px; }
+}
+@media (max-width: 419px) {
+  .replay-seats { grid-template-columns: minmax(0, 1fr); }
+  .replay-seats li:nth-child(odd):last-child { grid-column: auto; }
 }
 /* Landscape: a thinner bottom gap, so the column gets the height */
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) {

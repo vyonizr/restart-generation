@@ -60,7 +60,7 @@ const authConfig = MODE.config;
 const busy = id => [...sessions.values()].some(s => s.userId === id);
 const remove = acc => { for (const s of [...sessions.values()]) if (s.userId === acc.id) dropSession(s); };
 const dropReplays = acc => replayStore.removeAccount(acc.id);
-const auth = createAuth({ store: db, config: authConfig, log, busy, remove, dropReplays, replaysOf: acc => (REPLAYS ? replayStore.ofAccount(acc.id, Date.now()) : []) });
+const auth = createAuth({ store: db, config: authConfig, log, busy, remove, dropReplays, replaysOf: acc => (REPLAYS ? replayStore.ofAccount(acc.id, Date.now()) : []), moveReplays: (from, to) => replayStore.moveAccount(from.id, to.id) });
 const admin = createAdmin({ store: db, token: process.env.RG_ADMIN_TOKEN || '', discord: auth.enabled, busy, remove, dropReplays, log });
 
 // Without Discord a name is the whole identity: no password. Anyone can log in as any name, and that drops the name's other
@@ -408,6 +408,13 @@ const httpServer = http.createServer((req, res) => {
     // The size lets the page show its download as a percentage (web/ui/gamefiles.js).
     res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': data.length, 'Cache-Control': 'no-cache' });
     return res.end(data);
+  }
+  // The replays listed under a player's name, for anyone (docs/adr/0024): the name's account now, newest first. A name nobody holds
+  // has none; a server that turned replays off answers 404.
+  if (url === '/replays') {
+    const acc = REPLAYS && db.byName(parsed.searchParams.get('name') ?? '');
+    res.writeHead(REPLAYS ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify(REPLAYS ? { replays: acc ? replayStore.listOf(acc.id, Date.now()) : [] } : { error: 'off' }));
   }
   // A replay (CONTEXT.md): its page, with the link preview in its head, and the data the page plays. One that doesn't exist, is
   // 30 days old, or is on a server that turned replays off is gone: the page says so.

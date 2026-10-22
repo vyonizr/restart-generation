@@ -316,6 +316,7 @@ Besides SNAP at `POST /snap`, the HTTP server answers the following requests, wh
 | `GET /bots` | `{ available }`: whether the server can run bots. |
 | `GET /replay/ID` | The replay page ([CONTEXT.md](../CONTEXT.md) "Replay"), with the battle's players, heroes, kind of match, environment and day in its head for link previews; HTTP `404 Not Found` with the same page, which says the replay is gone, when no replay `ID` is kept. |
 | `GET /replay/ID/data` | `{ text, meta }`: the engine's replay text ([re_replay.md](re/re_replay.md)) and what the page shows around it, or HTTP `404 Not Found` with `{ error: "gone" }`. |
+| `GET /replays?name=NAME` | `{ replays }`: the replays listed under the player named `NAME`, whatever its case ([ADR 0024](adr/0024-a-players-replays-are-listed-under-their-name.md)), newest first, each `{ id, created, expires, ranked, environment, players, result }`. A name nobody holds has none. HTTP `404 Not Found` with `{ error: "off" }` when the server keeps no replays. |
 
 The `GET /status` reply has the following fields:
 

@@ -9,7 +9,7 @@ export function replaySaved(id) {
   const copy = copyLinkFeedback(label => { if (page.notice?.replay === url) page.notice.actions[1].label = label; });
   page.notice = {
     replay: url,
-    text: 'This battle is saved as a replay.',
+    text: 'This battle is saved as a replay. Find it later under Replays.',
     actions: [
       { label: 'Watch replay', href: url },
       { label: 'Copy link', secondary: true, keep: true, run: () => copy(url) },

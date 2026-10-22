@@ -16,6 +16,7 @@
   import NameDialog from './NameDialog.svelte';
   import BotsDialog from './BotsDialog.svelte';
   import NoticesDialog from './NoticesDialog.svelte';
+  import ReplaysDialog from './ReplaysDialog.svelte';
 
   let canvas, screen, pitch = $state(0);
   onMount(() => {
@@ -50,4 +51,5 @@
   </main>
   <Footer />
   {#if page.notices}<NoticesDialog />{/if}
+  {#if page.replays}<ReplaysDialog />{/if}
 </div>

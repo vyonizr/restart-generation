@@ -16,12 +16,14 @@
     <details class="menu" bind:this={menu}>
       <summary>Account</summary>
       <div class="menu-panel">
+        {#if page.server?.replays}<button type="button" class="secondary" onclick={() => { menu.open = false; menu.querySelector('summary').focus(); page.replays = page.who.name; }}>Replays</button>{/if}
         <button type="button" class="secondary" onclick={() => { menu.open = false; actions.download(); }}>Download my data</button>
         <button type="button" class="secondary" onclick={actions.signout}>Sign out</button>
         <button type="button" class="secondary" onclick={actions.delete}>Delete my account</button>
       </div>
     </details>
   {:else}
+    {#if page.server?.replays}<button type="button" class="secondary" onclick={() => { page.replays = page.who.name; }}>Replays</button>{/if}
     <button type="button" class="secondary" onclick={actions.signin}><span>Sign in</span><span class="long">{' with Discord'}</span></button>
   {/if}
 {/if}

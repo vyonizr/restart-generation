@@ -39,6 +39,23 @@ db.removeAccount('10');
 assert.strictEqual(db.get(both, t0), null);
 assert(db.get(other, t0), 'a battle the member wasn\'t in keeps its replay');
 
+// A player's replays are listed under their name (ADR 0024): newest first, with what the page shows around each one and when it
+// expires, without the expired ones.
+const list = replays.open(':memory:');
+const first = list.save(battle(['20', '21'], t0)), second = list.save(battle(['20'], t0 + DAY));
+assert.deepStrictEqual(list.listOf('20', t0 + 2 * DAY), [
+  { id: second, created: t0 + DAY, expires: t0 + 31 * DAY, ...battle([]).meta },
+  { id: first, created: t0, expires: t0 + 30 * DAY, ...battle([]).meta },
+]);
+assert.deepStrictEqual(list.listOf('20', t0 + 30 * DAY).map(r => r.id), [second]);
+assert.deepStrictEqual(list.listOf('99', t0), []);
+
+// A guest who signs in to a member that already exists hands the member its replays, including a battle the two played together.
+const together = list.save(battle(['30', '31'], t0)), alone = list.save(battle(['30'], t0 + 1));
+list.moveAccount('30', '31');
+assert.deepStrictEqual(list.listOf('31', t0 + DAY).map(r => r.id), [alone, together]);
+assert.deepStrictEqual(list.listOf('30', t0 + DAY), []);
+
 // A battle with only bots and guests that are gone is still kept: nothing but its age removes it.
 const bots = db.save(battle([]));
 assert(db.get(bots, t0));

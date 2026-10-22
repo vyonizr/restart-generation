@@ -107,8 +107,9 @@ function discordClient({ clientId, clientSecret, publicUrl }) {
 
 // opts: store, config, busy(id) -> whether that account has a live session, remove(acc) to end its sessions, dropReplays(acc) to
 // delete the replays of the battles an account played when its player deletes it, replaysOf(acc) -> [{ id, created }] of those
-// replays, discord (default: the real one), now (default: Date.now), log.
-function createAuth({ store, config, busy, remove, dropReplays = () => {}, replaysOf = () => [], discord = config.enabled ? discordClient(config) : null, now = Date.now, log = () => {} }) {
+// replays, moveReplays(from, to) to list a guest's replays under the member it signs in to (ADR 0024), discord (default: the real
+// one), now (default: Date.now), log.
+function createAuth({ store, config, busy, remove, dropReplays = () => {}, replaysOf = () => [], moveReplays = () => {}, discord = config.enabled ? discordClient(config) : null, now = Date.now, log = () => {} }) {
   const states = new Map();   // state -> { guest: account id or null, expires }
   const pending = new Map();  // sign-in code -> { discordId, username, guest, member, expires }
   const created = new Map();  // ip -> [times of new guests in the last hour]
@@ -174,7 +175,7 @@ function createAuth({ store, config, busy, remove, dropReplays = () => {}, repla
     let acc;
     if (p.member) {
       acc = store.byId(p.member);
-      if (live) { remove(live); store.remove(live); }
+      if (live) { moveReplays(live, acc); remove(live); store.remove(live); }
     } else if (live) {
       store.promote(live, name, p.discordId);
       store.revokeTokens(live);

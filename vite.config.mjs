@@ -45,6 +45,6 @@ export default defineConfig({
   },
   server: {
     // Exact paths: a plain '/snap' would also catch the page's own /snap.js.
-    proxy: Object.fromEntries(['^/(snap|status|bots)$', '^/(auth|game)/', '^/replay/[\\w-]+/data$'].map(path => [path, gateway])),
+    proxy: Object.fromEntries(['^/(snap|status|bots|replays)$', '^/(auth|game)/', '^/replay/[\\w-]+/data$'].map(path => [path, gateway])),
   },
 });

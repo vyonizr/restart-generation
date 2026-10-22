@@ -33,9 +33,12 @@ function open(file) {
     dropPlayers: db.prepare('DELETE FROM players WHERE replay = ?'),
     get: db.prepare('SELECT created, meta, text FROM replays WHERE id = ? AND created > ?'),
     list: db.prepare('SELECT r.id, r.created FROM replays r JOIN players p ON p.replay = r.id WHERE p.account = ? AND r.created > ? ORDER BY r.created, r.id'),
+    listed: db.prepare('SELECT r.id, r.created, r.meta FROM replays r JOIN players p ON p.replay = r.id WHERE p.account = ? AND r.created > ? ORDER BY r.created DESC, r.id'),
     dropOfAccount: db.prepare('DELETE FROM replays WHERE id IN (SELECT replay FROM players WHERE account = ?)'),
     expired: db.prepare('DELETE FROM replays WHERE created <= ?'),
     orphans: db.prepare('DELETE FROM players WHERE replay NOT IN (SELECT id FROM replays)'),
+    move: db.prepare('UPDATE OR IGNORE players SET account = ? WHERE account = ?'),
+    dropAccount: db.prepare('DELETE FROM players WHERE account = ?'),
   };
   const inTransaction = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
   return {
@@ -63,7 +66,14 @@ function open(file) {
     },
     // [{ id, created }] of the replays of battles `account` played that are younger than 30 days at `now`, oldest first.
     ofAccount(account, now) { return q.list.all(String(account), now - KEEP_MS).map(r => ({ id: r.id, created: r.created })); },
+    // The replays listed under the account's name (ADR 0024): [{ id, created, expires, ...meta }], newest first, as ofAccount's.
+    listOf(account, now) {
+      return q.listed.all(String(account), now - KEEP_MS).map(r => ({ ...JSON.parse(r.meta), id: r.id, created: r.created, expires: r.created + KEEP_MS }));
+    },
     removeAccount(account) { inTransaction(() => { q.dropOfAccount.run(String(account)); q.orphans.run(); }); },
+    // The replays of `from` become `to`'s, as when a guest signs in to a member that already exists (ADR 0024). A battle both
+    // played stays listed once.
+    moveAccount(from, to) { inTransaction(() => { q.move.run(String(to), String(from)); q.dropAccount.run(String(from)); }); },
     // Deletes every replay 30 days old at `now`; returns how many.
     sweep(now) { return inTransaction(() => { const n = Number(q.expired.run(now - KEEP_MS).changes); q.orphans.run(); return n; }); },
     close() { db.close(); },

@@ -45,14 +45,15 @@ let clock = 1e12;
 const setup = (over = {}) => {
   const store = open(':memory:');
   const config = { ...configFrom({ RG_DISCORD_CLIENT_ID: 'id', RG_DISCORD_CLIENT_SECRET: 's', RG_PUBLIC_URL: 'https://x.test' }), ...over.config };
-  const live = new Set(), removed = [];
+  const live = new Set(), removed = [], moved = [];
   const who = { id: 'd1', username: 'Cool User!' };
   const auth = createAuth({
     store, config, now: () => clock,
     busy: id => live.has(id), remove: acc => removed.push(acc.name), replaysOf: over.replaysOf,
+    moveReplays: (from, to) => moved.push([from.name, to.name]),
     discord: { authorizeUrl: s => `https://discord.test/authorize?state=${s}`, identify: async () => who },
   });
-  return { store, auth, live, removed, who };
+  return { store, auth, live, removed, moved, who };
 };
 
 // One request through auth.http: -> { code, body }.
@@ -127,7 +128,8 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
   assert.strictEqual((await call(auth, 'POST', '/auth/guest', { headers: { 'x-forwarded-for': '2001:db8:5:6:7::2' } })).code, 429);
 
   // Signing in: a guest with progress becomes a member, keeping its account.
-  ({ auth, store, live, removed, who } = setup());
+  let moved;
+  ({ auth, store, live, removed, who, moved } = setup());
   const guest = (await call(auth, 'POST', '/auth/guest')).body;
   const acc = store.byName(guest.name);
   acc.stats.fame = 40; acc.stats.matches = 4; store.save(acc);
@@ -169,6 +171,7 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
   assert.strictEqual(store.byName(g2.name), null);
   assert.deepStrictEqual(removed, [g2.name]); // its sessions were ended
   assert.strictEqual(acc.stats.fame, 40); // the member's own progress is untouched
+  assert.deepStrictEqual(moved, [[g2.name, 'CoolUser']]); // but the guest's replays are now listed under the member (ADR 0024)
 
   // A guest with no progress does not need asking, and a plain visit with no guest signs straight in.
   const g3 = (await call(auth, 'POST', '/auth/guest', { ip: '4.4.4.4' })).body;
@@ -176,6 +179,7 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
   const c3 = new URLSearchParams(new URL((await call(auth, 'GET', `/auth/discord/callback?code=x&state=${s3}`)).location, 'http://x').hash.slice(1)).get('signin');
   assert.strictEqual((await call(auth, 'POST', '/auth/exchange', { body: { code: c3 } })).body.status, 'done');
   assert.strictEqual(store.byName(g3.name), null);
+  assert.deepStrictEqual(moved.at(-1), [g3.name, 'CoolUser']);
   const s4 = new URL((await call(auth, 'POST', '/auth/discord/start')).body.url).searchParams.get('state');
   const c4 = new URLSearchParams(new URL((await call(auth, 'GET', `/auth/discord/callback?code=x&state=${s4}`)).location, 'http://x').hash.slice(1)).get('signin');
   assert.strictEqual((await call(auth, 'POST', '/auth/exchange', { body: { code: c4 } })).body.status, 'done');

@@ -53,16 +53,19 @@ async function gateway(env) {
 }
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'replays-'));
-const file = path.join(dir, 'replays.db');
+const file = path.join(dir, 'replays.db'), accountsFile = path.join(dir, 'accounts.db');
+const accounts = require('./store').open(accountsFile);
+const ada = accounts.create('Ada', 'named', Date.now());
+accounts.close();
 const db = replays.open(file);
-const id = db.save({ created: Date.now(), text: 'QUJD', accounts: ['1'], meta: { ...meta, created: undefined } });
-const old = db.save({ created: Date.now() - replays.KEEP_MS - 1000, text: 'QUJD', accounts: ['1'], meta });
+const id = db.save({ created: Date.now(), text: 'QUJD', accounts: [ada.id], meta: { ...meta, created: undefined } });
+const old = db.save({ created: Date.now() - replays.KEEP_MS - 1000, text: 'QUJD', accounts: [ada.id], meta });
 db.close();
 
 (async () => {
   try {
     // The page fetches a replay's text and what it shows around it; one that doesn't exist or is 30 days old is gone.
-    let g = await gateway({ RG_REPLAYS_DB: file });
+    let g = await gateway({ RG_REPLAYS_DB: file, RG_DB: accountsFile });
     assert.strictEqual(JSON.parse((await g.get('/status')).body).replays, true);
     const found = await g.get(`/replay/${id}/data`);
     assert.strictEqual(found.status, 200);
@@ -71,12 +74,18 @@ db.close();
     assert.deepStrictEqual(data.meta.players, meta.players);
     assert.strictEqual((await g.get('/replay/no-such-replay-id/data')).status, 404);
     assert.strictEqual((await g.get(`/replay/${old}/data`)).status, 404);
+    // Anyone can list the replays under a player's name, whatever its case (ADR 0024); a name nobody holds has none.
+    const listed = JSON.parse((await g.get('/replays?name=ADA')).body);
+    assert.deepStrictEqual(listed.replays.map(r => [r.id, r.ranked, r.players.length]), [[id, true, 3]]);
+    assert.strictEqual(listed.replays[0].expires - listed.replays[0].created, replays.KEEP_MS);
+    assert.deepStrictEqual(JSON.parse((await g.get('/replays?name=Nobody')).body), { replays: [] });
     g.child.kill();
 
     // RG_REPLAYS=0 keeps no replays and serves none of those already kept.
-    g = await gateway({ RG_REPLAYS_DB: file, RG_REPLAYS: '0' });
+    g = await gateway({ RG_REPLAYS_DB: file, RG_DB: accountsFile, RG_REPLAYS: '0' });
     assert.strictEqual(JSON.parse((await g.get('/status')).body).replays, false);
     assert.strictEqual((await g.get(`/replay/${id}/data`)).status, 404);
+    assert.strictEqual((await g.get('/replays?name=Ada')).status, 404);
     g.child.kill();
     console.log('replay routes ok');
   } finally {
