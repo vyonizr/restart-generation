@@ -21,7 +21,7 @@ export const UNLOCKS = [
   { what: 'no hero grayed out', va: 0x100dc850, from: '8b41348b4c2404c6040101c20400', to: 'c20400' }, // ret 4
 ];
 // A player alone in their friendly room can press Start, for a match the server fills with bots. The lobby
-// otherwise shows and accepts Start only with another member listed (FUN_100eaaf0, FUN_100eadd0 key 4).
+// otherwise shows and accepts Start only with another member listed (FUN_100eaaf0, FUN_100eadd0 key 4; docs/adr/0008).
 export const LONE_START = [
   { what: 'Start shown when alone', va: 0x100eab1b, from: '8b463485c07462', to: '8b463485c09090' },
   { what: 'Start accepted when alone', va: 0x100eae95, from: '8b462c85c0762d', to: '8b462c85c09090' },
