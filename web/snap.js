@@ -12,10 +12,20 @@ const STATE = { NONE: 0, UNCONFIRMED: 1, REQUESTED: 2, ONLINE: 3, AWAY: 4, OFFLI
 export const startRoom = d => d.length >= 9 && d[0] === 7 && d[1] === 0 && d[2] === 0x11 && d[3] === 0 && d[4] === 0x1c
   ? (d[5] | d[6] << 8 | d[7] << 16 | d[8] << 24) >>> 0 : null;
 
+// A request that gets no SNAP reply (the fetch throws, misses its deadline, or brings an HTTP error such as a proxy's 502, or a body
+// without a status line) is resent with the same body, R included, so the gateway's reply cache answers a duplicate without running
+// it again. Resends go at once, then after these delays, the last one repeating, each ±20%. The page gives up 40 s after the
+// gateway's last reply, and on 702 InvalidSession, which is a reply like any other.
+const DEADLINE_MS = 8000, POLL_DEADLINE_MS = 20000; // the gateway holds a poll for up to 15 s
+const RESEND_MS = [0, 500, 1000, 2000, 4000];
+const GIVE_UP_MS = 40000;
+const CLOCK = { now: () => Date.now(), setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: id => clearTimeout(id) };
+
 export class SnapClient {
   // ui: { startLogin(onReady, onCancel), stopLogin(), attempting(), rejected(), accepted() (optional), credentials() -> {username, password} }
-  constructor({ url = 'snap', ui, log = () => {} }) {
-    this.url = url; this.ui = ui; this.log = log;
+  // fetch and clock ({ now, setTimeout, clearTimeout }) are the browser's unless a test supplies its own.
+  constructor({ url = 'snap', ui, log = () => {}, fetch: fetchFn = (...a) => fetch(...a), clock = CLOCK }) {
+    this.url = url; this.ui = ui; this.log = log; this.fetch = fetchFn; this.clock = clock;
     this.rid = 1000 + Math.floor(Math.random() * 1e6); // request ids must not collide with other clients
     this.session = null; this.loggedIn = false; this.lobby = null;
     this.problem = 0; this.admitted = false; this.loginRunning = false;
@@ -26,6 +36,12 @@ export class SnapClient {
     this.actions = []; this.busy = false;
     this.polling = false;
     this.bots = null;   // set if the server can run bots: { ask() -> { answer, close } }, the question for the player
+    this.heard = clock.now(); // the gateway's last reply, or the start of a login
+    this.waits = new Map();   // resends waiting -> whether it is the poll's; calling one sends it at once
+    this.pollAttempt = null;  // the poll's request in flight, to restart it
+    const wake = () => { for (const go of [...this.waits.keys()]) go(); };
+    globalThis.addEventListener?.('online', wake);
+    globalThis.document?.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wake(); });
   }
   attach(host) { this.host = host; }
 
@@ -38,8 +54,12 @@ export class SnapClient {
     // box is open, the box closes and the new state decides: a new question, or the Start going on or being dropped.
     while (state === 'ask' || state === 'level') {
       const question = this.bots.ask(state === 'level');
-      let changed = null;
-      const watch = setInterval(async () => { const s = await query(); if (s !== state) { changed = s; question.close(); } }, 2000);
+      let changed = null, asking = false; // a query that is still being resent skips the next ones
+      const watch = setInterval(async () => {
+        if (asking) return;
+        asking = true; const s = await query(); asking = false;
+        if (s !== state) { changed = s; question.close(); }
+      }, 2000);
       const answer = await question.answer; // 'none', 'cpu' or 'expert', or null once the room changed
       clearInterval(watch);
       if (answer === null) { state = changed ?? state; continue; }
@@ -51,6 +71,7 @@ export class SnapClient {
   }
 
   // ---- transport ----
+  // One request, resent until it gets a reply or the page gives up, which replies NETWORK_INTERRUPTED.
   async request(cmd, params = {}, { sessionless = false } = {}) {
     let body = `R=${this.rid++}&V=1.4.4`;
     if (this.session && !sessionless) body += `&S=${this.session}`;
@@ -60,16 +81,48 @@ export class SnapClient {
       if (v === null || v === undefined) continue;
       body += `&P${i}=${v}`;
     }
-    let text;
-    try {
-      const res = await fetch(this.url, { method: 'POST', body });
-      text = await res.text();
-    } catch (e) {
-      return { code: REPLY.NETWORK_INTERRUPTED, message: `NetworkInterruptedError: ${e.message}`, lines: [] };
+    const poll = cmd === CMD.RETRIEVE_ALL_EVENTS;
+    for (let tries = 0; ; tries++) {
+      const r = await this.attempt(body, poll);
+      if (!r.failed) { this.heard = this.clock.now(); return r; }
+      if (!poll) this.restartPoll();
+      if (!r.restarted) await this.pause(tries, poll);
+      if (this.clock.now() - this.heard >= GIVE_UP_MS) return { code: REPLY.NETWORK_INTERRUPTED, message: `NetworkInterruptedError: ${r.failed}`, lines: [] };
     }
-    const lines = text.split('\n');
-    const head = lines.shift(), sp = head.indexOf(' ');
-    return { code: +head.slice(0, sp < 0 ? head.length : sp), message: sp < 0 ? '' : head.slice(sp + 1), lines: lines.filter(l => l.length) };
+  }
+  // One try: the reply, or { failed: why } if none came. Its deadline never runs past the moment the page gives up, unless that has
+  // passed already, as for the logout after giving up.
+  async attempt(body, poll) {
+    const left = this.heard + GIVE_UP_MS - this.clock.now(), most = poll ? POLL_DEADLINE_MS : DEADLINE_MS;
+    const ctl = new AbortController(), timer = this.clock.setTimeout(() => ctl.abort(), left > 0 ? Math.min(most, left) : most);
+    if (poll) this.pollAttempt = ctl;
+    try {
+      const res = await this.fetch(this.url, { method: 'POST', body, signal: ctl.signal });
+      const lines = (await res.text()).split('\n'), head = /^(\d+)(?: (.*))?$/.exec(lines.shift());
+      if (res.status !== 200) return { failed: `HTTP ${res.status}` };
+      if (!head) return { failed: 'no status line' };
+      return { code: +head[1], message: head[2] ?? '', lines: lines.filter(l => l.length) };
+    } catch (e) {
+      return { failed: ctl.restart ? 'restarted' : ctl.signal.aborted ? 'timed out' : e.message, restarted: ctl.restart };
+    } finally {
+      this.clock.clearTimeout(timer);
+      if (this.pollAttempt === ctl) this.pollAttempt = null;
+    }
+  }
+  // A failed request restarts the poll at once, since the two probably shared the dead connection.
+  restartPoll() {
+    if (this.pollAttempt) { this.pollAttempt.restart = true; this.pollAttempt.abort(); }
+    for (const [go, poll] of this.waits) if (poll) go();
+  }
+  // The wait before resend `n` (from 0), cut short by the network coming back, the page showing again or, for the poll, a restart.
+  pause(n, poll) {
+    const ms = Math.min(RESEND_MS[Math.min(n, RESEND_MS.length - 1)] * (0.8 + Math.random() * 0.4), this.heard + GIVE_UP_MS - this.clock.now());
+    if (ms <= 0) return;
+    return new Promise(resolve => {
+      const go = () => { this.clock.clearTimeout(timer); this.waits.delete(go); resolve(); };
+      const timer = this.clock.setTimeout(go, ms);
+      this.waits.set(go, poll);
+    });
   }
   // What a failed reply means for the session. Returns true if the reply ended the attempt.
   checkReply(code, msg) {
@@ -105,6 +158,7 @@ export class SnapClient {
   async signIn() {
     this.loginRunning = true;
     this.room = ''; this.inRoom = false;
+    this.heard = this.clock.now(); // a login has as long to get a reply as a session
     try {
       await this.request(CMD.INIT, {}, { sessionless: true });
       const { username, password } = this.ui.credentials();
@@ -138,14 +192,14 @@ export class SnapClient {
     this.events.push(() => this.native('onArenaLoginCancelled@8'));
     this.leaving = false;
   }
-  // The event long-poll, repeated for as long as the session lasts.
+  // The event long-poll, repeated for as long as the session lasts. A failed reply ends the session, so the poll stops with it.
   async poll() {
     if (this.polling) return;
     this.polling = true;
     while (this.loggedIn) {
       const r = await this.request(CMD.RETRIEVE_ALL_EVENTS, { 1: 1 });
       if (!this.loggedIn) break;
-      if (r.code !== REPLY.OK) { if (r.code === REPLY.NETWORK_INTERRUPTED) await new Promise(res => setTimeout(res, 1000)); this.checkReply(r.code, r.message); continue; }
+      if (r.code !== REPLY.OK) { this.checkReply(r.code, r.message); break; }
       for (const line of r.lines) this.onServerEvent(line.split('|'));
     }
     this.polling = false;
