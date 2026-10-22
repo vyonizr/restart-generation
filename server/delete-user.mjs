@@ -2,6 +2,7 @@
 //   npm run delete-user -- --name Alice        or        --discord <Discord ID>      [--yes]
 // In Docker: docker compose exec rg npm run delete-user -- --name Alice
 import readline from 'node:readline/promises';
+import { HTTP_PORT } from './ports.js';
 
 const USAGE = 'Usage: npm run delete-user -- (--name <name> | --discord <Discord ID>) [--yes]';
 const fail = message => { console.error(message); process.exitCode = 1; return true; };
@@ -21,7 +22,7 @@ if (want.bad || (want.name === undefined) === (want.discord === undefined)) {
 async function run() {
   const token = process.env.RG_ADMIN_TOKEN;
   if (!token) return fail('RG_ADMIN_TOKEN is not set here. Put the value the server uses in .env (or the container\'s environment).');
-  const base = `http://127.0.0.1:${process.env.HTTP_PORT || 8080}`;
+  const base = `http://127.0.0.1:${HTTP_PORT}`;
   const query = new URLSearchParams(want.name !== undefined ? { name: want.name } : { discord: want.discord });
   const subject = want.name !== undefined ? `named ${want.name}` : `with Discord ID ${want.discord}`;
 

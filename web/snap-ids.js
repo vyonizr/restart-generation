@@ -1,6 +1,6 @@
-// SNAP Mobile ids as this server speaks the protocol (docs/protocol.md), shared by the page's client (web/snap.js) and the
-// gateway (server/gateway.js, server/auth.js). Commands and events are separate tables: 307 is accept as a command and
-// presence as an event.
+// SNAP Mobile ids and sizes as this server speaks the protocol (docs/protocol.md), shared by the page's client (web/snap.js),
+// the engine host (web/emu/host.js) and the server (gateway.js, auth.js, mt.js). Commands and events are separate tables:
+// 307 is accept as a command and presence as an event.
 
 // Commands (the C= of a request).
 export const CMD = {
@@ -52,3 +52,10 @@ export const REPLY = {
 export const GAME_CLASS = 42713;           // extendedLogin P5, and the game class in presence events
 export const PRESENCE_PREFIX = 'SM2.0.1,'; // starts every presence string the client sends
 export const VALID_NAME = /^[A-Za-z0-9_]{1,15}$/; // player names (SMArenaValidator)
+export const ROOM_MAX_USERS = 4;          // createGameRoom P3: the most users a game room takes
+// getLoginScreenStatus: the login screen says the client could not connect.
+export const LOGIN_COULD_NOT_CONNECT = 7;
+
+// The engine's game packet buffer, a direct ByteBuffer that send and onDataReceived share.
+export const NET_BUFFER_SIZE = 2048;
+export const MTU = 876; // the engine's stack MTU: each frame is a 2-byte header and at most MTU - 2 bytes (docs/re/re_transport.md)

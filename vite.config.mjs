@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { HTTP_PORT } from './server/ports.js';
 
 // The page carries the licenses it needs, as licenses.txt next to index.html: the notices of what it includes, then our own LICENSE.
 // Every deployment of web/dist ships them without anyone copying files (docs/LEGAL.md).
@@ -17,7 +18,7 @@ const licenses = () => ({
 });
 
 // `npm run dev:web` serves the page with hot reload and forwards everything the gateway answers to a running gateway.
-const gateway = `http://127.0.0.1:${process.env.HTTP_PORT || 8080}`;
+const gateway = `http://127.0.0.1:${HTTP_PORT}`;
 
 export default defineConfig({
   root: 'web',

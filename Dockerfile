@@ -2,6 +2,8 @@
 FROM node:22-alpine AS page
 WORKDIR /app
 COPY package.json package-lock.json vite.config.mjs LICENSE THIRD_PARTY_NOTICES.md ./
+# vite.config.mjs takes the gateway's HTTP port from server/ports.js.
+COPY server/ports.js server/
 RUN npm ci
 COPY web web
 RUN npm run build

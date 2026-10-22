@@ -3,12 +3,14 @@
 import { Machine } from './machine.js';
 import { JNI, JObject } from './jni.js';
 import { installFastPaths } from './fast.js';
+import { NET_BUFFER_SIZE, MTU, LOGIN_COULD_NOT_CONNECT } from '../snap-ids.js';
 
 export const WIDTH = 240, HEIGHT = 320;
 const HOME = 'C:\\RG';
 
 // Java KeyEvent codes for the keys the game uses.
 export const VK = { ENTER: 10, BACK_SPACE: 8, SHIFT: 16, CONTROL: 17, ESCAPE: 27, LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, SPACE: 32 };
+export const CHAR_UNDEFINED = 0xffff; // KeyEvent.CHAR_UNDEFINED: the key types no character
 
 // In-memory engine patches (docs/adr/0007). Each one is written only if the engine has the original bytes.
 // Every story and hero playable from the start; nothing is marked finished. A story's badge (lock, 0%, 50%)
@@ -55,7 +57,7 @@ export class GameHost {
     this.input = new JObject('rg/natives/NativeInputEventListener');
     this.sound = new JObject('rg/natives/NativeSoundOutputDevice');
     this.soundBuf = jni.directBuffer('java/nio/DirectByteBuffer', 1024);
-    this.netBuf = jni.directBuffer('java/nio/DirectByteBuffer', 2048);
+    this.netBuf = jni.directBuffer('java/nio/DirectByteBuffer', NET_BUFFER_SIZE);
     this.bridge = new JObject('com/redlynx/mt/snapmobile/NativeSNAPMobileInterface', { methods: this.snapMethods || offlineSnap() });
     this.events = new JObject('com/redlynx/mt/snapmobile/NativeSNAPMobileEventListener');
 
@@ -64,7 +66,7 @@ export class GameHost {
     call('_Java_rg_natives_NativeGameEngine_setHomeDirectory@12', ref(this.engine), jni.str(HOME));
     call('_Java_rg_natives_NativeGameEngine_init@44', ref(this.engine), ref(this.frame), jni.str(this.language), 0,
       WIDTH, HEIGHT, jni.str(''), 0, 0, 0);
-    call('_Java_com_redlynx_mt_snapmobile_NativeSNAPMobileInterface_initNative@20', ref(this.bridge), ref(this.netBuf), 2048, 876);
+    call('_Java_com_redlynx_mt_snapmobile_NativeSNAPMobileInterface_initNative@20', ref(this.bridge), ref(this.netBuf), NET_BUFFER_SIZE, MTU);
     for (const name of Object.keys(this.files).filter(n => n.endsWith('.pak')).sort()) {
       call('_Java_rg_natives_NativeGameEngine_notifyDataPackageReady@12', ref(this.engine), jni.str(name));
     }
@@ -89,7 +91,7 @@ export class GameHost {
     cpu.codeCache[at - cpu.codeBase] = undefined;
   }
 
-  key(down, code, ch = 0xffff, location = 1) {
+  key(down, code, ch = CHAR_UNDEFINED, location = 1) {
     const name = down ? '_Java_rg_natives_NativeInputEventListener_onKeyPressed@24' : '_Java_rg_natives_NativeInputEventListener_onKeyReleased@24';
     this.call(name, this.jni.ref(this.input), this.m.win.now | 0, code, ch, location);
   }
@@ -106,9 +108,9 @@ export class GameHost {
   snapEvent(name, ...args) {
     this.call(`_Java_com_redlynx_mt_snapmobile_NativeSNAPMobileEventListener_${name}`, this.jni.ref(this.events), ...args);
   }
-  // The 2048-byte direct buffer shared by send and onDataReceived.
+  // The direct buffer shared by send and onDataReceived.
   readNet(len) { return this.m.cpu.m8.slice(this.netBuf.address, this.netBuf.address + len); }
-  writeNet(bytes) { this.m.cpu.m8.set(bytes.subarray(0, 2048), this.netBuf.address); }
+  writeNet(bytes) { this.m.cpu.m8.set(bytes.subarray(0, NET_BUFFER_SIZE), this.netBuf.address); }
   javaArray(strings) { return new JObject('[Ljava/lang/String;', { items: strings.map(s => new JObject('java/lang/String', { value: s })) }); }
   javaIntArray(ints) { return new JObject('[I', { items: ints }); }
 
@@ -128,7 +130,7 @@ export class GameHost {
 function offlineSnap() {
   return {
     init: () => true, login: () => true, logout: () => {}, isLoggedIn: () => false,
-    getLoginScreenStatus: () => 7, loginWasCancelled: () => false,
+    getLoginScreenStatus: () => LOGIN_COULD_NOT_CONNECT, loginWasCancelled: () => false,
     startLoginScreen: () => {}, stopLoginScreen: () => {}, send: n => n,
   };
 }

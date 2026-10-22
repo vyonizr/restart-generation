@@ -7,7 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { FRAME, readFrames, frame, parseRequest, ok, err, b64 } = require('./snap');
-const { CMD, EVENT, REPLY, GAME_CLASS, PRESENCE_PREFIX, VALID_NAME } = require('../web/snap-ids.js');
+const { CMD, EVENT, REPLY, GAME_CLASS, PRESENCE_PREFIX, VALID_NAME, ROOM_MAX_USERS } = require('../web/snap-ids.js');
+const { PORT, HTTP_PORT } = require('./ports');
 const gameServer = require('./casino');
 const bots = require('./bots');
 const store = require('./store');
@@ -22,7 +23,6 @@ const VERSION = process.env.RG_VERSION || (() => {
   } catch { return ''; }
 })() || 'dev';
 
-const PORT = Number(process.env.PORT || 8976);
 let MODE;
 try { MODE = modeFrom(process.argv, process.env); } catch (e) { console.error(e.message); process.exit(1); }
 const HOST = MODE.listenAll ? undefined : '127.0.0.1';
@@ -176,7 +176,7 @@ function handle(req, s, send) {
     case CMD.GET_GAME_ROOMS:
       return send(ok([...rooms.values()].map(r => [r.id, r.name, r.members.size, r.members.size, r.max, 0])));
     case CMD.CREATE_GAME_ROOM: { // P1 name, P3 max users
-      const room = api.createRoom(String(p[1]), Number(p[3]) || 4);
+      const room = api.createRoom(String(p[1]), Number(p[3]) || ROOM_MAX_USERS);
       joinRoom(s, room);
       log(`${s.name} created room ${room.id} "${room.name}"`);
       gameServer.onJoin?.(s, room, api);
@@ -327,7 +327,6 @@ if (auth.enabled) { auth.sweep(); setInterval(auth.sweep, 60000); }
 
 // ---- browser client: serves the built page (web/dist) and the player's own copy of the game files ----
 const http = require('http');
-const HTTP_PORT = Number(process.env.HTTP_PORT || 8080);
 const WEB_DIR = path.join(__dirname, '..', 'web');
 // The built page (npm run build, ADR 0013): index.html, assets/ with hashed names, and the files Vite copies as they are.
 const DIST_DIR = path.join(WEB_DIR, 'dist');

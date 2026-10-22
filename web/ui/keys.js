@@ -1,5 +1,5 @@
 // Keyboard: browser keys to Java KeyEvent codes, and the player's custom keys (CONTEXT.md) read from the engine's settings file.
-import { VK } from '../emu/host.js';
+import { VK, CHAR_UNDEFINED } from '../emu/host.js';
 
 const KEYS = {
   ArrowLeft: VK.LEFT, ArrowRight: VK.RIGHT, ArrowUp: VK.UP, ArrowDown: VK.DOWN,
@@ -7,7 +7,7 @@ const KEYS = {
 };
 
 export function javaKey(e) {
-  if (KEYS[e.key] !== undefined) return { code: KEYS[e.key], ch: e.key === ' ' ? 32 : e.key === 'Backspace' ? 8 : 0xffff };
+  if (KEYS[e.key] !== undefined) return { code: KEYS[e.key], ch: e.key === ' ' ? 32 : e.key === 'Backspace' ? 8 : CHAR_UNDEFINED };
   if (e.key.length === 1) return { code: e.key.toUpperCase().charCodeAt(0), ch: e.key.charCodeAt(0) };
   return null;
 }

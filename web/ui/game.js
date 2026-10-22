@@ -1,6 +1,6 @@
 // Browser host: gets the game files, runs the engine in the emulator, draws frames to the canvas, forwards the keyboard and
 // the touch pad and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page` (page.svelte.js).
-import { GameHost, WIDTH, HEIGHT, UNLOCKS, LONE_START } from '../emu/host.js';
+import { GameHost, WIDTH, HEIGHT, UNLOCKS, LONE_START, CHAR_UNDEFINED } from '../emu/host.js';
 import { SnapClient } from '../snap.js';
 import { page, padSession } from './page.svelte.js';
 import { touch } from './device.js';
@@ -108,7 +108,7 @@ async function main(canvas) {
     if (held.has(e.code)) return;      // the Java listener ignored auto-repeat too
     held.add(e.code);
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
-    input.push(() => { game.key(true, k.code, k.ch, loc); if (k.ch !== 0xffff) game.typed(k.ch); });
+    input.push(() => { game.key(true, k.code, k.ch, loc); if (k.ch !== CHAR_UNDEFINED) game.typed(k.ch); });
   });
   addEventListener('keyup', e => {
     const k = javaKey(e);

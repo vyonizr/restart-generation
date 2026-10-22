@@ -9,8 +9,9 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { HTTP_PORT } from '../../server/ports.js';
 
-const url = process.argv[2] || 'http://localhost:8080/';
+const url = process.argv[2] || `http://localhost:${HTTP_PORT}/`;
 const steps = (process.argv[3] || 'wait:20,shot:title').split(',').map(s => s.split(':'));
 const browser = process.env.BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const port = 9300 + Math.floor(Math.random() * 500);

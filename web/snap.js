@@ -2,7 +2,7 @@
 // events arrive through the long-poll command. It implements the functions the engine's networking interface calls and runs the
 // engine's event callbacks between ticks.
 
-import { CMD, EVENT, REPLY, GAME_CLASS, PRESENCE_PREFIX, VALID_NAME } from './snap-ids.js';
+import { CMD, EVENT, REPLY, GAME_CLASS, PRESENCE_PREFIX, VALID_NAME, ROOM_MAX_USERS, LOGIN_COULD_NOT_CONNECT } from './snap-ids.js';
 
 const b64 = bytes => btoa(String.fromCharCode(...bytes));
 const unb64 = s => Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
@@ -196,7 +196,7 @@ export class SnapClient {
   }
   async openRoom(name) {
     if (this.inRoom) await this.exitRoom(this.room);
-    const r = await this.request(CMD.CREATE_GAME_ROOM, { 1: name, 3: 4, 4: 1 });
+    const r = await this.request(CMD.CREATE_GAME_ROOM, { 1: name, 3: ROOM_MAX_USERS, 4: 1 });
     if (r.code === REPLY.OK && r.lines[0]) { this.inRoom = true; this.room = name; this.events.push(() => this.native('onConnected@8')); }
     else { this.inRoom = false; this.room = ''; }
   }
@@ -257,7 +257,7 @@ export class SnapClient {
       },
       stopLoginScreen: () => { this.ui.stopLogin(); },
       getLoginScreenStatus: () => {
-        if (this.problem === 3) return 7;
+        if (this.problem === 3) return LOGIN_COULD_NOT_CONNECT;
         if (this.problem === 1) return 6;
         if (this.problem === 2) return 5;
         if (this.cancelled && this.loginRunning) return 1;

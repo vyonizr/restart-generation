@@ -1,5 +1,6 @@
 // The touch pad's pointer handling: one control per finger; sliding a finger moves the press to the control under it.
 // It works on elements it is given and returns a function that takes every listener off again. Pad.svelte draws the pad.
+import { CHAR_UNDEFINED } from '../emu/host.js';
 import { javaKey, padKey } from './keys.js';
 import { page } from './page.svelte.js';
 import { stayAwake, needsVideo } from './wake.js';
@@ -18,7 +19,7 @@ export function bindPad({ pad, typing, typeButton, game, input, audio }) {
     if (presses.get(k) > 1) return;
     const code = padKey(k, page.keys);
     codes.set(k, code);
-    input.push(() => game.key(true, code, 0xffff, 1));
+    input.push(() => game.key(true, code, CHAR_UNDEFINED, 1));
     button(k).classList.add('held');
     navigator.vibrate?.(8);
   };
@@ -27,7 +28,7 @@ export function bindPad({ pad, typing, typeButton, game, input, audio }) {
     if (presses.get(k) > 1) { presses.set(k, presses.get(k) - 1); return; }
     presses.delete(k);
     const code = codes.get(k);
-    input.push(() => game.key(false, code, 0xffff, 1));
+    input.push(() => game.key(false, code, CHAR_UNDEFINED, 1));
     button(k).classList.remove('held');
   };
   // k is the control under the finger, or undefined over empty space (the D-pad's middle and corners): the finger keeps its
@@ -75,7 +76,7 @@ export function bindPad({ pad, typing, typeButton, game, input, audio }) {
     e.preventDefault();
     for (const key of e.inputType === 'deleteContentBackward' ? ['Backspace'] : [...(e.data || '')]) {
       const k = javaKey({ key });
-      if (k) input.push(() => { game.key(true, k.code, k.ch, 1); if (k.ch !== 0xffff) game.typed(k.ch); game.key(false, k.code, k.ch, 1); });
+      if (k) input.push(() => { game.key(true, k.code, k.ch, 1); if (k.ch !== CHAR_UNDEFINED) game.typed(k.ch); game.key(false, k.code, k.ch, 1); });
     }
     typing.value = ' '; // ponytail: a space keeps Backspace firing on an empty field; IME composition isn't handled
   }, { signal });

@@ -3,8 +3,10 @@
 // index 0, or frames numbered 1, 2, ... where the last one is renumbered 0.
 // A reassembled message is u8 type + body. Everything is little-endian.
 
-const MAX_FRAME = 874;
-const T = { PING: 1, PONG: 2, GAMESERVER: 3, PING_CONFIG: 0x0c, CASINO: 0x11, TABLE: 0x15, GAME: 0x16 };
+const { MTU } = require('../web/snap-ids.js');
+
+const MAX_FRAME = MTU - 2; // what the MTU leaves after the u16 frame header
+const T = { PING: 1, PONG: 2, GAMESERVER: 3, PING_CONFIG: 0x0c, CASINO: 0x11, RANKED_CASINO: 0x12, FRIENDLY_CASINO: 0x13, TABLE: 0x15, GAME: 0x16 };
 
 // Feeds bytes from one connection; returns complete messages as Buffers (type byte first).
 function createReader() {
