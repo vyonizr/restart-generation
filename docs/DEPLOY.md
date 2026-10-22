@@ -202,14 +202,17 @@ If the schema changed between the two versions, also restore the backup from bef
 
 ## 9. Run the server day to day
 
-- View the logs: `docker compose logs -f --tail 100 rg`.
+- View the logs: `docker compose logs -f --tail 100 rg`. Docker keeps only the newest 30 MB of each container's log (three 10 MB files, set in `compose.yaml`), and the server keeps `data/capture.log` under 20 MB, so the logs can't fill the disk.
 - Restart the server: `docker compose restart rg`. The server loads the battle templates only at start.
 - Stop everything: `docker compose down`. The data stays in `data/`, and the certificates stay in a volume.
+- Watch the outbound transfer your plan includes, in your host's dashboard. Without the game, each online player costs about 0.6 MB an hour, so 100 players online on average use about 45 GB a month. Some hosts shut the VPS down when the allowance runs out, until the next month; if usage passes half the allowance before mid-month, move to a bigger plan.
 - Delete an account: see [Delete an account](HOSTING.md#delete-an-account).
 
 ## Optional: send the game from your server
 
 This makes your server send RedLynx's game files to every visitor. That is distribution of their work, and it's your decision and your risk. Before you continue, read [Rules for a server that sends the game](LEGAL.md#rules-for-a-server-that-sends-the-game).
+
+It also costs bandwidth. Each visitor downloads about 33 MB of game files, and the page doesn't keep them, so every page load, Quit, and sign-out downloads them again. A plan with 512 GB of outbound transfer covers only about 15,000 loads a month, and some hosts shut the VPS down when the allowance runs out. Check what yours does first.
 
 You need the game's `.zip` on the VPS, and a way for a rights holder to reach you.
 

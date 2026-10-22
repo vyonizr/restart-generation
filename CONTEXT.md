@@ -32,6 +32,14 @@ _Avoid_: save file, progress file, profile
 The score a player earns by winning ranked matches. Its level, the fame level, is what the game shows beside a name.
 _Avoid_: XP, rating, points
 
+**Online player**:
+A player signed in to Arena, whether in a lobby, a room, or a battle; bots don't count. The page's "N online" shows how many there are.
+_Avoid_: user, connected player, active player
+
+**Visitor**:
+Anyone who opens the browser client's page, online or not. A server that sends the game sends it to every visitor, so visitors, not online players, set what that costs.
+_Avoid_: user, page view, session
+
 ### Running a server
 
 **Admin**:
