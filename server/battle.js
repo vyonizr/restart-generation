@@ -349,7 +349,7 @@ function leave(table, p, api) {
 // the winners are every player it ranks first (two after a tie, none if nobody is first) and `guessed` is null.
 // Otherwise the result is guessed (CONTEXT.md "Guessed result"), and `guessed` says why: the last player standing,
 // else the one who made the final move before the game ended (clients compute the result locally and never upload it).
-async function result(table, waitMs = 0) {
+async function result(table, waitMs) {
   let timer;
   const seen = table.witness && await Promise.race([table.witness.result(table),
     new Promise(resolve => { timer = setTimeout(resolve, waitMs, { failed: 'no result in time' }); })]);
