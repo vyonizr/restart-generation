@@ -50,14 +50,16 @@ Do this to get CPU players in online rooms, and battle results that the game's e
 
 The following table lists the default controls:
 
-| Action | Keyboard (default keys) | Touch pad (phone or tablet) |
-| --- | --- | --- |
-| Move | Arrow keys | D-pad |
-| Select | <kbd>Ctrl</kbd> or <kbd>Enter</kbd> | **Select** |
-| Go back | <kbd>Shift</kbd> | **Back** |
-| Open the menu | <kbd>Esc</kbd> | **Back** (in a battle) |
-| Chat | <kbd>E</kbd> | **Keyboard**, and then the chat key |
-| Type text | Your keyboard | **Keyboard** |
+| Action | Keyboard (default keys) | Touch pad (phone or tablet) | Gamepad |
+| --- | --- | --- | --- |
+| Move | Arrow keys | D-pad | D-pad or left stick |
+| Select | <kbd>Ctrl</kbd> or <kbd>Enter</kbd> | **Select** | Bottom button |
+| Go back | <kbd>Shift</kbd> | **Back** | Right button |
+| Open the menu | <kbd>Esc</kbd> | **Back** (in a battle) | Start |
+| Chat | <kbd>E</kbd> | **Keyboard**, and then the chat key | None |
+| Type text | Your keyboard | **Keyboard** | None |
+
+The first gamepad you press works on any device, and only one gamepad is used at a time.
 
 To use other keys, open **Settings > Custom Keys** in the game. You can change the keys for moving, Select, Back, and Chat; <kbd>Enter</kbd> always selects and <kbd>Esc</kbd> always goes back. The list under the game screen shows the keys you chose, and the touch pad's D-pad follows them. Your keys are part of your saved game.
 
@@ -106,7 +108,7 @@ Your server starts an online battle only from a battle template. A fresh copy of
 
 ## Play on other devices
 
-A phone, tablet, or other computer can play on a public server, or on your own network from a PC that runs the server. Phones and tablets play in portrait, with a touch pad under the game screen. A keyboard on a tablet also works.
+A phone, tablet, or other computer can play on a public server, or on your own network from a PC that runs the server. Phones and tablets play in portrait, with a touch pad under the game screen. A keyboard or a gamepad also works.
 
 ### On your own network
 
