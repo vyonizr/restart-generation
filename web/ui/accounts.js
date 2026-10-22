@@ -56,15 +56,17 @@ export const actions = {
   },
 };
 
-// Coming back from Discord: the page address carries a one-time code.
-async function finishSignIn(code) {
+// Coming back from Discord: the page address carries a one-time code. `refused` shows why the server made no guest, if it made none:
+// canceling then leaves the player there, with the offer to sign in again.
+async function finishSignIn(code, refused = null) {
+  const canceled = () => (refused ? refused() : notice(`Sign-in canceled. You're still playing as ${account.name}.`, dismiss));
   try {
     const r = await account.exchange(code);
     if (r.status === 'name') {
       let name = r.suggested, error = '';
       for (;;) {
         name = await askName(name, error);
-        if (name === null) { closeName(); notice(`Sign-in canceled. You're still playing as ${account.name}.`, dismiss); return; }
+        if (name === null) { closeName(); canceled(); return; }
         try { await account.finish(code, { name }); break; } catch (e) {
           if (!NAME_ERRORS[e.code]) { closeName(); throw e; }
           error = NAME_ERRORS[e.code];
@@ -73,7 +75,7 @@ async function finishSignIn(code) {
       closeName();
     } else if (r.status === 'confirm') {
       const yes = await ask({ title: `Sign in as ${r.name}?`, text: `That Discord account already has a player. Your guest progress (${r.guestFame} fame) and this browser's saved game are discarded.`, yes: 'Continue' });
-      if (!yes) { notice(`Sign-in canceled. You're still playing as ${account.name}.`, dismiss); return; }
+      if (!yes) { canceled(); return; }
       await account.finish(code, { confirm: true });
     }
     await account.open();
@@ -93,7 +95,10 @@ async function start() {
     render();
   } catch (e) {
     const reason = { too_many: 'This network has made too many guests in the last hour. Try again later, or sign in with Discord.', full: 'This server has no room for more guests right now.' }[e.code];
-    notice(reason || "Couldn't reach the account server. Online play won't work until you reload.", dismiss);
+    // A member counts against neither limit, and signing in with Discord needs no guest.
+    const refused = () => notice(reason || "Couldn't reach the account server. Online play won't work until you reload.", reason ? [['Sign in with Discord', actions.signin], ...dismiss] : dismiss);
+    if (reason && returned?.[1] === 'signin') await finishSignIn(returned[2], refused);
+    else refused();
     return;
   }
   if (returned?.[1] === 'signin-error') notice(returned[2] === 'cancelled' ? `Sign-in canceled. You're still playing as ${account.name}.` : "Discord sign-in didn't work. Try again.", dismiss);
