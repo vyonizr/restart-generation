@@ -4,7 +4,7 @@ This guide is the whole procedure for a public server on one virtual private ser
 
 > **Caution:** This procedure was tested only on a PC with Docker Desktop, at `RG_DOMAIN=localhost`. Steps 1 and 2, a real certificate, the Discord sign-in round trip, the cron job, and the `chown` command haven't been tested on a VPS.
 
-The steps leave out `RG_GAME_PATH`, so each player chooses their own copy of the game (see the architecture decision record [ADR 0001](adr/0001-players-bring-their-own-game-files.md)). Sending the game from your server is a separate decision, with legal consequences: see [Optional: send the game from your server](#optional-send-the-game-from-your-server).
+The steps leave out `RG_GAME_PATH` and `RG_SEND_GAME`, so each player chooses their own copy of the game (see the architecture decision record [ADR 0001](adr/0001-players-bring-their-own-game-files.md)), and the server guesses battle results. Giving the server its own copy, and sending that copy to visitors, are separate decisions: see [Optional: send the game from your server](#optional-send-the-game-from-your-server).
 
 You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a domain name, and a Discord application (see [Guests and members](HOSTING.md#guests-and-members)). The commands in this guide that run on your PC are PowerShell; the others run on the VPS.
 
@@ -239,9 +239,12 @@ You need the game's `.zip` on the VPS, and a way for a rights holder to reach yo
 
    ```sh
    RG_GAME_PATH=./ResetGeneration-Standalone.zip
+   RG_SEND_GAME=1
    # An email address or an https address; the page shows it in its Notices dialog, and the server won't start without it.
    RG_CONTACT=
    ```
 3. Run `docker compose up -d`.
 
-`/status` then says `"servesGame":true`, and the Notices dialog shows your contact. To stop sending the game at once, empty `RG_GAME_PATH` and run `docker compose up -d` again.
+`/status` then says `"servesGame":true`, and the Notices dialog shows your contact. To stop sending the game at once, empty `RG_SEND_GAME` and run `docker compose up -d` again.
+
+`RG_GAME_PATH` alone, without `RG_SEND_GAME=1`, sends nothing: it gives the server its own copy, whose witness decides battle results instead of guessing them ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). It costs about 300 MB of memory and no bandwidth.

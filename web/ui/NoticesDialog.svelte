@@ -1,5 +1,5 @@
 <!-- The notices (docs/LEGAL.md), opened from the footer's Notices button. "Bring your own copy" and the note about the files appear only
-     where the player brings them: never on a server that sends the game files itself (RG_GAME set), whatever this browser has stored.
+     where the player brings them: never on a server that sends the game files itself (RG_SEND_GAME=1), whatever this browser has stored.
      That server says instead that it sends a copy, and where a rights holder can ask for its removal (RG_CONTACT). A server with
      accounts says what it keeps. -->
 <script>

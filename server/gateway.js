@@ -286,6 +286,14 @@ const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, li
 module.exports = { staleSessions, lanAddresses, handle, processRequest, db };
 if (require.main !== module) return; // tests import the module without starting the servers
 
+// A server that sends the game to every visitor says where a rights holder can ask for its removal (docs/LEGAL.md): a --public server
+// with RG_SEND_GAME=1 won't start without a valid RG_CONTACT. Any other server doesn't need one.
+const SEND_GAME = process.env.RG_SEND_GAME === '1';
+if (MODE.public && SEND_GAME && !authConfig.contact) {
+  console.error('Refusing to start a --public server that sends the game (RG_SEND_GAME=1) without RG_CONTACT: an email address or an https address where a rights holder can ask for its removal (docs/LEGAL.md)');
+  process.exitCode = 1; return;
+}
+
 // Online battles are hosted from captured templates (ADR 0006). A public server without one would let players queue for matches
 // that never start, so it refuses to start. Any other server only warns: the page and single-player play don't need templates.
 const seatCounts = require('./battle').seatCounts();
@@ -297,16 +305,10 @@ if (!seatCounts.size) {
   for (const n of [2, 3, 4]) if (!seatCounts.has(n)) log(`No battle template for ${n} players: ${n}-player matches won't start${n === 4 ? ", and CPU players can't fill empty seats" : ''}`);
 }
 
-// A server that sends the game to every visitor says where a rights holder can ask for its removal (docs/LEGAL.md): a --public server
-// won't start without a valid RG_CONTACT. Any other server doesn't need one.
-if (MODE.public && process.env.RG_GAME && !authConfig.contact) {
-  console.error('Refusing to start a --public server that serves the game without RG_CONTACT: an email address or an https address where a rights holder can ask for its removal (docs/LEGAL.md)');
-  process.exitCode = 1; return;
-}
-
 // The server copy runs the witness, which decides every battle's result (docs/adr/0020), on a public server too.
 if (process.env.RG_GAME) require('./witness').start(log);
 else log('Warning: no server copy (RG_GAME), so battle results will be guessed: the last player standing, or else the one who made the last move');
+if (SEND_GAME && !process.env.RG_GAME) log('Warning: RG_SEND_GAME=1 without RG_GAME: there is no server copy, so visitors choose their own files');
 
 net.createServer(sock => {
   const addr = `${sock.remoteAddress}:${sock.remotePort}`;
@@ -331,17 +333,20 @@ setInterval(() => {
 }, 5000);
 if (auth.enabled) { auth.sweep(); setInterval(auth.sweep, 60000); }
 
-// ---- browser client: serves the built page (web/dist) and the player's own copy of the game files ----
+// ---- browser client: serves the built page (web/dist) and, if the admin chose to, the server copy of the game ----
 const http = require('http');
 const WEB_DIR = path.join(__dirname, '..', 'web');
 // The built page (npm run build, ADR 0013): index.html, assets/ with hashed names, and the files Vite copies as they are.
 const DIST_DIR = path.join(WEB_DIR, 'dist');
-// RG_GAME: the ResetGeneration folder or the standalone .zip. Without it the page asks players for their own files.
-let gameFiles = {};
+// RG_GAME, the server copy: the ResetGeneration folder or the standalone .zip. It's sent to visitors only with RG_SEND_GAME=1
+// (servesGame); otherwise the page asks players for their own files.
+let gameFiles = null;
 if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => {
   require('./aiprofiles').apply(f); // a bot-ai.json key the game's XML doesn't have stops the server here
-  gameFiles = f; log(`game files from ${process.env.RG_GAME}`);
+  if (SEND_GAME) gameFiles = f;
+  log(`server copy from ${process.env.RG_GAME}${SEND_GAME ? ', sent to visitors (RG_SEND_GAME=1)' : ''}`);
 }).catch(e => { log(`RG_GAME: ${e.message}`); if (/bot-ai\.json/.test(e.message)) process.exit(1); });
+const servesGame = () => gameFiles !== null;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
 
 http.createServer((req, res) => {
@@ -361,7 +366,7 @@ http.createServer((req, res) => {
   }
   if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: Boolean(process.env.RG_GAME), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
+    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: servesGame(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
   }
   if (parsed.pathname.startsWith('/admin/')) {
     admin.http(req, res, parsed);
@@ -372,7 +377,7 @@ http.createServer((req, res) => {
     return;
   }
   if (url.startsWith('/game/')) {
-    const data = Object.hasOwn(gameFiles, url.slice(6)) && gameFiles[url.slice(6)];
+    const data = servesGame() && Object.hasOwn(gameFiles, url.slice(6)) && gameFiles[url.slice(6)];
     if (!data) { res.writeHead(404); return res.end('not found'); }
     // The size lets the page show its download as a percentage (web/ui/gamefiles.js).
     res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': data.length, 'Cache-Control': 'no-cache' });

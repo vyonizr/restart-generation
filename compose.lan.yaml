@@ -1,4 +1,5 @@
-# The server for a private network, or this PC only: name-only login, every story and hero open, bots when RG_GAME_PATH is set.
+# The server for a private network, or this PC only: name-only login, every story and hero open, and the witness and bots when
+# RG_GAME_PATH is set.
 # Run it with `docker compose -f compose.lan.yaml up -d --build`. For the internet use compose.yaml. See "Run in Docker" in docs/HOSTING.md.
 services:
   rg:
@@ -13,8 +14,11 @@ services:
       - "${BIND:-127.0.0.1}:8080:8080"
       - "${BIND:-127.0.0.1}:8976:8976"
     environment:
-      # Set only if RG_GAME_PATH is set: the server then sends that game copy to every visitor and can run bots.
+      # The server copy, set only if RG_GAME_PATH is set: the witness runs it to decide battle results (docs/adr/0020), and the
+      # bots run it.
       RG_GAME: ${RG_GAME_PATH:+/game}
+      # 1 sends the server copy to every visitor, so other devices don't ask for the game files.
+      RG_SEND_GAME: ${RG_SEND_GAME:-}
       # The admin's account delete (npm run delete-user, ADR 0016). Unset, the endpoint is off.
       RG_ADMIN_TOKEN: ${RG_ADMIN_TOKEN:-}
     volumes:

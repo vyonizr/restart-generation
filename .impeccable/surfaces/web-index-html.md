@@ -11,7 +11,7 @@ The page is built from `web/index.html` (the shell), `web/ui/styles.css` (the CS
 
 Mode: **Experience**. The game leads; the frame (header, hero, footer) recedes.
 
-Audience and job: players who own the Windows standalone build reach **Start** in a few steps, by choosing their files (static host) or straight away (server with `RG_GAME`), then play with the keyboard or the touch pad. Product truth lives in the [product brief](../../PRODUCT.md), and the detailed design in the [design system](../../DESIGN.md).
+Audience and job: players who own the Windows standalone build reach **Start** in a few steps, by choosing their files (static host) or straight away (server with `RG_SEND_GAME=1`), then play with the keyboard or the touch pad. Product truth lives in the [product brief](../../PRODUCT.md), and the detailed design in the [design system](../../DESIGN.md).
 
 Decided in "Choose the visual direction": direction B, Stage, dark only.
 

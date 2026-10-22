@@ -291,14 +291,14 @@ When every seat is filled, or 40 s have passed with at least two players, the se
 
 - The server acks every reliable client message with MessageAccepted to the sender and forwards the message unchanged to the other players, in one global order. EndGame reason 3 is forwarded as 2.
 - EndTurnRequest is never forwarded. Interactive phases are 2 (place tiles, all players at once), 4 (hero turns, in ascending seat order), and 5 (cannons, all at once). Phases 1, 3, 6, and 7 advance by themselves. The server sends EndTurn with the current turn and phase to everyone once every living player has finished phase 2 or 5, or when the current player ends their phase 4 turn. A player finishes phase 2 with one PlaceTile, and phase 5 after sending one FireCannon per cannon (`NumberOfCannonsInCastle`). An EndTurnRequest also finishes either phase; clients send it only when their phase time limit runs out. EndTurn for any other turn or phase is dropped by the clients and stalls the battle.
-- The server can't see defeats, so in phases 2 and 5 it takes silence for a defeat:
+- Nothing a client sends shows its own defeat. A server with a server copy runs a witness, the engine's own battle logic fed the same messages in the same order ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md), [the witness note](re/re_witness.md)), and stops waiting for a player the moment the witness sees them defeated: in phases 2 and 5 the phase ends once every remaining player is done, and in phase 4 the defeated player's turn is skipped. Without a witness, or for a stopped player, whom no engine sees as defeated, the server takes silence for a defeat in phases 2 and 5:
   - A bot that has sent nothing 15 s into phase 2 or 5 is done, because a defeated bot sends nothing.
   - A person is presumed defeated, and not waited for, once they have sent nothing for a whole turn. The same applies 30 s into a phase if they sat out the previous phase 2 or 5 (no order, or cannon shots still owed), or if the clients skipped them in this turn's phase 4.
-  - A defeat still costs one phase that runs to its forced end: the first phase in which nothing shows the defeat. That phase lasts 50 s, or in a relaxed match 60 s in phase 5 and 3 minutes in the other phases.
-- In phase 4, the server never skips or ends a turn on silence. It can't tell a defeated player, whom the clients skip, from a stopped player (a phone that sleeps, a hidden tab, a hung bot), whom the clients still wait for. Instead, it follows the clients to phase 5 on their first shot, and a stopped player's turn waits for the forced end. In phase 4, a leaver who held the last turn moves the server to phase 5 at once, as it did the clients.
+  - Without a witness, a defeat still costs one phase that runs to its forced end: the first phase in which nothing shows the defeat. That phase lasts 50 s, or in a relaxed match 60 s in phase 5 and 3 minutes in the other phases.
+- In phase 4, the server never skips or ends a turn on silence. It can't tell a defeated player, whom the clients skip, from a stopped player (a phone that sleeps, a hidden tab, a hung bot), whom the clients still wait for. Instead, it follows the clients to phase 5 on their first shot, and a stopped player's turn waits for the forced end. In phase 4, a leaver, or a player the witness sees defeated, who held the last turn moves the server to phase 5 at once, as it did the clients.
 - Each interactive phase has its phase time limit in the Game blob (20 s in the captured battle templates). The server forces the end with EndTurn 30 s after the limit. The server logs why it ended each phase or turn (every player acted, silence, the forced end, or following the clients) and every EndTurnRequest it dropped.
 - A player who drops out is reported to the others as EndGame reason 2 with the leaver as sender. EndGame with sender 0 would make every client believe it won.
-- Clients decide the winner themselves and upload nothing. When the battle ends, each client sends `SEAT_LEAVE` on `0x15` and logs in to CasinoSystem again. The server scores the last player standing, else the player who made the final move.
+- Clients decide the winner themselves and upload nothing. When the battle ends, each client sends `SEAT_LEAVE` on `0x15` and logs in to CasinoSystem again. On the first one, the server scores every player the witness ranks first, waiting up to 5 s for a witness that is still catching up. Without the witness's ranks, it guesses: the last player standing, else the player who made the final move.
 
 ### Battle templates
 
@@ -321,7 +321,7 @@ The `GET /status` reply has the following fields:
 | --- | --- |
 | `version` | The release the server runs, such as `v0.1.2`: `RG_VERSION`, else `git describe --tags --always` of its clone, else `dev` ([ADR 0019](adr/0019-releases-are-tagged-in-ci-on-the-public-main.md)). |
 | `accounts` | Whether Discord sign-in is on. |
-| `servesGame` | Whether the server sends the game files itself (`RG_GAME` is set). |
+| `servesGame` | Whether the server sends the game files itself: `RG_SEND_GAME=1` with a loaded server copy (`RG_GAME`). |
 | `unlockAll` | Whether the page opens every story and hero from the start: true unless the server runs with `--public` ([ADR 0007](adr/0007-patch-the-engine-in-memory.md)). |
 | `invite` | The admin's Discord invite link, or empty. |
 | `contact` | Where a rights holder can ask for the game's removal, or empty ([legal notes](LEGAL.md)). |

@@ -28,7 +28,7 @@ Every story and hero is open from the start on your own server.
 
 ### Optional: tell the server where the game is
 
-Do this to get CPU players in online rooms, and to stop other devices from asking for the game files.
+Do this to get CPU players in online rooms, and battle results that the game's engine decides. Without it, the server guesses who won.
 
 1. Copy `.env.example` to `.env`.
 2. Put the path to your game on the `RG_GAME` line:
@@ -38,7 +38,13 @@ Do this to get CPU players in online rooms, and to stop other devices from askin
    ```
 
    Replace the path with the location of your `.zip` file or game folder.
-3. Stop the server (press <kbd>Ctrl</kbd>+<kbd>C</kbd>) and run `npm start` again.
+3. Optional: to stop other devices from asking for the game files, add this line too. The server then sends your copy to every device that opens the page.
+
+   ```sh
+   RG_SEND_GAME=1
+   ```
+
+4. Stop the server (press <kbd>Ctrl</kbd>+<kbd>C</kbd>) and run `npm start` again.
 
 ## Controls
 

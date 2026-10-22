@@ -32,22 +32,22 @@ We say so plainly so that nobody has to find it out:
 - **The emulator runs RedLynx's engine.** The page and the server execute the original code from a copy the player or the admin supplies ([ADR 0003](adr/0003-run-the-original-engine-in-an-x86-emulator.md)). The repository contains none of it.
 - **`docs/re/` and `tools/re/`** are our notes and scripts about the engine, made by decompiling it. They hold no decompiled code, but they are derived from it ([ADR 0001](adr/0001-players-bring-their-own-game-files.md)). They are the first thing to remove if asked.
 - **`server/snap.js` keeps the original protocol's per-command flags** (which parameters are base64 or scrambled), as wire facts a server has to match. It holds no password keys: an unmodified Java client's scrambled password is read as empty, and any password is accepted with a name only ([ADR 0018](adr/0018-publishing-with-legal-guardrails.md)). Older commits of the source checkout still hold the key table; `tools/scrub-tree.mjs` replaces each key in the published history by a digest of it, and rewrites the wording that named the original classes.
-- **A server that sends the game** (`RG_GAME`) distributes it. See [Rules for a server that sends the game](#rules-for-a-server-that-sends-the-game).
+- **A server that sends the game** (`RG_SEND_GAME=1`) distributes it. See [Rules for a server that sends the game](#rules-for-a-server-that-sends-the-game).
 
 ## Rules for a server that sends the game
 
-ADR 0001 lets an admin set `RG_GAME` and send their copy to every visitor, at their own risk. A server that does must follow these rules:
+ADR 0001 lets an admin set `RG_SEND_GAME=1` and send their copy, the server copy in `RG_GAME`, to every visitor, at their own risk. A server copy alone sends nothing: the server only runs it ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). A server that sends the game must follow these rules:
 
 - `RG_CONTACT`, an email address or an https address where a rights holder can ask for the game's removal, is required. A `--public` server won't start without it, and the page shows it in its Notices dialog.
 - No advertising, no donation links, and no payments on that server or its page.
 - The templates in `data/templates/` and `data/battle-templates.zip` are only used by the server and are never sent to a browser. Never commit them, and never publish a backup of `data/`.
-- Keep a way to stop at once: unset `RG_GAME` (when you start the server with npm) or `RG_GAME_PATH` (with Docker Compose), and then restart the server.
+- Keep a way to stop at once: unset `RG_SEND_GAME`, with npm or with Docker Compose, and then restart the server.
 - Say nothing that claims the copy is licensed or official.
 
 ## A notice arrives
 
 1. Don't reply in public, and don't argue on social media.
-2. For the named material, do what the notice asks at once: unset `RG_GAME` (npm) or `RG_GAME_PATH` (Docker Compose) and restart the server, or remove the file or the path. A removal is not an admission.
+2. For the named material, do what the notice asks at once: unset `RG_SEND_GAME` and restart the server, or remove the file or the path. A removal is not an admission.
 3. Keep the notice and a record of what you did. Tell your host before they tell you. Notices about this repository reach the maintainer at the address in the [README's Legal section](../README.md#legal).
 4. Leave a counter-notice, a repository takedown dispute, or any admission to a lawyer.
 

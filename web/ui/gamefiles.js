@@ -1,4 +1,4 @@
-// The player's game files: kept in IndexedDB once chosen, else sent by the server (RG_GAME), else asked for with the file picker.
+// The player's game files: kept in IndexedDB once chosen, else sent by the server (RG_SEND_GAME=1), else asked for with the file picker.
 // While it works it tells the page through `page.status` and `page.pick`.
 import { gameFromZip } from '../zip.js';
 import { page } from './page.svelte.js';
@@ -45,7 +45,7 @@ function gameStore(mode, op) {
 // Forgets the stored copy, so the next visit asks for another.
 export const forgetCopy = () => gameStore('readwrite', s => s.delete('game'));
 
-// Files served next to the page, as server/gateway.js does from RG_GAME. Null if the host has none.
+// Files served next to the page, as server/gateway.js does from its server copy with RG_SEND_GAME=1. Null if the host has none.
 // The status line shows the download as a percentage of the bytes. gameplay.pak alone is half of them, so counting files
 // would look stuck there. The sizes come from HEAD requests first; if any size is missing, it counts files instead.
 async function fetchFiles() {

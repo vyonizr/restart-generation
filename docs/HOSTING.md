@@ -14,9 +14,10 @@ To set up the server, do the following:
 
 1. Run `npm install`.
 2. Copy `.env.example` to `.env` in the repository root.
-3. In `.env`, set `RG_GAME` to the path of your game copy.
+3. In `.env`, set `RG_GAME` to the path of your game copy, the server copy.
+4. Optional: to send that copy to every visitor, so that nobody chooses their own files, also set `RG_SEND_GAME=1`. Read [Rules for a server that sends the game](LEGAL.md#rules-for-a-server-that-sends-the-game) first.
 
-`RG_GAME` is your copy of the game: either `ResetGeneration-Standalone.zip` or the extracted `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files). The server sends these files to the browser, so serve only a copy you own. The dev tools in `web/tools` read the game from `RG_GAME` too.
+`RG_GAME` is the server copy of the game: either `ResetGeneration-Standalone.zip` or the extracted `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files). The server runs it for its witness and, unless it's `--public`, for bots. It sends these files to the browser only with `RG_SEND_GAME=1`, so send only a copy you own. `RG_SEND_GAME=1` without `RG_GAME` sends nothing, and the server log says so. The dev tools in `web/tools` read the game from `RG_GAME` too.
 
 Use the following npm scripts:
 
@@ -47,6 +48,12 @@ To serve people over the internet, use `--public`: it listens on all addresses l
 
 To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and if someone stops playing, the server ends a phase only after 3 minutes (1 minute for cannon shots). Ranked matches keep the 20-second limit.
 
+### Battle results
+
+With `RG_GAME` set, the server runs a witness: one more engine, in a worker thread, that follows every battle's orders as the players' engines do ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). The engine then decides who won a ranked match: every player it ranks first gets the win and +10 fame, and every player gets a match. The witness also tells the server the moment a player is defeated, so the server stops waiting for that player. It runs on a `--public` server too, takes about 300 MB of memory, and restarts itself after 50 battles.
+
+Without `RG_GAME`, or when the witness fails, the server guesses the result: the last player standing, or else the one who made the last move. At startup a server without `RG_GAME` logs that battle results will be guessed, and each battle whose result is guessed logs one `battle over: result guessed (...)` line with the reason: `no server copy`, or `witness failed:` and the cause. Players are never told.
+
 ### Bots
 
 If `RG_GAME` is set, the server can fill friendly matches with bots, players that the server controls. A `--public` server never runs bots, whatever `RG_GAME` says.
@@ -65,7 +72,7 @@ Two checks need local data: `npm run test:battle` needs a battle template, and `
 
 ## Host the page without the game files
 
-If the page's host has no game files at `game/` (for example, `web/dist/` from `npm run build` deployed to a static host, or a server without `RG_GAME`), the page asks each player to choose their own copy of the game: `ResetGeneration-Standalone.zip`, the extracted `ResetGeneration` folder, or the folder that contains it. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser. The files never leave the player's computer.
+If the page's host has no game files at `game/` (for example, `web/dist/` from `npm run build` deployed to a static host, or a server without `RG_SEND_GAME=1`), the page asks each player to choose their own copy of the game: `ResetGeneration-Standalone.zip`, the extracted `ResetGeneration` folder, or the folder that contains it. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser. The files never leave the player's computer.
 
 Players need the files of the Windows standalone build. The emulator runs `ResetGeneration-Win32-Web.dll` and can't run the Mac library `libResetGenerationMacApplet.dylib`, but it runs in any desktop browser on any operating system.
 
@@ -148,10 +155,13 @@ For the whole procedure on a virtual private server (VPS), from a bare host to u
    RG_DISCORD_CLIENT_SECRET=
    # Optional: your community link, shown as "Join the Discord" in the footer.
    # RG_DISCORD_INVITE=https://discord.gg/...
-   # Optional, and your decision and risk: the server then sends this copy of the game to every visitor. Leave it out and each
-   # player chooses their own copy (ADR 0001). The .zip or the extracted folder; start a relative path with ./
+   # Optional: the server copy. The witness runs it, so the engine decides battle results; without it they're guessed.
+   # The .zip or the extracted folder; start a relative path with ./
    # RG_GAME_PATH=./ResetGeneration-Standalone.zip
-   # Required with RG_GAME_PATH: where a rights holder can ask for the game's removal, an email address or an https address.
+   # Optional, and your decision and risk: 1 sends the server copy to every visitor. Leave it out and each player chooses
+   # their own copy (ADR 0001).
+   # RG_SEND_GAME=1
+   # Required with RG_SEND_GAME=1: where a rights holder can ask for the game's removal, an email address or an https address.
    # The page shows it in its Notices dialog, and the server won't start without it (docs/LEGAL.md).
    # RG_CONTACT=removals@example.org
    ```
@@ -175,10 +185,11 @@ Caddy keeps its certificates in a Docker volume (`caddy_data`). If you lose that
 
 ### On a private network or this PC
 
-`compose.lan.yaml` runs the server with `--lan`: name-only login, every story and hero open, and bots when `RG_GAME_PATH` is set. It publishes the page on 8080 and the Java client's port on 8976, to this PC only, unless you set `BIND=0.0.0.0` in `.env`. The following `.env` lines are an example for this PC only:
+`compose.lan.yaml` runs the server with `--lan`: name-only login, every story and hero open, and the witness and bots when `RG_GAME_PATH` is set. It publishes the page on 8080 and the Java client's port on 8976, to this PC only, unless you set `BIND=0.0.0.0` in `.env`. The following `.env` lines are an example for this PC only; `RG_SEND_GAME=1` sends the server copy, so that other devices don't ask for the game files:
 
 ```sh
 RG_GAME_PATH=./ResetGeneration-Standalone.zip
+RG_SEND_GAME=1
 BIND=127.0.0.1
 ```
 

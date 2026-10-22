@@ -11,14 +11,17 @@ services:
     expose:
       - "8080"
     environment:
-      # Set only if RG_GAME_PATH is set: the server then sends that game copy to every visitor. A public server never runs bots.
+      # The server copy, set only if RG_GAME_PATH is set: the witness runs it to decide battle results (docs/adr/0020). A public
+      # server never runs bots.
       RG_GAME: ${RG_GAME_PATH:+/game}
+      # 1 sends the server copy to every visitor. Empty it to stop sending at once (docs/LEGAL.md).
+      RG_SEND_GAME: ${RG_SEND_GAME:-}
       # Guests and members: all three are needed (see docs/HOSTING.md). The address defaults to the domain Caddy serves.
       RG_DISCORD_CLIENT_ID: ${RG_DISCORD_CLIENT_ID:-}
       RG_DISCORD_CLIENT_SECRET: ${RG_DISCORD_CLIENT_SECRET:-}
       RG_PUBLIC_URL: ${RG_PUBLIC_URL:-https://${RG_DOMAIN:?Set RG_DOMAIN in .env, for example play.example.com}}
       RG_DISCORD_INVITE: ${RG_DISCORD_INVITE:-}
-      # Where a rights holder can ask for the game's removal. Required with RG_GAME_PATH: the server won't start without it (docs/LEGAL.md).
+      # Where a rights holder can ask for the game's removal. Required with RG_SEND_GAME=1: the server won't start without it (docs/LEGAL.md).
       RG_CONTACT: ${RG_CONTACT:-}
       # One proxy (Caddy) sits in front, and nothing else can reach the gateway, so its X-Forwarded-For can be trusted.
       RG_TRUST_PROXY: ${RG_TRUST_PROXY:-1}

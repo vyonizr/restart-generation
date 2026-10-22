@@ -20,10 +20,10 @@ The game itself, not a remake or a port: the original engine runs unmodified, an
 
 ## Operating Context
 
-The page is a single static page, built from `web/` into `web/dist` ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)), that is served in one of two ways:
+The page is a single static page, built from `web/` into `web/dist` ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)), that is served in one of these ways:
 
-- **By a game server with `RG_GAME` set:** the server sends the player's copy of the files, and the player goes straight to **Start**.
-- **By a static host without the files:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
+- **By a game server that sends the game (`RG_SEND_GAME=1`, with its server copy in `RG_GAME`):** the server sends its copy of the files, and the player goes straight to **Start**.
+- **By a static host, or a game server that doesn't send the game:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
 
 The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the dialogs described in the following paragraphs, and errors (missing files, unreadable files, not enough memory, the emulator stopping).
 
@@ -50,7 +50,7 @@ When a server answers, the page shows how many players are online: in the online
 - Name: Restart Generation. The page is an unofficial fan revival of Reset Generation (RedLynx, 2008); the game keeps its own name.
 - Required notices: the page shows each of the following, word for word where quoted:
   - **Footer line, always:** "Unofficial fan revival of Reset Generation © 2008 RedLynx; not affiliated with RedLynx, Ubisoft or Nokia." and a credit to vyonizr.
-  - **Footer line, where the player brings the files:** "Bring your own copy of the game." It doesn't appear on a server that sends the game files itself (`RG_GAME` set).
+  - **Footer line, where the player brings the files:** "Bring your own copy of the game." It doesn't appear on a server that sends the game files itself (`RG_SEND_GAME=1`).
   - **Notices dialog:** the footer's **Notices** button opens a dialog over the page. The dialog never opens by itself.
   - **Notices dialog, always:** "Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It is not affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners."
   - **Notices dialog, where the player brings the files:** the note "Windows standalone build only. Your files stay in this browser."
