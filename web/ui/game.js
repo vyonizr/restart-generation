@@ -1,5 +1,6 @@
-// Browser host: gets the game files, runs the engine in the emulator, draws frames to the canvas, forwards the keyboard and
-// the touch pad and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page` (page.svelte.js).
+// Browser host: gets the game files, runs the engine in the emulator, draws frames to the canvas, forwards the keyboard, the
+// touch pad and the gamepad and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page`
+// (page.svelte.js).
 import { GameHost, WIDTH, HEIGHT, UNLOCKS, LONE_START, CHAR_UNDEFINED } from '../emu/host.js';
 import { SnapClient } from '../snap.js';
 import { page, padSession } from './page.svelte.js';
@@ -12,6 +13,8 @@ import { syncProgress, track, upload } from './progress.js';
 import { createAccounts } from './accounts.js';
 import { createNameLogin, showOnlineName } from './login.js';
 import { botQuestion } from './bots.js';
+import { watchGamepad, gamepadSound } from './gamepad.js';
+import { createPresses } from './presses.js';
 import { startOnlineCount } from './online.js';
 
 let ctx, image, rgba;
@@ -48,7 +51,8 @@ function accountLogin(accounts) {
     credentials: () => ({ username: account.name, password: account.token }), name: () => '', forget() {} };
 }
 
-// The Start button's click. Sound and the wake video must start inside the tap itself, or Safari blocks them.
+// The Start button's click, or a gamepad's press of it (gamepad.js). Sound and the wake video must start inside the press itself,
+// or Safari blocks them.
 let onStart = null;
 export const pressStart = () => onStart?.();
 
@@ -87,7 +91,8 @@ async function main(canvas) {
   await new Promise(r => {
     onStart = () => {
       onStart = null;
-      audio = new Audio(game);
+      page.start = false;
+      audio = new Audio(game, gamepadSound());
       audio.ctx.resume();
       if (touch) stayAwake();
       r();
@@ -100,6 +105,7 @@ async function main(canvas) {
 
   const held = new Set();
   const input = []; // applied at the start of each tick
+  const presses = createPresses(game, input);
   // Keys go to the game wherever focus is on the page, except in a dialog or the overlay's buttons.
   addEventListener('keydown', e => {
     const k = javaKey(e);
@@ -108,19 +114,19 @@ async function main(canvas) {
     if (held.has(e.code)) return;      // the Java listener ignored auto-repeat too
     held.add(e.code);
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
-    input.push(() => { game.key(true, k.code, k.ch, loc); if (k.ch !== CHAR_UNDEFINED) game.typed(k.ch); });
+    if (presses.press(k.code, k.ch, loc) && k.ch !== CHAR_UNDEFINED) input.push(() => game.typed(k.ch));
   });
   addEventListener('keyup', e => {
     const k = javaKey(e);
     if (!k || e.target.closest?.('.login, #overlay, .finish')) return;
     e.preventDefault();
-    held.delete(e.code);
+    if (!held.delete(e.code)) return; // its press never reached the game
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
-    input.push(() => game.key(false, k.code, k.ch, loc));
+    presses.release(k.code, k.ch, loc);
   });
-  addEventListener('blur', () => { held.clear(); input.push(() => game.releaseAll()); });
+  addEventListener('blur', () => { held.clear(); presses.releaseAll(); });
   canvas.addEventListener('pointerdown', () => canvas.focus());
-  if (touch) padSession.current = { game, input, audio };
+  padSession.current = { game, input, audio, presses };
 
   // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
   // The settings file also holds the custom keys, which the controls legend and the touch pad follow.
@@ -209,6 +215,7 @@ export function startGame(canvas) {
   rgba = new Uint32Array(image.data.buffer);
   // A browser may drop a hidden page's canvas; the first frame after it returns is always uploaded.
   document.addEventListener('visibilitychange', () => { if (!document.hidden) rgba.fill(0); });
+  watchGamepad(pressStart); // from the start, so the first gamepad press can start the sound while the game loads
   main(canvas).catch(e => fail("The game couldn't start with this copy.", e));
 }
 

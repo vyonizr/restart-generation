@@ -44,7 +44,7 @@ export const botQuestion = {
     page.bots = { alone, focus: 'cpu' };
     return { answer: new Promise(resolve => { done = resolve; }), close: () => finish(null) };
   },
-  // The touch pad while the question is open: Select, Back, Left and Right answer it, and no pad key reaches the game.
+  // The touch pad and the gamepad while the question is open: Select, Back, Left and Right answer it, and no press reaches the game.
   pad(key) {
     if (!done) return false;
     if (key === 'select') finish(page.bots.focus); else if (key === 'back') finish('none'); else if (key === 'left') move(-1); else if (key === 'right') move(1);

@@ -25,9 +25,10 @@ export const page = $state({
   dialogs: 0,       // dialogs open; the game screen can't be reached while one is
   finish: 'soft',   // how the game screen is shown, 'soft' or 'sharp' (the Screen finish, finish.js)
   keys: { ...DEFAULT_KEYS }, // the player's custom keys, from the saved game's settings.cfg (keys.js)
+  input: 'keys',    // what the key legend shows: 'keys', or 'gamepad' after a press on the pad in use (gamepad.js)
 });
 
-// What the touch pad drives once the game runs: { game, input, audio }. Raw, so the emulator and its input queue are
-// never wrapped in reactive proxies.
+// What the touch pad and the gamepad drive once the game runs: { game, input, audio, presses }. Raw, so the emulator and its
+// input queue are never wrapped in reactive proxies.
 class Slot { current = $state.raw(null); }
 export const padSession = new Slot();

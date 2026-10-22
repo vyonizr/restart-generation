@@ -5,30 +5,32 @@ import { javaKey, padKey } from './keys.js';
 import { page } from './page.svelte.js';
 import { stayAwake, needsVideo } from './wake.js';
 import { botQuestion } from './bots.js';
+import { dismissDisconnected } from './gamepad.js';
 
 // pad: the .pad element; typing: the hidden field that raises the system keyboard; typeButton: the Keyboard control.
-// game, input (the queue applied at the start of each tick) and audio come from the running game (game.js).
-export function bindPad({ pad, typing, typeButton, game, input, audio }) {
+// game, input (the queue applied at the start of each tick), audio and presses (the press count every input shares) come from the
+// running game (game.js).
+export function bindPad({ pad, typing, typeButton, game, input, audio, presses }) {
   const ac = new AbortController(), { signal } = ac;
-  const presses = new Map(), fingers = new Map(); // data-key -> press count, pointerId -> data-key (undefined over empty space)
+  const held = new Map(), fingers = new Map(); // data-key -> fingers on it, pointerId -> data-key (undefined over empty space)
   const codes = new Map(); // data-key -> the Java key code its press sent, so the release lets go of that key even after a rebind
   const button = k => pad.querySelector(`[data-key="${k}"]`);
   const press = k => {
+    dismissDisconnected();
     if (botQuestion.pad(k)) return;
-    presses.set(k, (presses.get(k) || 0) + 1);
-    if (presses.get(k) > 1) return;
+    held.set(k, (held.get(k) || 0) + 1);
+    if (held.get(k) > 1) return;
     const code = padKey(k, page.keys);
     codes.set(k, code);
-    input.push(() => game.key(true, code, CHAR_UNDEFINED, 1));
+    presses.press(code);
     button(k).classList.add('held');
     navigator.vibrate?.(8);
   };
   const release = k => {
-    if (!presses.has(k)) return; // a press the bot question took never reached the game
-    if (presses.get(k) > 1) { presses.set(k, presses.get(k) - 1); return; }
-    presses.delete(k);
-    const code = codes.get(k);
-    input.push(() => game.key(false, code, CHAR_UNDEFINED, 1));
+    if (!held.has(k)) return; // a press the bot question took never reached the game
+    if (held.get(k) > 1) { held.set(k, held.get(k) - 1); return; }
+    held.delete(k);
+    presses.release(codes.get(k));
     button(k).classList.remove('held');
   };
   // k is the control under the finger, or undefined over empty space (the D-pad's middle and corners): the finger keeps its

@@ -1,8 +1,11 @@
 // Audio: the engine fills 512-sample blocks of 8 kHz mono PCM on demand.
+export const soundContext = () => new AudioContext({ sampleRate: 8000 });
+
 export class Audio {
-  constructor(game) {
+  // ctx: a context the page already started (the first gamepad starts one before Start, gamepad.js), or a new one.
+  constructor(game, ctx = null) {
     this.game = game;
-    this.ctx = new AudioContext({ sampleRate: 8000 });
+    this.ctx = ctx ?? soundContext();
     this.at = 0;
   }
   pump() {
