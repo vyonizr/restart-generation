@@ -405,6 +405,8 @@ httpServer.listen(HTTP_PORT, HOST, () => {
   if (MODE.public) log('Bots are off on a --public server (ADR 0008)');
   else bots.configure(`http://127.0.0.1:${HTTP_PORT}/snap`);
   if (HOST) return;
+  // Players reach a public server at its public address; the LAN addresses and the LAN firewall hint are for --lan.
+  if (MODE.public) { if (authConfig.publicUrl) log(`browser client on ${authConfig.publicUrl}/`); return; }
   for (const [name, address] of lanAddresses(os.networkInterfaces())) log(`browser client on http://${address}:${HTTP_PORT}/ (${name})`);
   log(`Other devices can't connect? See "Play on other devices" in README.md.`);
 });
