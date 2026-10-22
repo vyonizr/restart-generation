@@ -8,7 +8,10 @@ const { Worker } = require('worker_threads');
 // "Cost"); a restart costs a 2 s boot and each running table's catch-up from its history.
 const RESTART_AFTER = 50;                // battles followed to the end
 const RESTART_GROWN = 250 * 1024 * 1024; // bytes the worker grew since its boot
-let log = null, worker = null, ready = false, broken = null, ended = 0, nextId = 1;
+const BOOT_RETRIES = 5;                  // a replacement worker that fails to boot is tried this many more times,
+const RETRY_MS = 10000;                  // this long apart
+let log = null, file = null, retryMs = RETRY_MS, worker = null, ready = false, everReady = false, failedBoots = 0;
+let broken = null, ended = 0, nextId = 1;
 const followed = new Map(); // table -> { id, onDefeat, result: Promise, outcome, settle }
 const tables = new Map();   // id -> table
 
@@ -21,14 +24,14 @@ function begin(table, f) {
 }
 
 function spawn() {
-  const w = worker = new Worker(path.join(__dirname, 'witness.mjs'));
+  const w = worker = new Worker(file);
   const since = Date.now();
   let error = null;
   ready = false; ended = 0;
   w.on('message', m => {
     if (w !== worker) return; // a worker being replaced
     if (m.ready) {
-      ready = true;
+      ready = true; everReady = true; failedBoots = 0;
       log(`witness ready in ${((Date.now() - since) / 1000).toFixed(1)} s`);
       for (const [table, f] of followed) if (!f.outcome) begin(table, f);
       return;
@@ -51,14 +54,21 @@ function spawn() {
     if (w !== worker) return;
     worker = null;
     const cause = error ? error.message : `the worker exited with code ${code}`;
-    if (!ready) {
-      // It never booted, and a new one would fail the same way: every battle's result is guessed from now on.
-      broken = cause;
-      log(`witness failed to start: ${error?.stack ?? cause}. Battle results will be guessed.`);
-    } else log(`witness stopped: ${error?.stack ?? cause}`);
-    // Tables it was following can't be trusted to have seen every message in order, so they aren't fed again.
+    if (ready) {
+      log(`witness stopped: ${error?.stack ?? cause}`);
+      // Tables it was following can't be trusted to have seen every message in order, so they aren't fed again.
+      for (const f of followed.values()) f.settle({ failed: cause });
+      return spawn();
+    }
+    // A replacement that fails to boot is tried again; the tables it should follow wait, and catch up from their history once
+    // one boots. A first boot that fails, or a replacement that keeps failing, would fail the same way every time.
+    if (everReady && ++failedBoots <= BOOT_RETRIES) {
+      log(`witness failed to boot (${cause}): trying again in ${retryMs / 1000} s`);
+      return setTimeout(spawn, retryMs);
+    }
+    broken = cause;
+    log(`witness failed to start: ${error?.stack ?? cause}. Battle results will be guessed.`);
     for (const f of followed.values()) f.settle({ failed: cause });
-    if (!broken) spawn();
   });
 }
 
@@ -69,9 +79,12 @@ function restart(why) {
   old.terminate();
 }
 
-// Starts the worker; the server calls it once, at startup, and only with a server copy.
-function start(logFn) {
+// Starts the worker; the server calls it once, at startup, and only with a server copy. Tests replace the worker's file and the
+// pause between boot attempts.
+function start(logFn, options = {}) {
   log = logFn;
+  file = options.file ?? path.join(__dirname, 'witness.mjs');
+  retryMs = options.retryMs ?? RETRY_MS;
   spawn();
 }
 
