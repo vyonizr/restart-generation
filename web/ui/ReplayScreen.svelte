@@ -43,7 +43,7 @@
       <button onclick={() => location.reload()}>Reload</button>
       <button class="secondary" hidden={!page.forgettable} onclick={() => forgetCopy().finally(() => location.reload())}>Use a different copy</button>
     </div>
-    {#if replay.gone}<a class="button" href="./">Play Restart Generation</a>{/if}
+    {#if replay.gone || replay.unplayable}<a class="button" href="./">Play Restart Generation</a>{/if}
   </div>
   {#if replay.ended && result}
     <div class="ending" role="status">

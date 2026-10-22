@@ -18,6 +18,7 @@ export const replay = $state({
   meta: null,        // what the server keeps beside the replay: players, heroes, seats, environment, kind, date, result
   gone: false,       // the replay doesn't exist, is 30 days old, or replays are off on this server
   loaded: false,     // the engine has built the replay's battle: the controls work
+  unplayable: false, // the engine never built it (replayflow.js): the overlay says so and the engine stops
   playing: false,
   ended: false,      // the end screen is up
   time: 0, length: 0, // whole seconds from BattleBegin
@@ -97,10 +98,18 @@ async function main(canvas) {
       }
       sound.pump();
       flow.frame();
+      if (replay.unplayable) { unplayable(); return; }
       requestAnimationFrame(frame);
     } catch (e) { stopped(e); }
   };
   requestAnimationFrame(frame);
+}
+
+// The engine ran 10 s without building the replay's battle, so it never will: say so where Watch was, and stop the engine.
+function unplayable() {
+  sound.ctx.suspend();
+  page.overlay = true;
+  page.status = "This replay can't be played: the game couldn't build its battle from it.";
 }
 
 // ---- the controls (replayflow.js), which do nothing until the replay has loaded ----

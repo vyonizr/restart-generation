@@ -6,7 +6,7 @@ import { createReplayFlow } from './replayflow.js';
 
 function fakeEngine({ length = 60 } = {}) {
   const e = {
-    replayLoaded: false, replayTime: 0, replayLength: length, replayAnimating: false, playing: true, mode: null, calls: [],
+    replayLoaded: false, replayTime: 0, replayLength: length, replayAnimating: false, playing: true, mode: null, calls: [], time: 0,
     playReplay() { e.playing = true; e.calls.push('play'); },
     pauseReplay() { e.playing = false; e.calls.push('pause'); },
     seekReplay(s) { e.replayTime = s; e.calls.push(`seek ${s}`); },
@@ -14,7 +14,7 @@ function fakeEngine({ length = 60 } = {}) {
   };
   return e;
 }
-const state = () => ({ loaded: false, playing: false, ended: false, time: 0, length: 0, skipEmpty: true, doubleSpeed: false });
+const state = () => ({ loaded: false, unplayable: false, playing: false, ended: false, time: 0, length: 0, skipEmpty: true, doubleSpeed: false });
 
 // Nothing works until the engine has built the replay's battle; then it plays at once, with skip-empty on, as the original did.
 {
@@ -25,6 +25,24 @@ const state = () => ({ loaded: false, playing: false, ended: false, time: 0, len
   e.replayLoaded = true;
   flow.frame();
   assert.deepStrictEqual([s.loaded, s.playing, s.length, e.mode], [true, true, 60, { skipEmpty: true, doubleSpeed: false }]);
+}
+
+// A replay the engine never builds, such as damaged data or a seed replay's placeholder, is given up after 10 s of the engine's own
+// time, so the page can say so instead of staying black. A slow device takes longer in real time but gets the same 10 s.
+{
+  const s = state(), e = fakeEngine(), flow = createReplayFlow(s, e);
+  e.time = 9999; flow.frame();
+  assert.strictEqual(s.unplayable, false, 'still waiting');
+  e.time = 10000; flow.frame();
+  assert.deepStrictEqual([s.unplayable, s.loaded, s.playing], [true, false, false]);
+  e.replayLoaded = true; flow.frame();
+  assert.deepStrictEqual([s.unplayable, s.loaded], [true, false], 'given up for good');
+}
+{
+  const s = state(), e = fakeEngine(), flow = createReplayFlow(s, e);
+  e.time = 9900; e.replayLoaded = true; flow.frame();
+  e.time = 20000; flow.frame();
+  assert.deepStrictEqual([s.unplayable, s.loaded, s.playing], [false, true, true], 'a replay that loaded in time plays');
 }
 
 // The end: once the clock reaches the length and nothing is animating, the replay pauses on its end screen. Play then starts it
