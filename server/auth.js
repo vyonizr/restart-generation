@@ -1,6 +1,7 @@
 // Guests and members (ADR 0011). Enabled only when the admin configures a Discord application;
 // otherwise the server keeps the name-only login of ADR 0009 and none of this runs.
 const crypto = require('crypto');
+const { VALID_NAME } = require('../web/snap-ids.js');
 
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;
@@ -10,7 +11,6 @@ const PENDING_MS = 10 * 60e3;       // how long a Discord round trip may take
 const SAVE_FILE_MAX = 256 * 1024;   // one saved game file (ADR 0014)
 const SAVE_TOTAL_MAX = 1024 * 1024; // all of a member's saved game files
 const SAVE_FILES_MAX = 16;          // and how many of them
-const NAME = /^[A-Za-z0-9_]{1,15}$/;
 const RESERVED = /^(guest\d+|cpu_\d+)$/i;
 const DISCORD_INVITE = /^https:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]+$/;
 // Where a rights holder can write: an email address or an https address. The page links to it, so nothing else passes.
@@ -93,7 +93,7 @@ function createAuth({ store, config, busy, remove, discord = config.enabled ? di
 
   // A member's name, free of every case clash and reserved pattern.
   const nameProblem = name => {
-    if (!NAME.test(name)) return 'invalid';
+    if (!VALID_NAME.test(name)) return 'invalid';
     if (RESERVED.test(name)) return 'reserved';
     if (store.byName(name)) return 'taken';
     return null;

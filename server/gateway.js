@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { FRAME, readFrames, frame, parseRequest, ok, err, b64 } = require('./snap');
+const { CMD, EVENT, REPLY, GAME_CLASS, PRESENCE_PREFIX, VALID_NAME } = require('../web/snap-ids.js');
 const gameServer = require('./casino');
 const bots = require('./bots');
 const store = require('./store');
@@ -75,7 +76,7 @@ function login(name, password) {
 const accountOf = name => db.byName(String(name));
 const online = acc => [...sessions.values()].find(o => o.account === acc);
 function presenceTo(target, s, avail) {
-  pushEvent(target, `307|${s.userId}|${s.name}|${avail}|42713|${s.userId}|${LOBBY.id}||0|0|0|0|${b64(s.presence || ' ')}`);
+  pushEvent(target, `${EVENT.FRIEND_PRESENCE}|${s.userId}|${s.name}|${avail}|${GAME_CLASS}|${s.userId}|${LOBBY.id}||0|0|0|0|${b64(s.presence || ' ')}`);
 }
 function announce(s, avail) {
   for (const { account, state } of db.friends(s.account)) {
@@ -133,21 +134,21 @@ const api = {
     rooms.set(room.id, room);
     return room;
   },
-  // Event 117 GAME_PACKET_TARGET is the only game-data event the client reads.
-  send(s, data, from = '0') { pushEvent(s, `117|${from}|${data.toString('base64')}`); },
+  // The only game-data event the client reads.
+  send(s, data, from = '0') { pushEvent(s, `${EVENT.GAME_PACKET_TARGET}|${from}|${data.toString('base64')}`); },
 };
 
 function handle(req, s, send) {
   const p = req.params;
   switch (req.cmd) {
-    case 0: return send(ok());
-    case 1: { // extendedLogin: P1 user, P2 password (scrambled), P5 game class
+    case CMD.INIT: return send(ok());
+    case CMD.EXTENDED_LOGIN: { // P1 user, P2 password (scrambled), P5 game class
       const user = String(p[1] || '');
-      if (!/^[A-Za-z0-9_]{1,15}$/.test(user)) return send(err(965, 'AuthenticationFailed'));
+      if (!VALID_NAME.test(user)) return send(err(REPLY.AUTHENTICATION_FAILED, 'AuthenticationFailed'));
       const password = String(p[2] || '');
-      if (/^CPU_\d+$/i.test(user) && !bots.account(user, password)) return send(err(965, 'AuthenticationFailed')); // CPU_n is a bot's name
+      if (/^CPU_\d+$/i.test(user) && !bots.account(user, password)) return send(err(REPLY.AUTHENTICATION_FAILED, 'AuthenticationFailed')); // CPU_n is a bot's name
       const ns = login(user, password);
-      if (!ns) return send(err(965, 'AuthenticationFailed'));
+      if (!ns) return send(err(REPLY.AUTHENTICATION_FAILED, 'AuthenticationFailed'));
       log(`login ${user} (gameclass ${p[5]})`);
       announce(ns, 'available'); // the native client never calls setPresence itself
       return send(ok([[ns.sid, ns.sid, ns.sid, ns.userId]]));
@@ -155,57 +156,57 @@ function handle(req, s, send) {
     case 98: return send(ok([[Math.floor(Date.now() / 1000)]]));
     case 99: return send(ok([[p[2] || '']]));
   }
-  if (!s) return send(err(702, 'InvalidSession'));
+  if (!s) return send(err(REPLY.INVALID_SESSION, 'InvalidSession'));
   switch (req.cmd) {
-    case 2: case 104: dropSession(s); return send(ok());
-    case 900: // this server's own: P1 1 (CPU) or 2 (Expert) fills the empty seats of friendly room P2 with bots, when this player starts it
+    case CMD.UNIFIED_LOGOUT: case 104: dropSession(s); return send(ok());
+    case CMD.FILL_BOTS: // this server's own: P1 1 (CPU) or 2 (Expert) fills the empty seats of friendly room P2 with bots, when this player starts it
       s.fillBots = ['1', '2'].includes(String(p[1])) ? Number(p[2]) : 0;
       s.botLevel = String(p[1]) === '2' ? 'expert' : 'cpu';
       return send(ok());
-    case 901: // this server's own: what Start in friendly room P1 does about bots: ask, level, go or gone (casino.botQuestion)
+    case CMD.BOT_CHOICE: // this server's own: what Start in friendly room P1 does about bots: ask, level, go or gone (casino.botQuestion)
       return send(ok([[gameServer.botQuestion(Number(p[1]))]]));
-    case 3: case 311: case 130: { // retrieveAllEvents: long poll
+    case CMD.RETRIEVE_ALL_EVENTS: case 311: case 130: { // long poll
       if (s.poll) flushPoll(s);
       s.poll = { send, timer: setTimeout(() => flushPoll(s), s.events.length ? 0 : POLL_HOLD_MS) };
       if (s.events.length) flushPoll(s);
       return;
     }
-    case 126: return send(ok([[LOBBY.id, LOBBY.name, sessions.size, rooms.size]]));
-    case 109: case 110: case 123: return send(ok());
-    case 125: // getGameRooms
+    case CMD.GET_LOBBIES: return send(ok([[LOBBY.id, LOBBY.name, sessions.size, rooms.size]]));
+    case CMD.JOIN_LOBBY: case 110: case 123: return send(ok());
+    case CMD.GET_GAME_ROOMS:
       return send(ok([...rooms.values()].map(r => [r.id, r.name, r.members.size, r.members.size, r.max, 0])));
-    case 116: { // createGameRoom: P1 name, P3 max users
+    case CMD.CREATE_GAME_ROOM: { // P1 name, P3 max users
       const room = api.createRoom(String(p[1]), Number(p[3]) || 4);
       joinRoom(s, room);
       log(`${s.name} created room ${room.id} "${room.name}"`);
       gameServer.onJoin?.(s, room, api);
       return send(ok([[room.id]]));
     }
-    case 117: { // joinGameRoom: P1 room id
+    case CMD.JOIN_GAME_ROOM: { // P1 room id
       const room = rooms.get(String(p[1]));
-      if (!room) return send(err(706, 'GameRoomNotFound'));
-      if (room.members.size >= room.max && !room.members.has(s)) return send(err(707, 'GameRoomFull'));
+      if (!room) return send(err(REPLY.GAME_ROOM_NOT_FOUND, 'GameRoomNotFound'));
+      if (room.members.size >= room.max && !room.members.has(s)) return send(err(REPLY.GAME_ROOM_FULL, 'GameRoomFull'));
       joinRoom(s, room);
       log(`${s.name} joined room ${room.id} "${room.name}"`);
       gameServer.onJoin?.(s, room, api);
       return send(ok());
     }
-    case 118: leaveRoom(s); return send(ok());
-    case 127: case 128: { // users in game room / lobby
-      const list = req.cmd === 127 ? [...(rooms.get(String(p[1]))?.members || [])] : [...sessions.values()];
+    case CMD.LEAVE_GAME_ROOM: leaveRoom(s); return send(ok());
+    case CMD.USERS_IN_GAME_ROOM: case CMD.USERS_IN_LOBBY: {
+      const list = req.cmd === CMD.USERS_IN_GAME_ROOM ? [...(rooms.get(String(p[1]))?.members || [])] : [...sessions.values()];
       return send(ok(list.map(m => [m.userId, m.name, ''])));
     }
-    case 129: { // findUsers
+    case CMD.FIND_USERS: {
       const found = db.findByPrefix(String(p[1] || ''), Number(p[2]) || 10);
       return send(ok(found.map(a => [a.id, a.name, LOBBY.id, '', ''])));
     }
-    case 132: // sendGamePacket: relay to the room as event 116
+    case CMD.SEND_GAME_PACKET: // relay to the room as event 116
       for (const m of s.room?.members || []) if (m !== s) pushEvent(m, `116|${s.userId}|${p[1].toString('base64')}`);
       return send(ok());
-    case 133: // sendGamePacketToGameServer
+    case CMD.SEND_GAME_PACKET_TO_GAME_SERVER:
       gameServer.onPacket(s, p[1] || Buffer.alloc(0), api);
       return send(ok());
-    case 302: { // getBuddyList: rows id|name|status, then presence for friends online
+    case CMD.GET_BUDDY_LIST: { // rows id|name|status, then presence for friends online
       const friends = db.friends(s.account);
       send(ok(friends.map(({ account, state }) => [account.id, account.name, state])));
       // The native friend list handler (FUN_10096b70) recreates every friend as offline, so
@@ -218,38 +219,40 @@ function handle(req, s, send) {
       }, 1000);
       return;
     }
-    case 305: // setPresence: P1 availability, P2 "SM2.0.1,<presence>"
-      s.presence = String(p[2] || '').replace(/^SM2.0.1,/, '');
+    case CMD.SET_PRESENCE: { // P1 availability, P2 "SM2.0.1,<presence>"
+      const presence = String(p[2] || '');
+      s.presence = presence.startsWith(PRESENCE_PREFIX) ? presence.slice(PRESENCE_PREFIX.length) : presence;
       announce(s, 'available');
       return send(ok());
-    case 306: { // requestBuddy: P1 name, P2 message
+    }
+    case CMD.REQUEST_BUDDY: { // P1 name, P2 message
       const acc = accountOf(p[1]);
       if (!acc || acc === s.account) return send(ok()); // an error code would log the client out (processServerError)
       const mine = db.linkState(s.account, acc);
-      if (mine === 'from') return handle({ ...req, cmd: 307 }, s, send); // they already asked: accept
+      if (mine === 'from') return handle({ ...req, cmd: CMD.ACCEPT_BUDDY }, s, send); // they already asked: accept
       if (!mine) db.setLinks(s.account, acc, 'to', 'from');
       const o = online(acc);
-      if (o) pushEvent(o, `308|${s.userId}|${s.name}|${b64(String(p[2] || ' '))}`);
+      if (o) pushEvent(o, `${EVENT.FRIEND_REQUEST_RECEIVED}|${s.userId}|${s.name}|${b64(String(p[2] || ' '))}`);
       return send(ok());
     }
-    case 307: case 308: { // accept / decline a request: P1 name
+    case CMD.ACCEPT_BUDDY: case CMD.DECLINE_BUDDY: { // P1 name
       const acc = accountOf(p[1]);
       if (!acc || db.linkState(s.account, acc) !== 'from') return send(ok());
-      const accept = req.cmd === 307;
+      const accept = req.cmd === CMD.ACCEPT_BUDDY;
       db.setLinks(s.account, acc, accept ? 'both' : null, accept ? 'both' : null);
       const o = online(acc);
       if (o) {
-        pushEvent(o, `309|${s.userId}|${s.name}|${accept ? 1 : 0}|${b64(' ')}`);
+        pushEvent(o, `${EVENT.FRIEND_REQUEST_ANSWERED}|${s.userId}|${s.name}|${accept ? 1 : 0}|${b64(' ')}`);
         if (accept) { presenceTo(o, s, 'available'); presenceTo(s, o, 'available'); }
       }
       return send(ok());
     }
-    case 309: { // removeBuddy: P1 name
+    case CMD.REMOVE_BUDDY: { // P1 name
       const acc = accountOf(p[1]);
       if (acc) {
         db.setLinks(s.account, acc, null, null);
         const o = online(acc);
-        if (o) pushEvent(o, `311|${s.userId}|${s.name}`);
+        if (o) pushEvent(o, `${EVENT.FRIEND_REMOVED}|${s.userId}|${s.name}`);
       }
       return send(ok());
     }
@@ -265,7 +268,7 @@ function processRequest(text, addr, reply) {
   if (s) s.lastSeen = Date.now();
   const cacheKey = `${req.session || addr}:${req.rid}`;
   if (replies.has(cacheKey)) return reply(replies.get(cacheKey));
-  if (req.cmd !== 3) log(`<- ${s?.name || addr} C=${req.cmd}`, req.cmd === 1 ? `user=${req.params[1]}` : '');
+  if (req.cmd !== CMD.RETRIEVE_ALL_EVENTS) log(`<- ${s?.name || addr} C=${req.cmd}`, req.cmd === CMD.EXTENDED_LOGIN ? `user=${req.params[1]}` : '');
   handle(req, s, body => {
     const payload = Buffer.from(body, 'utf8');
     replies.set(cacheKey, payload);

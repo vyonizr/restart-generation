@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json LICENSE THIRD_PARTY_NOTICES.md ./
 COPY server server
 # The plain modules the server imports (the bot engine, the game loader), and the built page.
-COPY web/package.json web/snap.js web/zip.js web/
+COPY web/package.json web/snap.js web/snap-ids.js web/zip.js web/
 COPY web/emu web/emu
 COPY web/tools web/tools
 COPY --from=page /app/web/dist web/dist
