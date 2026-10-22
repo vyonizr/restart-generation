@@ -46,6 +46,14 @@ _Avoid_: user, page view, session
 The person who runs a server: they decide its settings and can delete any account. A player deletes only their own.
 _Avoid_: operator, owner, host
 
+**Public server**:
+A server started with `--public`, where progress is earned and the admin can offer Discord sign-in. A server that isn't public keeps a name as the whole identity and gives open progression.
+_Avoid_: online server, production server, hosted server
+
+**Server copy**:
+The copy of the game an admin gives the server. The server runs it for its witness and, if it isn't public, for bots, and sends it to visitors only if the admin chooses to.
+_Avoid_: RG_GAME, the game files (for this copy)
+
 **Release**:
 A numbered version of the site, made each time the public repository receives new commits. Its number tells an admin what an update to it asks of them.
 _Avoid_: build, deploy, tag
@@ -101,6 +109,10 @@ _Avoid_: virtual gamepad, on-screen keyboard
 **Custom keys**:
 The keys a player chose on the engine's Custom Keys screen for its seven actions: Primary, Secondary, Up, Down, Left, Right, and Chat. They are part of the saved game's settings.
 _Avoid_: keybinds, key mapping, hotkeys, controls
+
+**Gamepad**:
+A game controller that the browser reads on the device the player plays on.
+_Avoid_: controller, joypad, joystick
 
 ### Game content
 
@@ -197,3 +209,11 @@ _Avoid_: slot, player number, team
 **Environment**:
 The look of a battle's playfield: space, clouds and grass, speedball, soccer, or racetrack.
 _Avoid_: stage, theme, skin
+
+**Witness**:
+The engine the server runs from its server copy to follow every battle's orders and learn each battle's real result. It is neither a player nor an observer, and no player sees it.
+_Avoid_: referee, oracle, observer
+
+**Guessed result**:
+A battle result the server decides without a witness: the last player standing, or else the team that sent the last order.
+_Avoid_: heuristic result, fallback result
