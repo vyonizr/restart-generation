@@ -11,6 +11,7 @@ const CAPTURE = path.join(__dirname, '..', 'data', 'capture.log');
 const MAX_SEATS = 4;         // SM_GROOM_MAX_NUM_USERS
 const GATHER_MS = Number(process.env.RG_GATHER_MS || 15000); // how long a smaller table waits for more players (tools/selfplay.mjs shortens it)
 const RELAXED_FRIENDLY = process.env.RG_RELAXED_FRIENDLY === '1' || process.argv.includes('--relaxed'); // friendly tables without phase time limits
+const WITNESS_WAIT_MS = 5000; // how long a battle's result waits for a witness that is still catching up
 
 // Casino action ids (FUN_100994e0).
 const A = {
@@ -68,19 +69,22 @@ const queue = [];            // sessions waiting for a ranked match
 let nextTable = 1;
 const tables = new Set();    // SNAP rooms hosting a battle
 
-// Clients compute the result locally and upload nothing, so the server scores what it can see
-// (battle.result): +10 fame for a win.
-function finishMatch(host, api) {
+// Clients compute the result locally and upload nothing, so the server scores the witness's result, or its own guess
+// (battle.result): +10 fame for each winner, and a match for every player.
+async function finishMatch(host, api) {
   if (host.finished) return;
   host.finished = true;
-  const { winner, players } = battle.result(host);
-  api.log(`battle over: ${winner ? winner.s.name + ' won' : 'no winner'}`);
+  const { winners, players, guessed } = await battle.result(host, WITNESS_WAIT_MS);
+  battle.forget(host);
+  const names = winners.map(p => p.s.name);
+  const won = names.length ? `${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ` : ''}${names.at(-1)} won` : 'no winner';
+  api.log(`battle over: ${guessed ? `result guessed (${guessed}): ` : ''}${won}`);
   // Friendly games are unranked: the client keeps CASINO_FRIENDLY_STATS apart from CASINO_MATCHMAKER_STATS.
   if (!host.ranked) return;
   for (const p of players) {
     const st = stats(p.s.account);
     st.matches++;
-    if (p === winner) { st.wins++; st.fame += 10; }
+    if (winners.includes(p)) { st.wins++; st.fame += 10; }
     st.highestFame = Math.max(st.highestFame ?? 0, st.fame);
     api.save(p.s.account);
   }
@@ -331,7 +335,7 @@ function onCasino(s, type, kind, action, body, api) {
       return;
     case A.SEAT_LEAVE: // every client sends it when its battle ends normally (FUN_100ec8b0)
       reply();
-      if (s.room?.battle) finishMatch(s.room.battle, api);
+      if (s.room?.battle) finishMatch(s.room.battle, api).catch(e => api.log(e.stack));
       if (s.account.bot) bots.stop(s);
       return;
   }
@@ -359,7 +363,7 @@ function onMessage(s, msg, api) {
 }
 
 module.exports = {
-  botChoice, fillsWithBots,
+  botChoice, fillsWithBots, finishMatch,
   waiting: () => queue.length, // players waiting in the ranked Quick Match
   botQuestion: id => botChoice(friendly.get(id), canFillWithBots()),
   onPacket(s, data, api) {
@@ -380,7 +384,8 @@ module.exports = {
     if (p) battle.leave(room.battle, p, api);
     // Bots left alone at a table have no one to play for.
     if (room.battle && ![...room.members].some(m => !m.account.bot)) for (const m of room.members) bots.stop(m);
-    if (room.members.size === 0) tables.delete(room);
+    // A finished battle's witness lets go once the result is in (finishMatch); an abandoned one's, when everyone has left.
+    if (room.members.size === 0) { tables.delete(room); if (room.battle && !room.battle.finished) battle.forget(room.battle); }
   },
   start(api) {
     setInterval(() => { matchmake(api); for (const room of tables) battle.tick(room.battle, api); }, 1000);

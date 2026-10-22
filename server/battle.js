@@ -1,7 +1,8 @@
 // Online battle host: the server's half of a match, replacing the original ServerBattleLogic
 // (handshake FUN_1000d8c0, per-message v16, EndTurnRequest v29, timers v6). It does not simulate the
 // battle: it hands out the Game and snapshot, relays orders, acks them, and drives turns by copying
-// (turn, phase) from the clients, as described in docs/protocol.md "Battle".
+// (turn, phase) from the clients, as described in docs/protocol.md "Battle". A witness, where the server has a
+// server copy, follows the same messages and tells it each defeat and the result (server/witness.js, docs/adr/0020).
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -10,6 +11,7 @@ const { T, frames } = require('./mt');
 const gm = require('./gamemsg');
 const g = require('./gameblob');
 const { zipEntries } = require('../web/zip.js');
+const defaultWitness = require('./witness');
 
 const DATA = path.join(__dirname, '..', 'data');
 const ZIP = 'battle-templates.zip';
@@ -126,7 +128,8 @@ let templates;
 const seatCounts = () => new Set((templates ??= loadTemplates()).map(t => t.seats));
 
 // A relaxed match sends -1 phase time limits, so clients show no countdown and only the server ends a
-// stalled phase. api.templates replaces data/templates (tests use made-up ones, battle.fixture.js).
+// stalled phase. api.templates replaces data/templates (tests use made-up ones, battle.fixture.js), and api.witness
+// replaces server/witness.js.
 function createTable(seats, api, relaxed = false) {
   const fit = (api.templates ?? (templates ??= loadTemplates())).filter(t => t.seats === seats);
   if (!fit.length) { api.log(`no battle template for ${seats} players in data/templates or data/${ZIP}`); return null; }
@@ -134,7 +137,7 @@ function createTable(seats, api, relaxed = false) {
   const limits = t.game.timeLimit;
   const { seed, game, snap } = tableState(t, relaxed ? limits.map(() => -1) : limits, api);
   api.log(`table uses template ${t.name}, seed ${seed}${relaxed ? ' without phase time limits' : ''}`);
-  return {
+  const table = {
     seats, template: t.name, seed, game, snap,
     freeSeats: shuffledSeats(seats, api), // handed out in this order as players send their join info
     players: [],        // { s, index, team, state, lastSeq, seen }
@@ -147,6 +150,15 @@ function createTable(seats, api, relaxed = false) {
     forceAfter: limits.map((l, phase) => l === -1 ? -1 : relaxed ? (phase === PHASE.CANNONS ? RELAXED_CANNON_MS : RELAXED_MS) : l + OVERTIME_MS), // ms, per phase
     losers: [], lastOrderTeam: 0, finished: false,
   };
+  const witness = api.witness ?? defaultWitness;
+  if (witness.available()) { table.witness = witness; witness.follow(table, seat => defeated(table, seat, api)); }
+  return table;
+}
+
+// Every reliable message, in the order the clients get it: replayed to late joiners (handshake step 4) and fed to the witness.
+function record(table, raw) {
+  table.history.push(raw);
+  table.witness?.feed(table, raw);
 }
 
 function sendMsg(table, p, m, api) {
@@ -154,7 +166,7 @@ function sendMsg(table, p, m, api) {
 }
 function broadcast(table, m, api, except) {
   const raw = gm.write(m);
-  if (m.reliable !== 0) table.history.push(raw);
+  if (m.reliable !== 0) record(table, raw);
   for (const p of table.players) if (p !== except && p.state === 'playing') sendMsg(table, p, m, api);
 }
 const serverMsg = (table, type, body) => ({ seq: ++table.seq, type, sender: 0, recipients: [0],
@@ -226,9 +238,10 @@ function endTurn(table, api, why) {
 
 // (turn, phase) as one ascending number; p.seen is the step of the team's last order or EndTurnRequest.
 const step = (turn, phase) => turn * 10 + phase;
-// Clients stop sending after their castle or princess is captured, which the server can't see
-// (docs/re/re_rules.md section 5), so silence is the only sign of a defeat. From weakest to strongest:
-// ponytail: all guesses; a live idle player is treated the same. A headless witness engine would be exact.
+// Clients stop sending after their castle or princess is captured, and nothing they send shows it (docs/re/re_rules.md
+// section 5). A witness reports each defeat (see `defeated`); without one, or for a stopped player, whom no engine sees
+// as defeated, silence is the only sign. From weakest to strongest:
+// ponytail: all guesses; a live idle player is treated the same.
 // - lapsed: nothing for a whole turn. Counts as done in phases 2 and 5 at once.
 const lapsed = (table, p) => step(table.turn, table.phase) - p.seen >= 10;
 // - A bot never thinks for long, so one that hasn't acted `ms` into the phase is defeated.
@@ -287,7 +300,7 @@ function onGame(table, p, data, api) {
   }
   if (ORDERS.has(m.type)) { table.lastOrderTeam = p.team; p.seen = step(table.turn, table.phase); }
   // Forward unchanged to the other players (v16), keeping the client's own seq and sender.
-  if (m.reliable) table.history.push(gm.write(m));
+  if (m.reliable) record(table, gm.write(m));
   for (const o of table.players) if (o !== p && o.state === 'playing') sendMsg(table, o, m, api);
   if (table.phase === PHASE.TILE_PLACEMENT && m.type === gm.TYPE.PLACE_TILE) { table.done.add(p.team); endIfAllDone(table, api); }
   // Clients never request the end of phase 5 after their last shot: the original host ended it once no
@@ -311,6 +324,15 @@ function lose(table, p, api) {
   }
 }
 
+// The witness saw seat `seat` defeated: stop waiting for it, as for a player who quit or left. Seen after the server has
+// already moved on (a witness catching up), it only makes the seat a loser from then on.
+function defeated(table, seat, api) {
+  const p = table.players.find(o => o.team === seat);
+  if (!p || table.losers.includes(p)) return;
+  report(table, api, `the witness saw seat ${seat} defeated`);
+  lose(table, p, api);
+}
+
 // A player left the table room: tell the others he disconnected (sender = leaver, as the original did).
 function leave(table, p, api) {
   if (p.state === 'playing' && table.started && !table.finished && !table.losers.includes(p)) {
@@ -323,13 +345,23 @@ function leave(table, p, api) {
   p.state = 'left';
 }
 
-// Winner: the last player standing, else the one who made the final move before the game ended
-// (clients compute the result locally and never upload it).
-function result(table) {
+// The result once the battle is over: { winners, players, guessed }. With a witness that waits up to `waitMs` for its ranks,
+// the winners are every player it ranks first (two after a tie, none if nobody is first) and `guessed` is null.
+// Otherwise the result is guessed (CONTEXT.md "Guessed result"), and `guessed` says why: the last player standing,
+// else the one who made the final move before the game ended (clients compute the result locally and never upload it).
+async function result(table, waitMs = 0) {
+  let timer;
+  const seen = table.witness && await Promise.race([table.witness.result(table),
+    new Promise(resolve => { timer = setTimeout(resolve, waitMs, { failed: 'no result in time' }); })]);
+  clearTimeout(timer);
+  if (seen?.ranks) return { winners: table.players.filter(p => seen.ranks[p.index] === 1), players: table.players, guessed: null };
   const standing = table.players.filter(p => !table.losers.includes(p));
   const winner = standing.length === 1 ? standing[0] : standing.find(p => p.team === table.lastOrderTeam);
-  return { winner, players: table.players };
+  return { winners: winner ? [winner] : [], players: table.players, guessed: seen ? `witness failed: ${seen.failed}` : 'no server copy' };
 }
+
+// The table is gone or its result is in: the witness stops following it.
+const forget = table => table.witness?.forget(table);
 
 function tick(table, api) {
   if (!table.started) return maybeBegin(table, api);
@@ -347,4 +379,4 @@ function tick(table, api) {
   }
 }
 
-module.exports = { PHASE, seatCounts, loadTemplates, createTable, seat, onGame, leave, result, tick };
+module.exports = { PHASE, seatCounts, loadTemplates, createTable, seat, onGame, leave, result, forget, tick };

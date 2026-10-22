@@ -304,6 +304,10 @@ if (MODE.public && process.env.RG_GAME && !authConfig.contact) {
   process.exitCode = 1; return;
 }
 
+// The server copy runs the witness, which decides every battle's result (docs/adr/0020), on a public server too.
+if (process.env.RG_GAME) require('./witness').start(log);
+else log('Warning: no server copy (RG_GAME), so battle results will be guessed: the last player standing, or else the one who made the last move');
+
 net.createServer(sock => {
   const addr = `${sock.remoteAddress}:${sock.remotePort}`;
   log('connect', addr);

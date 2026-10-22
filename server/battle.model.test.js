@@ -1,13 +1,17 @@
 // Liveness check for the server's battles: node server/battle.model.test.js [--real]
 // Model clients play whole battles against the server in simulated time (api.now) with a seeded random source
-// (api.random), so a failure's label reproduces it exactly. A defeated player goes quiet (the server can't see
-// defeats, docs/re/re_rules.md section 5), a person may also quit or drop, and any player may become a stopped player (a phone that
+// (api.random), so a failure's label reproduces it exactly. A defeated player goes quiet (the clients send nothing that shows
+// a defeat, docs/re/re_rules.md section 5), a person may also quit or drop, and any player may become a stopped player (a phone that
 // sleeps, a hidden tab, a hung bot worker) while its game goes on in everyone else's client. The clients move through phases
-// only on the server's EndTurn messages, as the real ones do, so a server that stalls leaves them stuck. Checked:
+// only on the server's EndTurn messages, as the real ones do, so a server that stalls leaves them stuck. Every battle is
+// played twice: once without a witness, where the server can only guess defeats from silence, and once with a fake witness
+// that reports each defeat the moment it happens, as the engine does (docs/adr/0020). Checked:
 //  - the EndTurns match what the clients expect and reach every player, in one order;
 //  - the server is never ahead of the clients;
-//  - tile and cannon phases end soon after the last living client acted. A defeat or a stopped player costs at most
-//    one forced end, in the first phase where nothing yet shows it (see `exempt`); every later phase ends in 32 s;
+//  - tile and cannon phases end soon after the last living client acted. Without a witness, a defeat or a stopped player costs
+//    at most one forced end, in the first phase where nothing yet shows it (see `exempt`), and every later phase ends in 32 s.
+//    With a witness, only a stopped player costs that; a defeat costs nothing, and a battle without a stopped player never
+//    waits for anyone who is out;
 //  - in the player-turns phase, a turn ends as soon as its player ends it, and a stopped player's turn by the
 //    forced end at the latest.
 // Uses made-up templates (battle.fixture.js); with --real, the 2, 3 and 4-player ones in data/templates and data/battle-templates.zip.
@@ -31,20 +35,23 @@ const rng = seed => () => { // mulberry32
   return ((t ^ t >>> 14) >>> 0) / 4294967296;
 };
 
-// opts: seed, seats, relaxed, bots (per seat), defeats [{ team, turn, phase 4|5, count, how: silent|quit|drop|stop }].
+// opts: seed, seats, relaxed, bots (per seat), defeats [{ team, turn, phase 4|5, count, how: silent|quit|drop|stop }], witnessed.
 // An event happens in `phase` of `turn` once `count` phase 4 turns, or phase 5 shots, are done. `stop` makes a
 // stopped player: it sends nothing more, but stays in everyone's game, so the clients still give it turns.
 // Returns how many events happened.
-function play({ seed, seats, relaxed, bots, defeats }) {
+function play({ seed, seats, relaxed, bots, defeats, witnessed }) {
   const rand = rng(seed);
   const between = (lo, hi) => lo + Math.floor(rand() * (hi - lo + 1));
   const clock = { t: Date.UTC(2026, 9, 18) };
   const inbox = new Map();
-  const api = { log() {}, templates, now: () => clock.t, random: rng(seed ^ 0x5bd1e995), send(s, data) { inbox.get(s).push(...s.read(data)); } };
+  // The fake witness (server/witness.js): the engine sees a defeat while it processes the order that causes it, and a stopped
+  // player isn't defeated, so it reports exactly the model's defeats, at once. It never finishes: results aren't checked here.
+  const witness = witnessed ? { available: () => true, follow(t, onDefeat) { this.defeat = onDefeat; }, feed() {}, result: () => new Promise(() => {}), forget() {} } : undefined;
+  const api = { log() {}, templates, now: () => clock.t, random: rng(seed ^ 0x5bd1e995), witness, send(s, data) { inbox.get(s).push(...s.read(data)); } };
   const table = battle.createTable(seats, api, relaxed);
   table?.freeSeats.sort((x, y) => x - y); // bots[i] and the scenarios' `team` are seats, so seat players in join order
   assert(table, `no ${seats}-player template`);
-  const label = () => `seed ${seed}, ${seats} seats${relaxed ? ', relaxed' : ''}, bots [${bots.map(Number)}], defeats ${JSON.stringify(defeats)}`;
+  const label = () => `seed ${seed}, ${seats} seats${relaxed ? ', relaxed' : ''}${witnessed ? ', witnessed' : ''}, bots [${bots.map(Number)}], defeats ${JSON.stringify(defeats)}`;
   const fail = text => assert.fail(`${text}\n  ${label()}`);
 
   const hero = g.parseGame(table.game).heroes[1];
@@ -77,11 +84,13 @@ function play({ seed, seats, relaxed, bots, defeats }) {
   function defeat(d) {
     happened++;
     plan = plan.filter(a => a.team !== d.team);
-    if (d.how !== 'quit' && d.how !== 'drop') { exempt.add(step(turn, 5)); if (phase === 5) exempt.add(step(turn + 1, 2)); }
+    // Without a witness, only a quit or a drop shows at once. With one, every defeat does; a stopped player is still in the game.
+    if (d.how === 'stop' || (d.how === 'silent' && !witness)) { exempt.add(step(turn, 5)); if (phase === 5) exempt.add(step(turn + 1, 2)); }
     if (d.how === 'stop') { stopped.add(d.team); return; }
     live.delete(d.team);
     if (d.how === 'quit') order(d.team, gm.TYPE.END_GAME, i32(0));
     else if (d.how === 'drop') battle.leave(table, playerOf(sessionOf.get(d.team)), api);
+    witness?.defeat(d.team);
     if (live.size < 2) over = true; // the clients end the battle
   }
   const due = () => (defeats ?? []).filter(d => !d.done && live.has(d.team) && !stopped.has(d.team) && d.turn === turn && d.phase === phase
@@ -122,14 +131,17 @@ function play({ seed, seats, relaxed, bots, defeats }) {
     else if (phase === 4) nextMover();
     else { enter(turn + 1, 2); if (!over) sync('after phase 5'); }
   }
+  // Until nothing is left: an EndTurn the clients act on can make the server send more (a defeat it learns of from the witness).
   function drain() {
-    const seen = [];
-    for (const [s, box] of inbox) {
-      const msgs = box.splice(0).map(m => { assert.equal(m[0], T.GAME); return gm.unpack(m.subarray(1)); });
-      if (playerOf(s).state === 'playing') seen.push(msgs.filter(m => m.type === gm.TYPE.END_TURN).map(m => [m.turn, m.phase]));
+    while ([...inbox.values()].some(box => box.length)) {
+      const seen = [];
+      for (const [s, box] of inbox) {
+        const msgs = box.splice(0).map(m => { assert.equal(m[0], T.GAME); return gm.unpack(m.subarray(1)); });
+        if (playerOf(s).state === 'playing') seen.push(msgs.filter(m => m.type === gm.TYPE.END_TURN).map(m => [m.turn, m.phase]));
+      }
+      for (const e of seen) if (JSON.stringify(e) !== JSON.stringify(seen[0])) fail(`players saw different EndTurns: ${JSON.stringify(seen)}`);
+      for (const [t, ph] of seen[0] ?? []) { if (over) return; onEndTurn(t, ph); }
     }
-    for (const e of seen) if (JSON.stringify(e) !== JSON.stringify(seen[0])) fail(`players saw different EndTurns: ${JSON.stringify(seen)}`);
-    for (const [t, ph] of seen[0] ?? []) { if (over) return; onEndTurn(t, ph); }
   }
 
   enter(1, 2); drain();
@@ -144,16 +156,17 @@ function play({ seed, seats, relaxed, bots, defeats }) {
       if (a.ends !== undefined && !over && phase === 4 && turn === a.ends && lastMover === a.team) {
         fail(`seat ${a.team} ended its turn in (${turn}, 4), and the server didn't pass it on`);
       }
-      defeatDue();
+      defeatDue(); drain();
     }
     if (over) break;
     battle.tick(table, api); drain();
-    defeatDue();
+    defeatDue(); drain();
     if (over) break;
     if (step(table.turn, table.phase) > step(turn, phase)) fail(`the server is ahead of the clients: (${table.turn}, ${table.phase}) vs (${turn}, ${phase})`);
     if (phase === 2 || phase === 5) {
       // A forced end counts from when the server entered the phase, which can be as late as a client's first order.
-      const bound = exempt.has(step(turn, phase)) ? table.forceAfter[phase] + work + 2 * SEC : Math.max(work, QUIET_BOUND);
+      const bound = exempt.has(step(turn, phase)) ? table.forceAfter[phase] + work + 2 * SEC
+        : witness && !stopped.size ? work + 2 * SEC : Math.max(work, QUIET_BOUND);
       if (clock.t - phaseAt > bound) fail(`phase ${phase} of turn ${turn} still open ${(clock.t - phaseAt) / SEC} s after it began; the last living client acted at ${work / SEC} s`);
     } else if (stopped.has(lastMover) && clock.t - phaseAt > table.forceAfter[4] + 2 * SEC) {
       fail(`seat ${lastMover}'s player stopped, and its turn in (${turn}, 4) is still open ${(clock.t - phaseAt) / SEC} s later, past the forced end`);
@@ -174,7 +187,9 @@ for (const relaxed of [true, false]) {
     }
   }
 }
-const named = scenarios.reduce((n, s) => n + play(s), 0);
+// Each battle without a witness, then with one; play() marks the defeats it made, so each run gets its own copy.
+const both = s => [false, true].map(witnessed => play({ ...s, witnessed, defeats: s.defeats.map(d => ({ ...d })) }));
+const named = scenarios.reduce((n, s) => n + Math.min(...both(s)), 0);
 assert(named > scenarios.length / 2, `the named scenarios defeat teams (${named} in ${scenarios.length})`);
 
 // Random battles: 0 to 2 defeats at random moments, in the first two turns so that later turns show the aftermath.
@@ -189,8 +204,8 @@ for (let seed = 1; seed <= 400; seed++) {
   const defeats = teams.map(team => { const ph = rand() < 0.5 ? 4 : 5;
     const how = bots[team - 1] ? (rand() < 0.7 ? 'silent' : 'stop') : ['silent', 'silent', 'quit', 'drop', 'stop'][between(0, 4)];
     return { team, turn: between(1, 2), phase: ph, count: ph === 4 ? between(0, 2) : between(0, 3), how }; });
-  defeated += play({ seed, seats, relaxed, bots, defeats });
+  defeated += Math.min(...both({ seed, seats, relaxed, bots, defeats }));
   random++;
 }
 assert(defeated > random / 2, `the random battles defeat teams (${defeated} in ${random})`);
-console.log(`battle model ok (${scenarios.length} named scenarios, ${random} random battles, ${defeated} random defeats)`);
+console.log(`battle model ok (${scenarios.length} named scenarios, ${random} random battles, ${defeated} random defeats, each with and without a witness)`);

@@ -26,6 +26,10 @@ export const LONE_START = [
   { what: 'Start shown when alone', va: 0x100eab1b, from: '8b463485c07462', to: '8b463485c09090' },
   { what: 'Start accepted when alone', va: 0x100eae95, from: '8b462c85c0762d', to: '8b462c85c09090' },
 ];
+// A headless engine (a bot, server/bot.mjs, or the witness, server/witness.mjs) has no battle screen: FUN_1000f610, the
+// battlefield's "busy" check, waits for its visual events, which only a local player's battle screen plays back. Without
+// this, a bot's AI (FUN_100b1f00) waits forever and a witness's battle is never finished (docs/re/re_witness.md).
+export const NEVER_BUSY = { what: 'battlefield never busy', va: 0x1000f610, from: '8b813c010000', to: '32c0c3' }; // xor al, al; ret
 
 export class GameHost {
   // files: { name: Uint8Array } for the DLL and everything in the ResetGeneration folder.
