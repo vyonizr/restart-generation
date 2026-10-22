@@ -349,7 +349,7 @@ if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame())
 const servesGame = () => gameFiles !== null;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
 
-http.createServer((req, res) => {
+const httpServer = http.createServer((req, res) => {
   const parsed = new URL(req.url, 'http://x');
   const url = decodeURIComponent(parsed.pathname);
   if (url === '/snap' && req.method === 'POST') { // the browser's SNAP connection: one request per POST
@@ -391,7 +391,11 @@ http.createServer((req, res) => {
   // Build output under assets/ has a hash in its name, so it never changes; everything else is checked on every load.
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': url.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
   fs.createReadStream(file).pipe(res);
-}).listen(HTTP_PORT, HOST, () => {
+});
+// Longer than Caddy's 2-minute upstream keepalive, so Caddy never reuses a connection this server is closing and answers a 502.
+httpServer.keepAliveTimeout = 130000;
+httpServer.headersTimeout = 131000;
+httpServer.listen(HTTP_PORT, HOST, () => {
   log(`browser client on http://localhost:${HTTP_PORT}/`);
   if (!fs.existsSync(path.join(DIST_DIR, 'index.html'))) log('The page is not built: run `npm run build` (after `npm install`)');
   log(MODE.discord ? 'Discord sign-in is on: players are guests or members (ADR 0011)' : 'Name-only login (ADR 0009)');
