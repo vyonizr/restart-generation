@@ -155,4 +155,15 @@ async function signedIn(...args) {
   assert.strictEqual(t.sent.filter(r => r.cmd === CMD.UNIFIED_LOGOUT).length, 1);
 }
 
+// A login whose INIT gets no reply stops when the page gives up, 40 s in, without sending the login itself.
+{
+  const t = await loggingIn(() => 'drop');
+  await t.clock.advance(39999);
+  assert.ok(!t.told().some(e => e[0] === 'onArenaLoginCancelled@8'));
+  await t.clock.advance(1);
+  assert.ok(t.told().some(e => e[0] === 'onArenaLoginCancelled@8'));
+  assert.ok(!t.sent.some(r => r.cmd === CMD.EXTENDED_LOGIN));
+  assert.strictEqual(t.snap.getLoginScreenStatus(), 5); // a network problem, as when the login itself fails
+}
+
 console.log('snap client ok');

@@ -161,7 +161,9 @@ export class SnapClient {
     this.room = ''; this.inRoom = false;
     this.heard = this.clock.now(); // a login has as long to get a reply as a session
     try {
-      await this.request(CMD.INIT, {}, { sessionless: true });
+      // Without a reply to INIT the page has given up already, so the login itself isn't sent.
+      const init = await this.request(CMD.INIT, {}, { sessionless: true });
+      if (init.code === REPLY.NETWORK_INTERRUPTED) { this.problem = 2; this.events.push(() => this.native('onArenaLoginCancelled@8')); return; }
       const { username, password } = this.ui.credentials();
       if (!VALID_NAME.test(username)) { this.problem = 1; return; }
       this.ui.attempting();
