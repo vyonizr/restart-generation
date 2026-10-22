@@ -33,13 +33,14 @@ assert.deepStrictEqual(play([{ up: true }, { up: true, y: -1 }, { y: -1 }, {}]),
 // The press count the keyboard, the touch pad and the gamepad share. `run` applies the input queue as a tick does and returns the
 // key events the engine saw.
 const events = [], input = [];
-const presses = createPresses({ key: (down, code) => events.push(`${down ? 'down' : 'up'} ${code}`), releaseAll: () => events.push('all up') }, input);
+const presses = createPresses({ key: (down, code) => events.push(`${down ? 'down' : 'up'} ${code}`), typed: ch => events.push(`typed ${ch}`),
+  releaseAll: () => events.push('all up') }, input);
 const run = () => { while (input.length) input.shift()(); return events.splice(0); };
 const ENTER = 10;
 
 // Enter held on the keyboard and on the gamepad is one press: letting go of one doesn't release it, letting go of both does.
-assert.strictEqual(presses.press(ENTER), true);
-assert.strictEqual(presses.press(ENTER), false);
+presses.press(ENTER);
+presses.press(ENTER);
 assert.deepStrictEqual(run(), ['down 10']);
 presses.release(ENTER);
 assert.deepStrictEqual(run(), []);
@@ -54,5 +55,17 @@ presses.release(ENTER);
 assert.deepStrictEqual(run(), ['all up']);
 presses.press(ENTER);
 assert.deepStrictEqual(run(), ['down 10']);
+presses.release(ENTER); run();
+
+// A press that types a character types it every time, even while another input holds its key: with Up rebound to W and Up held
+// on the gamepad, "w" typed on the keyboard still reaches the chat.
+const W = 87, w = 119;
+presses.press(W);
+assert.deepStrictEqual(run(), ['down 87']);
+presses.press(W, w, 1);
+assert.deepStrictEqual(run(), ['typed 119']);
+presses.release(W, w, 1);
+presses.release(W);
+assert.deepStrictEqual(run(), ['up 87']);
 
 console.log('gamepad ok');

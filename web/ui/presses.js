@@ -2,15 +2,17 @@
 // first press and up at its last release, so letting go of one input doesn't release a key another still holds.
 // game and input (the queue applied at the start of each tick) come from the running game (game.js). ch and loc are the
 // keyboard's typed character and key location; the other inputs leave them to the engine's defaults.
+import { CHAR_UNDEFINED } from '../emu/host.js';
+
 export function createPresses(game, input) {
   const count = new Map(); // Java key code -> inputs holding it
   return {
-    // Whether the engine sees this press: a key another input already holds doesn't go down again.
+    // A key another input already holds doesn't go down again, but a press that types a character always types it.
     press(code, ch, loc) {
       const n = (count.get(code) ?? 0) + 1;
       count.set(code, n);
       if (n === 1) input.push(() => game.key(true, code, ch, loc));
-      return n === 1;
+      if (ch !== undefined && ch !== CHAR_UNDEFINED) input.push(() => game.typed(ch));
     },
     release(code, ch, loc) {
       const n = count.get(code);
