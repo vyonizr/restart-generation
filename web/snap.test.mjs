@@ -38,10 +38,10 @@ const LOGIN = {
 };
 const presence = name => `307|9|${name}|available|42713|9|1||0|0|0|0|${btoa('SM2.0.1,')}`;
 
-// A signed-in client. `answer(request)` decides each reply first: a body, { status, body }, 'drop' (the fetch fails) or 'hold'
-// (no reply until the page aborts it); undefined falls back to the login replies, and a poll is held. `idle` is how long the page
-// is open before the login.
-async function signedIn(answer = () => undefined, { idle = 0 } = {}) {
+// A client that has started its login. `answer(request)` decides each reply first: a body, { status, body }, 'drop' (the fetch
+// fails) or 'hold' (no reply until the page aborts it); undefined falls back to the login replies, and a poll is held. `idle` is
+// how long the page is open before the login.
+async function loggingIn(answer = () => undefined, { idle = 0 } = {}) {
   const clock = fakeClock(), sent = [], engine = [];
   const fetch = (url, { body, signal }) => {
     const field = k => body.split('&').find(f => f.startsWith(`${k}=`)).slice(k.length + 1);
@@ -64,8 +64,13 @@ async function signedIn(answer = () => undefined, { idle = 0 } = {}) {
   const told = () => { client.pump(); return engine; };
   const disconnects = () => told().filter(e => e[0] === 'onDisconnectedFromNAF@12').map(e => e[1]);
   const polls = () => sent.filter(r => r.cmd === CMD.RETRIEVE_ALL_EVENTS);
-  assert.ok(told().some(e => e[0] === 'onArenaLoginCompleted@8'));
   return { client, snap, clock, sent, told, disconnects, polls };
+}
+// A signed-in client, from the same arguments.
+async function signedIn(...args) {
+  const t = await loggingIn(...args);
+  assert.ok(t.told().some(e => e[0] === 'onArenaLoginCompleted@8'));
+  return t;
 }
 
 // A dropped poll is resent unchanged, R included, so the gateway's reply cache can answer it; its events reach the engine.
@@ -136,6 +141,18 @@ async function signedIn(answer = () => undefined, { idle = 0 } = {}) {
   const tried = new Set();
   const t = await signedIn(r => tried.has(r.cmd) ? undefined : (tried.add(r.cmd), 'drop'), { idle: 600000 });
   assert.strictEqual(t.sent.filter(r => r.cmd === CMD.EXTENDED_LOGIN).length, 2);
+}
+
+// When the network is gone, a game packet and the poll give up together: the engine hears it once, with 998, and the logout
+// goes once.
+{
+  let offline = false;
+  const t = await signedIn(() => (offline ? 'drop' : undefined));
+  offline = true;
+  t.snap.send(12);
+  await t.clock.advance(60000);
+  assert.deepStrictEqual(t.disconnects(), [REPLY.NETWORK_INTERRUPTED]);
+  assert.strictEqual(t.sent.filter(r => r.cmd === CMD.UNIFIED_LOGOUT).length, 1);
 }
 
 console.log('snap client ok');

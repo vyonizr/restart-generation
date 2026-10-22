@@ -134,10 +134,11 @@ export class SnapClient {
     this.problem = 2;
     return true;
   }
+  // The session is lost: tell the engine once, whichever request found out first, and sign out.
   dropped(code) {
-    this.actions.length = 0;
+    this.actions.length = 0; this.leaving = true;
     this.events.push(() => this.native('onDisconnectedFromNAF@12', code));
-    this.queue(() => this.signOut(false), false);
+    this.queue(() => this.signOut(false), true);
   }
 
   // ---- actions: one runs at a time, in the order they were queued ----
@@ -298,7 +299,8 @@ export class SnapClient {
         this.queue(async () => {
           if (room !== null && !(await this.askBots(room))) return; // holds the actions behind it, so the order stays
           const r = await this.request(CMD.SEND_GAME_PACKET_TO_GAME_SERVER, { 1: b64(data) });
-          if (r.code !== REPLY.OK && this.loggedIn && !this.leaving) this.dropped(0);
+          // Giving up reports 998, as the poll does; another failed reply drops the session as before.
+          if (r.code !== REPLY.OK && this.loggedIn && !this.leaving) this.dropped(r.code === REPLY.NETWORK_INTERRUPTED ? r.code : 0);
         }, false);
         return len;
       },
