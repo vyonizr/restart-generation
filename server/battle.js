@@ -14,6 +14,8 @@ const DATA = path.join(__dirname, '..', 'data');
 const ZIP = 'battle-templates.zip';
 const START_DEADLINE_MS = 40000;  // Mac FUN_000cd7ee
 const OVERTIME_MS = 30000;        // forced end this long after the phase time limit (FUN_1000ddf0)
+// Phases the server drives (CONTEXT.md); the rest advance on their own in every client.
+const PHASE = { TILE_PLACEMENT: 2, PLAYER_TURNS: 4, CANNONS: 5 };
 const RELAXED_MS = 180000;        // forced end this long after a phase starts in a relaxed match
 const RELAXED_CANNON_MS = 60000;  // same for phase 5, where a shot count the server can't know stalls the table
 const BOT_IDLE_MS = 15000;        // a live bot acts about 4 s into a phase; a bot silent this long is defeated
@@ -148,7 +150,7 @@ function createTable(seats, api, relaxed = false) {
     deadline: (api.now ?? Date.now)() + START_DEADLINE_MS,
     turn: 0, phase: 0, phaseStart: 0, done: new Set(), ended4: new Set(),
     cannons: cannonCount(t.game), fired: new Map(), // team -> FireCannon count this phase
-    forceAfter: limits.map((l, phase) => l === -1 ? -1 : relaxed ? (phase === 5 ? RELAXED_CANNON_MS : RELAXED_MS) : l + OVERTIME_MS), // ms, per phase
+    forceAfter: limits.map((l, phase) => l === -1 ? -1 : relaxed ? (phase === PHASE.CANNONS ? RELAXED_CANNON_MS : RELAXED_MS) : l + OVERTIME_MS), // ms, per phase
     losers: [], lastOrderTeam: 0, finished: false,
   };
 }
@@ -168,7 +170,7 @@ const alive = table => table.players.filter(p => p.state === 'playing' && !table
 // Handshake step 1, after the SEAT_TAKE response (lobby FUN_100ebed0 waits for this).
 function seat(table, s, api) {
   if (table.players.some(p => p.s === s) || table.players.length >= table.seats) return;
-  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, 2), skipped: 0, fired5: 0, bot: Boolean(s.account?.bot) };
+  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, PHASE.TILE_PLACEMENT), skipped: 0, fired5: 0, bot: Boolean(s.account?.bot) };
   table.players.push(p);
   sendMsg(table, p, { seq: 1, type: gm.TYPE.INIT, body: initBody(Buffer.concat([table.game, i32(1)])) }, api);
 }
@@ -200,13 +202,13 @@ function maybeBegin(table, api) {
   if (joined.length < 2) return; // a lone player would win at once; the timer cancels the table instead
   table.started = true;
   broadcast(table, serverMsg(table, gm.TYPE.BATTLE_BEGIN), api);
-  enterPhase(table, 1, 2);
+  enterPhase(table, 1, PHASE.TILE_PLACEMENT);
 }
 
 function enterPhase(table, turn, phase) {
   table.turn = turn; table.phase = phase; table.phaseStart = table.now();
   table.done.clear(); table.fired.clear();
-  if (phase === 2) table.ended4.clear();
+  if (phase === PHASE.TILE_PLACEMENT) table.ended4.clear();
 }
 
 // Why the server moved a table on, and every end-turn request it dropped: one log line each, so a stalled table
@@ -219,13 +221,13 @@ function endTurn(table, api, why) {
   report(table, api, `ended: ${why}`);
   broadcast(table, serverMsg(table, gm.TYPE.END_TURN), api);
   const { turn, phase } = table;
-  if (phase === 2) return enterPhase(table, turn, 4);
-  if (phase === 4) {
+  if (phase === PHASE.TILE_PLACEMENT) return enterPhase(table, turn, PHASE.PLAYER_TURNS);
+  if (phase === PHASE.PLAYER_TURNS) {
     const left = alive(table).filter(p => !table.ended4.has(p.team));
     if (left.length) { table.phaseStart = table.now(); return; }
-    return enterPhase(table, turn, 5);
+    return enterPhase(table, turn, PHASE.CANNONS);
   }
-  return enterPhase(table, turn + 1, 2);
+  return enterPhase(table, turn + 1, PHASE.TILE_PLACEMENT);
 }
 
 // (turn, phase) as one ascending number; p.seen is the step of the team's last order or EndTurnRequest.
@@ -241,8 +243,8 @@ const waited = (table, ms) => table.now() - table.phaseStart > ms;
 //   the clients skipped in this turn's phase 4 (the way they skip a defeated player), is presumed defeated
 //   after a longer wait. A defeat costs at most one forced end: in the first phase where nothing yet shows it.
 const suspect = (table, p) => {
-  if (table.phase === 5) return p.seen < step(table.turn, 2) || p.skipped === table.turn;
-  return table.phase === 2 && (p.seen < step(table.turn - 1, 5) || (table.cannons > 0 && table.turn > 1 && p.fired5 !== table.turn - 1));
+  if (table.phase === PHASE.CANNONS) return p.seen < step(table.turn, PHASE.TILE_PLACEMENT) || p.skipped === table.turn;
+  return table.phase === PHASE.TILE_PLACEMENT && (p.seen < step(table.turn - 1, PHASE.CANNONS) || (table.cannons > 0 && table.turn > 1 && p.fired5 !== table.turn - 1));
 };
 // Phases 2 and 5 only. In phase 4 the server never ends or skips a turn on silence: a silent player may be a defeated player
 // (the clients skip them) or a stopped player (the clients still wait for them), and the server can't
@@ -261,7 +263,7 @@ const endIfAllDone = (table, api) => {
 function onEndTurnRequest(table, p, m, api) {
   p.seen = step(table.turn, table.phase);
   if (m.turn !== table.turn || m.phase !== table.phase) return report(table, api, `dropped seat ${p.team}'s end-turn request for (${m.turn}, ${m.phase})`);
-  if (table.phase === 4) {
+  if (table.phase === PHASE.PLAYER_TURNS) {
     if (table.ended4.has(p.team)) return report(table, api, `dropped seat ${p.team}'s end-turn request: its turn already ended or was skipped`);
     const skipped = alive(table).filter(o => o.team < p.team && !table.ended4.has(o.team));
     for (const o of skipped) { table.ended4.add(o.team); o.skipped = table.turn; }
@@ -293,10 +295,10 @@ function onGame(table, p, data, api) {
   // Forward unchanged to the other players (v16), keeping the client's own seq and sender.
   if (m.reliable) table.history.push(gm.write(m));
   for (const o of table.players) if (o !== p && o.state === 'playing') sendMsg(table, o, m, api);
-  if (table.phase === 2 && m.type === gm.TYPE.PLACE_TILE) { table.done.add(p.team); endIfAllDone(table, api); }
+  if (table.phase === PHASE.TILE_PLACEMENT && m.type === gm.TYPE.PLACE_TILE) { table.done.add(p.team); endIfAllDone(table, api); }
   // Clients never request the end of phase 5 after their last shot: the original host ended it once no
   // shots were left (FUN_1000e430), one FireCannon per shot.
-  if (table.phase === 5 && m.type === gm.TYPE.FIRE_CANNON && table.cannons > 0) {
+  if (table.phase === PHASE.CANNONS && m.type === gm.TYPE.FIRE_CANNON && table.cannons > 0) {
     const n = (table.fired.get(p.team) ?? 0) + 1;
     table.fired.set(p.team, n);
     if (n >= table.cannons) { p.fired5 = table.turn; table.done.add(p.team); endIfAllDone(table, api); }
@@ -307,11 +309,11 @@ function lose(table, p, api) {
   if (!table.losers.includes(p)) table.losers.push(p);
   table.ended4.delete(p.team);
   if (!table.started || table.finished) return;
-  if (table.phase === 2 || table.phase === 5) return endIfAllDone(table, api);
+  if (table.phase === PHASE.TILE_PLACEMENT || table.phase === PHASE.CANNONS) return endIfAllDone(table, api);
   // Phase 4: if the player who lost held the last turn, every client has moved on to phase 5 by itself (re_rules.md section 3).
-  if (table.phase === 4 && alive(table).length && alive(table).every(o => table.ended4.has(o.team))) {
+  if (table.phase === PHASE.PLAYER_TURNS && alive(table).length && alive(table).every(o => table.ended4.has(o.team))) {
     report(table, api, `seat ${p.team} lost holding the last turn: following the clients to phase 5`);
-    enterPhase(table, table.turn, 5);
+    enterPhase(table, table.turn, PHASE.CANNONS);
   }
 }
 
@@ -337,12 +339,12 @@ function result(table) {
 
 function tick(table, api) {
   if (!table.started) return maybeBegin(table, api);
-  if ((table.phase === 2 || table.phase === 5) && !table.finished && alive(table).length && allDone(table)) return endIfAllDone(table, api);
+  if ((table.phase === PHASE.TILE_PLACEMENT || table.phase === PHASE.CANNONS) && !table.finished && alive(table).length && allDone(table)) return endIfAllDone(table, api);
   const limit = table.forceAfter[table.phase] ?? -1;
   if (limit === -1 || table.finished) return;
   if (table.now() - table.phaseStart > limit) {
     let whose = '';
-    if (table.phase === 4) {
+    if (table.phase === PHASE.PLAYER_TURNS) {
       // Turns run in ascending seat number, and players don't join in seat order.
       const cur = alive(table).filter(p => !table.ended4.has(p.team)).sort((x, y) => x.team - y.team)[0];
       if (cur) { table.ended4.add(cur.team); whose = ` of seat ${cur.team}'s turn`; }
@@ -351,4 +353,4 @@ function tick(table, api) {
   }
 }
 
-module.exports = { seatCounts, loadTemplates, createTable, seat, onGame, leave, result, tick };
+module.exports = { PHASE, seatCounts, loadTemplates, createTable, seat, onGame, leave, result, tick };
