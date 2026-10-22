@@ -1,23 +1,27 @@
 # Deploy to a VPS
 
-This is the whole procedure for a public server on one VPS: Docker, Caddy for HTTPS, and Discord sign-in. [On the internet (Caddy)](HOSTING.md#on-the-internet-caddy) in `HOSTING.md` holds the short version for a host that is ready; this adds what comes before and after it.
+This guide is the whole procedure for a public server on one virtual private server (VPS): Docker, Caddy for HTTPS, and Discord sign-in. [On the internet (Caddy)](HOSTING.md#on-the-internet-caddy) in the hosting guide holds the short version for a host that is ready; this guide adds what comes before and after it.
 
-> **Status.** Run once on a PC with Docker Desktop, at `RG_DOMAIN=localhost` with test Discord values, from a fresh folder holding `compose.yaml`, the `Caddyfile`, a `.env` and `data/templates/`. That worked: the build, the start, the log line in step 6, `/status`, the http to https redirect, the `/admin/` 404 (with the gateway itself answering 401 behind it), `npm run backup` through `docker compose exec -T` with its pruning, the restore, the no-template refusal, and the game-zip section (the refusal without `RG_CONTACT`, enabling, switching off). **Not checked, because it needs a real VPS:** steps 1 and 2 (SSH, `ufw`, updates, DNS), a real certificate (localhost uses Caddy's own authority), the Discord round trip, the cron line, and the `chown` (Docker Desktop doesn't enforce who owns `data`). Run it on the VPS once, fix what is wrong, then delete this paragraph.
+> **Caution:** This procedure was tested only on a PC with Docker Desktop, at `RG_DOMAIN=localhost`. Steps 1 and 2, a real certificate, the Discord sign-in round trip, the cron job, and the `chown` command haven't been tested on a VPS.
 
-The steps leave out `RG_GAME_PATH`, so each player chooses their own copy of the game (ADR 0001). Sending the game from your server is a separate decision, with legal consequences, at the [end](#optional-send-the-game-from-your-server).
+The steps leave out `RG_GAME_PATH`, so each player chooses their own copy of the game (see the architecture decision record [ADR 0001](adr/0001-players-bring-their-own-game-files.md)). Sending the game from your server is a separate decision, with legal consequences: see [Optional: send the game from your server](#optional-send-the-game-from-your-server).
 
-You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a domain name, and a Discord application ([Guests and members](HOSTING.md#guests-and-members)). The commands below that run on your PC are PowerShell; the others run on the VPS.
+You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a domain name, and a Discord application (see [Guests and members](HOSTING.md#guests-and-members)). The commands in this guide that run on your PC are PowerShell; the others run on the VPS.
 
 ## 1. Prepare the VPS
 
-1. Log in as a user that is not `root`, with an SSH key, and turn password login off. On Ubuntu a file in `/etc/ssh/sshd_config.d/` (a cloud image's `50-cloud-init.conf`, for one) can switch it back on, so check what the server really uses:
+1. Log in to the VPS with an SSH key as a user other than `root`.
+2. Turn off password login: create `/etc/ssh/sshd_config.d/00-keys-only.conf` containing `PasswordAuthentication no`, and then run `sudo systemctl reload ssh`.
+
+   > **Warning:** Keep this session open until a second SSH login works.
+3. Check the setting that the server uses. On Ubuntu, a file in `/etc/ssh/sshd_config.d/`, such as a cloud image's `50-cloud-init.conf`, can turn password login back on:
 
    ```sh
    sudo sshd -T | grep -i passwordauthentication
    ```
 
-   It must say `no`. Set `PasswordAuthentication no` in a new `/etc/ssh/sshd_config.d/00-keys-only.conf`, then `sudo systemctl reload ssh`, and keep your session open until a second login works.
-2. Open only what the server needs (on Debian, `sudo apt install ufw` first; use your SSH port if you changed it):
+   The output is `passwordauthentication no`.
+4. Open only the ports that the server needs. On Debian, first run `sudo apt install ufw`. If you changed your SSH port, allow that port instead of 22:
 
    ```sh
    sudo ufw allow 22/tcp
@@ -27,9 +31,9 @@ You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a 
    sudo ufw enable
    ```
 
-   Docker publishes the ports it is told to by editing the firewall itself, so `ufw` does not guard them. That is fine here: `compose.yaml` publishes 80 and 443 for Caddy and nothing else. If your provider has its own firewall panel, allow the same ports there.
-3. Install security updates by themselves: `sudo apt install unattended-upgrades` (Ubuntu turns it on already; on Debian run `sudo dpkg-reconfigure -plow unattended-upgrades`).
-4. Install Docker Engine and the compose plugin by following [Docker's page for your system](https://docs.docker.com/engine/install/), then `sudo apt install git` and check:
+   Docker publishes the ports it is told to by editing the firewall itself, so `ufw` doesn't guard them. That is fine here: `compose.yaml` publishes 80 and 443 for Caddy and nothing else. If your provider has its own firewall panel, allow the same ports there.
+5. Install security updates automatically: run `sudo apt install unattended-upgrades`. Ubuntu turns automatic updates on by default; on Debian, also run `sudo dpkg-reconfigure -plow unattended-upgrades`.
+6. Install Docker Engine and the Compose plugin by following [Docker's installation page for your system](https://docs.docker.com/engine/install/), and then run `sudo apt install git`. To check the installation, run the following command:
 
    ```sh
    docker compose version
@@ -37,9 +41,9 @@ You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a 
 
    To run Docker without `sudo`, add yourself to the `docker` group (`sudo usermod -aG docker $USER`) and log in again. Anyone in that group can become root on the host.
 
-## 2. DNS
+## 2. Configure DNS
 
-Create an `A` record (and `AAAA` for IPv6) that points your domain straight at the VPS's address, with the provider's proxy switched off ("DNS only"). Don't put a CDN or proxy, such as Cloudflare's orange cloud, in front: Caddy sets `X-Forwarded-For` to the visitor's address and the server trusts it (`RG_TRUST_PROXY`), so a second proxy would make every visitor look like one address and share one guest limit. It can also get in the way of Caddy obtaining its certificate.
+Create an `A` record (and `AAAA` for IPv6) that points your domain straight at the VPS's address, with the provider's proxy turned off ("DNS only"). Don't put a content delivery network or another proxy, such as Cloudflare's proxy (the orange cloud), in front: Caddy sets `X-Forwarded-For` to the visitor's address and the server trusts it (`RG_TRUST_PROXY`), so a second proxy would make every visitor look like one address and share one guest limit. A second proxy can also stop Caddy from getting its certificate.
 
 ## 3. Get the code
 
@@ -50,29 +54,38 @@ cd restart-generation
 
 ## 4. Send the private files
 
-Battle templates (ADR 0006) come from a capture on your PC and are never in the repository (`docs/LEGAL.md`). Without a usable template the server refuses to start. On the VPS, in `restart-generation/`, make the `data` folder:
+Battle templates ([ADR 0006](adr/0006-capture-battle-templates-from-a-live-client.md)) come from a capture on your PC and are never in the repository (see [Keep the legal risk of this project low](LEGAL.md)). Without a usable template, the server refuses to start.
 
-```sh
-mkdir -p data && sudo chown -R 1000:1000 data
-```
+1. On the VPS, in `restart-generation/`, create the `data` folder, owned by the container's user (UID 1000):
 
-`1000` is the user the container runs as; without it Docker creates `data` as root and the server stops with `EACCES`. Then, from the folder on your PC that holds `data`, zip your templates (see [Back up and restore](HOSTING.md#back-up-and-restore)) and send the zip:
+   ```sh
+   mkdir -p data && sudo chown -R 1000:1000 data
+   ```
 
-```powershell
-Compress-Archive -Force data\templates data\battle-templates.zip
-scp data\battle-templates.zip <user>@<server>:restart-generation/data/
-```
+   Without the `chown` command, Docker creates `data` as root and the server stops with `EACCES`.
+2. On your PC, in the folder that holds `data`, zip your templates and send the zip (for more information, see [Back up and restore](HOSTING.md#back-up-and-restore)):
 
-The server reads `data/battle-templates.zip` as it is. Send only the zip. Leave out the rest of your PC's `data/` (its accounts, `capture.log`, `oracle/`): they are your test data. Make the `.env` on the VPS from the example and don't copy the one from your PC, whose settings (a local address, a Windows path) are wrong here.
+   ```powershell
+   Compress-Archive -Force data\templates data\battle-templates.zip
+   scp data\battle-templates.zip VPS_USER@VPS_HOST:restart-generation/data/
+   ```
 
-## 5. Configure
+   Replace the following:
+   - `VPS_USER`: your user name on the VPS
+   - `VPS_HOST`: the VPS's hostname or IP address
+
+The server reads `data/battle-templates.zip` as it is. Send only the zip. Leave out the rest of your PC's `data/` (its accounts, `capture.log`, and `oracle/`): they are your test data. Make the `.env` on the VPS from the example, and don't copy the one from your PC, whose settings (a local address and a Windows path) are wrong on the VPS.
+
+## 5. Configure the server
+
+Create the `.env` file from the example, readable only by you:
 
 ```sh
 cp .env.example .env
 chmod 600 .env
 ```
 
-Edit `.env` (step 3 of [On the internet (Caddy)](HOSTING.md#on-the-internet-caddy) explains each line). At least:
+Edit `.env`; step 3 of [On the internet (Caddy)](HOSTING.md#on-the-internet-caddy) explains each line. Set at least the following:
 
 ```sh
 RG_DOMAIN=play.example.com
@@ -82,9 +95,11 @@ RG_DISCORD_CLIENT_SECRET=
 RG_ADMIN_TOKEN=
 ```
 
-The Discord application's redirect must be `https://<your domain>/auth/discord/callback`. `RG_PUBLIC_URL` defaults to `https://<RG_DOMAIN>`, so leave it empty.
+In the Discord application, set the redirect to `https://DOMAIN/auth/discord/callback`. Replace `DOMAIN` with your `RG_DOMAIN` value. `RG_PUBLIC_URL` defaults to `https://DOMAIN`, so leave it empty.
 
-## 6. Start it and check
+## 6. Start and check the server
+
+Start the containers and read their logs:
 
 ```sh
 docker compose up -d --build
@@ -93,56 +108,74 @@ docker compose logs rg
 docker compose logs caddy
 ```
 
-The server's log must say `Discord sign-in is on: players are guests or members (ADR 0011)`. If it stops instead, the log says why (usually no usable battle template, or a folder owned by the wrong user). Caddy's log shows the certificate being obtained; the first visit can wait a few seconds for it.
+The server's log contains `Discord sign-in is on: players are guests or members (ADR 0011)`. If the server stops instead, the log says why (usually no usable battle template, or a folder owned by the wrong user). Caddy's log shows it getting the certificate; the first visit can wait a few seconds for it.
 
-Then check, with your domain in place of `play.example.com`:
+To check the server, do the following. Replace `play.example.com` with your domain.
 
-1. `curl -s https://play.example.com/status` answers JSON with `"accounts":true` and `"servesGame":false`.
-2. Open `https://play.example.com/` in a browser: the page loads, **Sign in with Discord** goes to Discord and comes back signed in, and a guest can start a game.
-3. Caddy keeps `/admin/` from the internet (ADR 0016). With `RG_ADMIN_TOKEN` set:
+1. Check the status endpoint:
+
+   ```sh
+   curl -s https://play.example.com/status
+   ```
+
+   The output includes `"accounts":true` and `"servesGame":false`.
+2. Open `https://play.example.com/` in a browser. Check that the page loads, that **Sign in with Discord** goes to Discord and comes back signed in, and that a guest can start a game.
+3. With `RG_ADMIN_TOKEN` set, check that Caddy keeps `/admin/` from the internet ([ADR 0016](adr/0016-the-admin-deletes-accounts-through-the-running-server.md)):
 
    ```sh
    curl -si -H "Authorization: Bearer wrong" "https://play.example.com/admin/account?name=x"
    ```
 
-   It must answer `404` with an empty body. A `401` with `{"error":"unauthorized"}` means the request reached the server, so the Caddy block isn't working: stop and fix it before going on.
-4. `docker stats --no-stream` shows what the containers use. Size the VPS from that.
+   The response is `404` with an empty body. A `401` with `{"error":"unauthorized"}` means that the request reached the server, so the Caddy block isn't working: stop and fix it before you continue.
+4. Check what the containers use, and size the VPS from that:
+
+   ```sh
+   docker stats --no-stream
+   ```
 
 ## 7. Back up the accounts
 
-The accounts database holds each member's Discord ID, name, stats, friend links and saved game (ADR 0010, ADR 0014); a saved game can't be recreated. A guest's account is wiped after 24 hours, but guests are in the file too. `npm run backup` writes a consistent copy while the server runs, into `data/backups/`, and keeps the newest 7 (`--keep <n>` changes that). Run it once by hand, then every night from the VPS user's `crontab -e`:
+The accounts database holds each member's Discord ID, name, stats, friend links, and saved game ([ADR 0010](adr/0010-sqlite-for-accounts-starting-empty.md), [ADR 0014](adr/0014-a-members-saved-game-is-kept-on-the-server.md)); a saved game can't be recreated. A guest's account is wiped 24 hours after its last activity, but guests are in the file too.
+
+`npm run backup` writes a consistent copy while the server runs, into `data/backups/`, and keeps the newest 7 backups. To keep a different number, add `-- --keep NUMBER` after `npm run backup`, where `NUMBER` is how many backups to keep.
+
+To make a backup now, run the following command:
 
 ```sh
 docker compose exec rg npm run backup
 ```
 
+To make a backup every night, run `crontab -e` as the VPS user and add the following line:
+
 ```cron
-17 3 * * * cd /home/<user>/restart-generation && docker compose exec -T rg npm run backup >> data/backups/cron.log 2>&1
+17 3 * * * cd /home/VPS_USER/restart-generation && docker compose exec -T rg npm run backup >> data/backups/cron.log 2>&1
 ```
 
-Backups on the VPS go with the VPS. Now and then copy the newest one to your PC:
+If you lose the VPS, you lose the backups on it. Copy the newest backup to your PC regularly, for example weekly:
 
 ```powershell
-scp <user>@<server>:restart-generation/data/backups/accounts-<date>-<time>.db .
+scp VPS_USER@VPS_HOST:restart-generation/data/backups/accounts-TIMESTAMP.db .
 ```
 
-A backup holds Discord IDs: keep it private and never publish it or commit it (`docs/LEGAL.md`).
+Replace `TIMESTAMP` with the UTC date and time in the backup's file name, in the form `YYYYMMDD-HHMMSS`.
 
-To restore, stop the server, put the file in place, and remove the old database's side files, which would otherwise be applied to the restored copy:
+A backup holds Discord IDs: keep it private, and never publish or commit it (see [Keep the legal risk of this project low](LEGAL.md)).
+
+To restore a backup, stop the server, put the file in place, and remove the old database's side files, which would otherwise be applied to the restored copy:
 
 ```sh
 docker compose stop rg
-cp data/backups/accounts-<date>-<time>.db data/accounts.db
+cp data/backups/accounts-TIMESTAMP.db data/accounts.db
 rm -f data/accounts.db-wal data/accounts.db-shm
 sudo chown 1000:1000 data/accounts.db
 docker compose start rg
 ```
 
-(A server without Discord sign-in keeps `accounts-names.db` instead.) Keep `data/battle-templates.zip` as your templates' backup, as [Back up and restore](HOSTING.md#back-up-and-restore) says.
+A server without Discord sign-in keeps `accounts-names.db` instead. Keep `data/battle-templates.zip` as your templates' backup, as [Back up and restore](HOSTING.md#back-up-and-restore) says.
 
-## 8. Update
+## 8. Update the server
 
-The schema has no migrations (`server/store.js`), so a downgrade after a change to it isn't safe. Back up first, every time:
+The schema has no migrations (`server/store.js`), so a downgrade after a schema change isn't safe. Back up first, every time:
 
 ```sh
 cd ~/restart-generation
@@ -152,38 +185,44 @@ git pull
 docker compose up -d --build
 ```
 
-Then repeat the checks in step 6. Remove the old images now and then: `docker image prune -f`.
+Then repeat the checks in [step 6](#6-start-and-check-the-server). To free disk space, run `docker image prune -f`.
 
-To roll back:
+To roll back, run the following commands:
 
 ```sh
-git checkout <the commit you noted>
+git checkout COMMIT
 docker compose up -d --build
 ```
 
-If the schema changed between the two, restore the backup from before the update too (step 7). Before the next update run `git checkout main`, so `git pull` has a branch to pull.
+Replace `COMMIT` with the commit that `git rev-parse` printed before the update.
 
-## 9. Day to day
+If the schema changed between the two versions, also restore the backup from before the update ([step 7](#7-back-up-the-accounts)). Before the next update, run `git checkout main`, so that `git pull` has a branch to pull.
 
-- Logs: `docker compose logs -f --tail 100 rg`.
-- Restart the server: `docker compose restart rg`. It loads the battle templates only at start.
-- Stop everything: `docker compose down`. The data stays in `data/`, and the certificates in a volume.
-- Delete an account: [Delete an account](HOSTING.md#delete-an-account).
+## 9. Run the server day to day
+
+- View the logs: `docker compose logs -f --tail 100 rg`.
+- Restart the server: `docker compose restart rg`. The server loads the battle templates only at start.
+- Stop everything: `docker compose down`. The data stays in `data/`, and the certificates stay in a volume.
+- Delete an account: see [Delete an account](HOSTING.md#delete-an-account).
 
 ## Optional: send the game from your server
 
-This makes your server send RedLynx's game files to every visitor. That is distribution of their work, and it is your decision and your risk. Read `docs/LEGAL.md` "Serving the game" first. It needs the game's `.zip` on the VPS, and a way for a rights holder to reach you:
+This makes your server send RedLynx's game files to every visitor. That is distribution of their work, and it's your decision and your risk. Before you continue, read [Rules for a server that sends the game](LEGAL.md#rules-for-a-server-that-sends-the-game).
 
-```powershell
-scp ResetGeneration-Standalone.zip <user>@<server>:restart-generation/
-```
+You need the game's `.zip` on the VPS, and a way for a rights holder to reach you.
 
-Add to `.env`, then `docker compose up -d`:
+1. Copy the game to the VPS:
 
-```sh
-RG_GAME_PATH=./ResetGeneration-Standalone.zip
-# An email address or an https address; the page shows it in its Notices dialog, and the server won't start without it.
-RG_CONTACT=
-```
+   ```powershell
+   scp ResetGeneration-Standalone.zip VPS_USER@VPS_HOST:restart-generation/
+   ```
+2. Add the following lines to `.env`:
 
-`/status` then says `"servesGame":true` and the Notices dialog shows your contact. To stop sending the game at once, empty `RG_GAME_PATH` and run `docker compose up -d` again.
+   ```sh
+   RG_GAME_PATH=./ResetGeneration-Standalone.zip
+   # An email address or an https address; the page shows it in its Notices dialog, and the server won't start without it.
+   RG_CONTACT=
+   ```
+3. Run `docker compose up -d`.
+
+`/status` then says `"servesGame":true`, and the Notices dialog shows your contact. To stop sending the game at once, empty `RG_GAME_PATH` and run `docker compose up -d` again.

@@ -13,11 +13,11 @@ _Avoid_: Reset Generation (for the site), the port, the app
 ### Players
 
 **Account**:
-The record the server keeps for one player: name, fame, stats, achievements and friends. Every online player has one.
+The record the server keeps for one player: name, fame, stats, achievements, and friends. Every online player has one.
 _Avoid_: profile, user, login
 
 **Guest**:
-A player with a temporary account and no sign-in. The account is wiped 24 hours after its last activity, taking its fame, stats and friends with it, and the name is freed. A guest plays everything a member does but stays out of the global rankings.
+A player with a temporary account and no sign-in; 24 hours after its last activity, the account is wiped with its fame, stats, and friends, and the name is freed. A guest plays everything a member does but stays out of the global rankings.
 _Avoid_: anonymous user, unregistered user, visitor
 
 **Member**:
@@ -25,7 +25,7 @@ A player whose account is tied to a sign-in and stays.
 _Avoid_: registered user, logged-in user, account holder
 
 **Saved game**:
-The files the engine writes as a player progresses: story progress, the quick-match record, settings and achievements. A member's saved game is kept on the server and follows them across browsers; everyone else's stays in one browser.
+The files the engine writes as a player progresses: story progress, the quick-match record, settings, and achievements. A member's saved game is kept on the server and follows them across browsers; everyone else's stays in one browser.
 _Avoid_: save file, progress file, profile
 
 **Fame**:
@@ -41,7 +41,7 @@ _Avoid_: operator, owner, host
 ### Online services
 
 **Arena**:
-Nokia's N-Gage Arena, the online service the game was built for, and the game's online mode as a whole.
+Nokia's N-Gage Arena, the online service the game was built for. In the game, its online mode carries the same name.
 _Avoid_: N-Gage servers, online backend
 
 **SNAP**:
@@ -52,10 +52,10 @@ _Avoid_: N-Gage protocol
 RedLynx's game service inside Arena: stats, rankings, achievements, matchmaking, and friendly rooms.
 _Avoid_: casino server, lobby server
 
-### Game
+### Clients and screen
 
 **Engine**:
-The game's native 32-bit Windows program, which holds all the game logic, graphics and sound.
+The game's native 32-bit Windows program, which holds all the game logic, graphics, and sound.
 _Avoid_: DLL, native library, game binary
 
 **Java client**:
@@ -71,7 +71,7 @@ The player confirming Quit on the game's main menu, which ends the engine; the b
 _Avoid_: exit, close, shut down
 
 **Screen finish**:
-How the browser client shows the game screen: soft, with the pixels smoothed and a faint pixel grid like a 2008 phone's display, or sharp, as the engine drew them. It's on by default and a player's choice, kept in their browser. It changes only how the screen looks, never what the engine draws.
+How the browser client shows the game screen: soft (the default), with the pixels smoothed and a faint pixel grid like a 2008 phone's display, or sharp, as the engine drew them. The player chooses, the choice stays in their browser, and it never changes what the engine draws.
 _Avoid_: filter, shader, CRT mode, retro mode
 
 **Touch device**:
@@ -79,15 +79,17 @@ A phone or tablet whose main input is a finger; it plays the browser client with
 _Avoid_: mobile, handheld
 
 **Touch pad**:
-The on-screen controls under the game screen on a touch device: a D-pad, then Select and Back side by side to its right level with Up, and a Keyboard button below that.
+The on-screen controls under the game screen on a touch device: a D-pad and, to its right, **Select** and **Back** level with Up, then **Keyboard**, **Soft screen**, and (where the browser supports it) **Fullscreen**.
 _Avoid_: virtual gamepad, on-screen keyboard
 
 **Custom keys**:
-The keys a player chose on the engine's Custom Keys screen for its seven actions: Primary, Secondary, Up, Down, Left, Right and Chat. They are part of the saved game's settings. The page calls Primary and Secondary by the touch pad's names, Select and Back.
+The keys a player chose on the engine's Custom Keys screen for its seven actions: Primary, Secondary, Up, Down, Left, Right, and Chat. They are part of the saved game's settings.
 _Avoid_: keybinds, key mapping, hotkeys, controls
 
+### Game content
+
 **Open progression**:
-Every Story and Hero playable from the start, with nothing marked finished. It applies on any server that isn't public; on a public server they are earned and kept in the saved game.
+Every story and hero playable from the start, with nothing marked finished. It applies on any server that isn't public; on a public server they are earned and kept in the saved game.
 _Avoid_: cheat, unlock hack
 
 **Hero**:
@@ -100,26 +102,32 @@ _Avoid_: campaign, chapter
 
 **Mission**:
 One single-player battle inside a story.
-_Avoid_: level, stage
+_Avoid_: stage, level (a mission is played on a level but isn't one)
+
+### Battles
 
 **Battle**:
-One match between two to four players on one level.
+One contest between two to four players on one level.
 _Avoid_: game, round
+
+**Level**:
+One of the game's 18 playfield layouts that a battle is played on. Its look is chosen separately, as the environment.
+_Avoid_: stage, arena
 
 **Bot**:
 A player the computer controls in an online battle, filling a seat no person took. Player-facing text calls it "CPU", the game's own word.
 _Avoid_: CPU (outside player-facing text), AI player, computer
 
 **Person**:
-A player whom a human controls, not a Bot.
+A player whom a human controls, not a bot.
 _Avoid_: human player, real player
 
 **AI profile**:
-One of the engine's situational weight sets that decide how a Bot values its moves, such as the default one or the one used while a princess is carried.
+One of the engine's situational weight sets that decide how a bot values its moves, such as the default one or the one used while a princess is carried.
 _Avoid_: AI level, strategy
 
 **Difficulty**:
-How hard a Bot plays, chosen by the player who starts a friendly match with Bots: CPU runs the AI profiles as the game shipped them, Expert runs the retuned ones. It is one choice per match for all of its Bots, not a setting of the server or the account.
+How hard a bot plays, chosen by the player who starts a friendly match with bots: **CPU** runs the stock AI profiles; **Expert** picks its heroes from a stronger pool and also applies the AI-profile changes listed in `server/bot-ai.json`, which lists none, so its AI otherwise plays like **CPU**. It is one choice per match for all of its bots, not a setting of the server or the account.
 _Avoid_: AI level, skill
 
 **Observer**:
@@ -139,15 +147,15 @@ A friendly match without phase time limits, on a server whose admin turned them 
 _Avoid_: relaxed table, untimed match
 
 **Phase**:
-One step of a battle turn in which players act: tile placement (all at once), player turns (one at a time), or cannons (all at once).
+One step of the cycle a battle repeats: tile placement (all players at once), the player-turns phase (one player at a time), or cannons (all at once).
 _Avoid_: round, stage
 
 **Defeated player**:
-A player who can no longer win the battle: their castle or princess was captured, or they quit or dropped out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
+A player who can no longer win the battle: their castle or princess was captured, or they left the battle or dropped out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
 _Avoid_: eliminated player, knocked-out player
 
 **Stopped player**:
-A player whose page or Bot sends nothing more while the battle goes on for the others, who still give them their turns: a sleeping phone, a hidden tab, a hung Bot. The server can't tell a stopped player from a defeated one, because both are silent.
+A player whose page or bot sends nothing more while the battle goes on for the others, who still give them their turns: a sleeping phone, a hidden tab, a hung bot. The server can't tell a stopped player from a defeated one, because both are silent.
 _Avoid_: stalled client, frozen page, stopped page
 
 **Phase time limit**:
@@ -155,7 +163,7 @@ The countdown each player sees during a phase; when it runs out, the phase ends 
 _Avoid_: turn timer, player timeout
 
 **Forced end**:
-The server ending a phase, or a turn in the player-turns phase, that no player ended: 30 s after the phase time limit, or 3 minutes after it began in a relaxed match (1 minute for cannons).
+The server ending a phase, or a turn in the player-turns phase, that no player ended: 30 seconds after the phase time limit, or 3 minutes after it began in a relaxed match (1 minute for cannons).
 _Avoid_: timeout, stall timer
 
 **Battle template**:
@@ -163,13 +171,13 @@ The starting state of a battle for one level and player count, captured from the
 _Avoid_: map file, level data
 
 **Battle seed**:
-The number that fixes a battle's random events: piece order, item spawns and the choices of bots. Every battle gets its own, so two battles from one battle template don't play out alike.
+The number that fixes a battle's random events: piece order, item spawns, and the choices of bots. Every battle gets its own, so two battles from one battle template don't play out alike.
 _Avoid_: random seed, the seed
 
 **Seat**:
-One player's position in a battle. It fixes the castle, the colour and the place in the turn order, and a battle hands them out at random.
+One player's position in a battle. It fixes the castle, the color, and the place in the turn order, and a battle hands them out at random.
 _Avoid_: slot, player number, team
 
 **Environment**:
-The look of a battle's playfield: space, clouds and grass, speedball, soccer or racetrack.
+The look of a battle's playfield: space, clouds and grass, speedball, soccer, or racetrack.
 _Avoid_: stage, theme, skin

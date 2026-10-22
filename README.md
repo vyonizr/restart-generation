@@ -4,22 +4,22 @@
 
 Play Reset Generation (RedLynx, 2008) again, in your browser, alone or online.
 
-Nokia shut down N-Gage Arena, the online service of the game. Restart Generation replaces it. The original game runs unchanged in your browser, and a small server on your PC gives back online play: Quick Match, rankings, friends, rooms and achievements.
+Nokia shut down N-Gage Arena, the online service of the game. Restart Generation replaces it. The original game runs unchanged in your browser, and a small server on your PC gives back online play: Quick Match, rankings, friends, rooms, and achievements.
 
 This project does not include the game. You must use your own copy.
 
 ## What you need
 
 - **Your copy of the game**: the Windows standalone build, as `ResetGeneration-Standalone.zip` or as the extracted `ResetGeneration` folder.
-- **[Node.js](https://nodejs.org) 22.13 or later.** It runs the server.
-- **A desktop browser** on Windows, macOS or Linux. A phone or tablet can play too: see [Play on other devices](#play-on-other-devices).
+- **[Node.js](https://nodejs.org) 22.13 or later**: it runs the server.
+- **A desktop browser**: on Windows, macOS, or Linux. A phone or tablet can play too: see [Play on other devices](#play-on-other-devices).
 
 ## Start playing
 
-1. Download this project (**Code** → **Download ZIP**, then extract it) and open a terminal in its folder.
+1. Download this project (**Code > Download ZIP**, and then extract it) and open a terminal in its folder.
 2. Run `npm install`. Do this one time only.
 3. Run `npm start`. The first start takes longer, because it builds the page.
-4. Open <http://localhost:8080/> and press **Start**.
+4. Open <http://localhost:8080/> and select **Start**.
 5. The page asks for your game files. Choose the `.zip` or the game folder. The browser keeps them, so it asks one time only.
 
 To start again later, do steps 3 and 4.
@@ -36,26 +36,30 @@ Do this to get CPU players in online rooms, and to stop other devices from askin
    ```sh
    RG_GAME=D:/Downloads/ResetGeneration-Standalone.zip
    ```
-3. Stop the server (**Ctrl+C**) and run `npm start` again.
+
+   Replace the path with the location of your `.zip` file or game folder.
+3. Stop the server (press <kbd>Ctrl</kbd>+<kbd>C</kbd>) and run `npm start` again.
 
 ## Controls
+
+The following table lists the default controls:
 
 | Action | Keyboard (default keys) | Touch pad (phone or tablet) |
 | --- | --- | --- |
 | Move | Arrow keys | D-pad |
-| Select | **Ctrl** or **Enter** | **Select** |
-| Go back | **Shift** | **Back** |
-| Open the menu | **Esc** | **Back** (in a battle) |
-| Chat | **E** | **Keyboard**, then the chat key |
+| Select | <kbd>Ctrl</kbd> or <kbd>Enter</kbd> | **Select** |
+| Go back | <kbd>Shift</kbd> | **Back** |
+| Open the menu | <kbd>Esc</kbd> | **Back** (in a battle) |
+| Chat | <kbd>E</kbd> | **Keyboard**, and then the chat key |
 | Type text | Your keyboard | **Keyboard** |
 
-To use other keys, open **Settings › Custom Keys** in the game. You can change the keys for moving, Select, Back and Chat; **Enter** always selects and **Esc** always goes back. The list under the game screen shows the keys you chose, and the touch pad's D-pad follows them. Your keys are part of your saved game.
+To use other keys, open **Settings > Custom Keys** in the game. You can change the keys for moving, Select, Back, and Chat; <kbd>Enter</kbd> always selects and <kbd>Esc</kbd> always goes back. The list under the game screen shows the keys you chose, and the touch pad's D-pad follows them. Your keys are part of your saved game.
 
-The game screen is soft by default, like the display of a 2008 phone. For sharp pixels, press **Soft screen** under the game screen (on the touch pad, the grid icon beside **Keyboard**). The browser remembers your choice.
+The game screen is soft by default, like the display of a 2008 phone. For sharp pixels, select **Soft screen** under the game screen (on the touch pad, the grid icon beside **Keyboard**). The browser remembers your choice.
 
 ## Play online
 
-In the main menu, choose:
+In the main menu, choose one of the following:
 
 - **Quick Match** for a ranked match with 2 to 4 players. The result changes your fame and stats.
 - **Online** for friendly matches in a room with your friends. The result changes no stats. The game lets you make a room only when you have at least one friend.
@@ -70,46 +74,49 @@ The first time you go online, the page asks for a name. It suggests a random one
 - To change your name, choose **Change name** under **Start**. A new name starts with new stats.
 - Names such as `CPU_1` are for CPU players. You can't use them.
 
-The browser keeps your name, settings and achievements.
+The browser keeps your name, settings, and achievements.
 
-Some public servers use Discord sign-in instead. There, you play at once as a guest, and you can sign in with Discord to keep your account. See [Guests and members](docs/HOSTING.md#guests-and-members).
+Some public servers use Discord sign-in instead. There, you play at once as a guest, and you can sign in with Discord to keep your account. For more information, see [Guests and members](docs/HOSTING.md#guests-and-members).
 
 ### CPU players
 
 In a friendly match, CPU players can fill the empty seats. The server must know where the game is (see [Optional: tell the server where the game is](#optional-tell-the-server-where-the-game-is)).
 
-1. Press **Start** in your room.
-2. Choose **CPU** or **Expert**. With 2 or 3 people in the room, the page first asks "Fill the empty seats with CPU players?". Choose **No** to play with people only.
+1. Select **Start** in your room.
+2. Choose the CPU level:
+   - If you're alone in the room, choose **CPU** or **Expert**.
+   - If 2 or 3 people are in the room, the page asks "Fill the empty seats with CPU players?" Choose **CPU** or **Expert**. To play with people only, choose **No**.
+
+   To move between the choices, use Left and Right (or the D-pad), and press Select. Back chooses **No**, or, when you're alone, cancels the start. You can also click a choice.
 3. Wait about 15 seconds. The CPU players start with the battle.
 
-**CPU** is the AI of the game, with a random hero. **Expert** chooses its hero from a list. For now, its AI is the same as CPU.
+**CPU** is the AI of the game, with a random hero. **Expert** chooses its hero from a list of strong heroes and otherwise plays like **CPU**.
 
 Ranked matches never get CPU players.
 
 ### Online battles need battle templates
 
-Your server starts an online battle only from a battle template. A new copy of this project has none, because the templates come from the game. If a match never starts, the server log shows `no battle template for N players`. To make templates, you need Windows, Visual Studio and the original Java client. See [Battle templates](docs/HOSTING.md#battle-templates).
+Your server starts an online battle only from a battle template. A fresh copy of this project has none, because the templates come from the game. If a match never starts, the server log shows `no battle template for N players`. To make templates, you need Windows, Visual Studio, and the original Java client. For more information, see [Battle templates](docs/HOSTING.md#battle-templates).
 
 ## Play on other devices
 
-A phone, tablet or other computer on the same network can play the game that your PC serves.
+A phone, tablet, or other computer on the same network can play the game that your PC serves. Both devices must be on the same private network, such as your home Wi-Fi.
 
 1. Run the server with `npm run start:lan` (not `npm start`).
-2. The server shows one `http://<address>:8080/` line for each network, with the name of the network.
-3. On the other device, open the address of the network that both devices use, such as `http://192.168.1.20:8080/`.
 
-Both devices must be on the same private network, such as your home Wi-Fi.
+   The server shows one `http://ADDRESS:8080/` line for each network, with the name of the network. `ADDRESS` is your PC's address on that network.
+2. On the other device, open the address of the network that both devices use, such as `http://192.168.1.20:8080/`.
 
 Phones and tablets play in portrait, with a touch pad under the game screen. A keyboard on a tablet also works.
 
-To play with friends over the internet, see [Run a server](docs/HOSTING.md#run-the-server).
+To play with friends over the internet, see [Run the server with Node.js](docs/HOSTING.md#run-the-server-with-nodejs).
 
 ## Problems
 
-**The other device can't connect.** Windows Firewall probably blocks it. Open PowerShell as an administrator and run:
+**The other device can't connect.** Windows Firewall probably blocks it. Open PowerShell as an administrator and run the following command:
 
 ```powershell
-New-NetFirewallRule -DisplayName "Reset Generation" -Direction Inbound -Protocol TCP -LocalPort 8080,8976 -Action Allow -Profile Private
+New-NetFirewallRule -DisplayName "Restart Generation" -Direction Inbound -Protocol TCP -LocalPort 8080,8976 -Action Allow -Profile Private
 ```
 
 This rule works only on a private network. If Windows shows your network as public, change it to private in Windows Settings.
@@ -122,21 +129,21 @@ This rule works only on a private network. If Windows shows your network as publ
 
 ## More
 
-- [Run a server](docs/HOSTING.md): Docker, Discord sign-in, battle templates, account deletion, the original Java client.
-- [Deploy a public server on a VPS](docs/DEPLOY.md).
-- How it works: `docs/protocol.md` (the protocol), `docs/adr/` (design decisions), `docs/re/` (notes on the original game), `web/emu` (the emulator), `web/ui` (the page).
-- [Contributing](CONTRIBUTING.md).
+- [Run a server](docs/HOSTING.md): Docker, Discord sign-in, battle templates, account deletion, and the original Java client.
+- [Deploy to a virtual private server (VPS)](docs/DEPLOY.md): the whole procedure for a public server.
+- How it works: [the protocol](docs/protocol.md), the [architecture decision records (ADRs)](docs/adr/), [notes on the original game](docs/re/), [the emulator](web/emu), and [the page](web/ui).
+- [Contributing](CONTRIBUTING.md): how to help, and what you can't commit.
 
 ## Legal
 
-Restart Generation is an unofficial fan revival of Reset Generation (RedLynx, 2008). It isn't affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names, and N-Gage, belong to their owners.
+Restart Generation is an unofficial fan revival of Reset Generation (RedLynx, 2008). It isn't affiliated with or endorsed by RedLynx, Ubisoft, or Nokia, and their names, and N-Gage, belong to their owners.
 
-This repository holds no game files and none of the game's code, art, sound or text: no decompiled code, and no level or battle data. Each player brings their own copy of the Windows standalone build, unless the admin of a server chooses to send one from it (ADR 0001); that admin answers for it, and must publish where a rights holder can ask for its removal (`RG_CONTACT`). The notes in `docs/re/` describe how the engine and Arcade behave, in our own words, and the protocol code is written from `docs/protocol.md` so that the original clients and this server can talk to each other.
+This repository holds no game files and none of the game's code, art, sound, or text: no decompiled code, and no level or battle data. Each player brings their own copy of the Windows standalone build, unless the admin of a server chooses to send one from it ([ADR 0001](docs/adr/0001-players-bring-their-own-game-files.md)). That admin answers for it, and must publish where a rights holder can ask for its removal (`RG_CONTACT`). The notes in `docs/re/` describe how the engine and Arcade behave, in our own words, and the protocol code is written from `docs/protocol.md` so that the original clients and this server can talk to each other.
 
-The code here is free software under the GNU General Public License, version 3 or later (`LICENSE`). The fonts and the Svelte runtime keep their own licences (`THIRD_PARTY_NOTICES.md`, also served as `/licenses.txt`). What may and may not be committed is in `docs/LEGAL.md`; `npm run legal-check` enforces the file-level rules.
+The code here is free software under the GNU General Public License, version 3 or later ([`LICENSE`](LICENSE)). The fonts and the Svelte runtime keep their own licenses ([Third-party notices](THIRD_PARTY_NOTICES.md), also served as `/licenses.txt`). What you can and can't commit is in [Keep the legal risk of this project low](docs/LEGAL.md); `npm run legal-check` enforces the file-level rules.
 
-If you hold rights to something here and want it removed from this repository, or from the server its author runs, open an issue at https://github.com/vyonizr/restart-generation/issues, or use GitHub's own takedown process. We respond promptly. Another admin's server shows its own contact in its Notices dialog.
+If you hold rights to something here and want it removed from this repository, or from the server its author runs, [open an issue](https://github.com/vyonizr/restart-generation/issues), or use GitHub's own takedown process. We respond promptly. Another admin's server shows its own contact in its Notices dialog.
 
 ## Privacy
 
-A server with Discord sign-in keeps a member's Discord ID, in-game name, stats, friend links and saved game, and a guest's name, stats and friend links until the account is wiped after 24 hours. It keeps no email address and no avatar. **Delete my account** removes a player's record, and an admin can delete any account with `npm run delete-user`. The page says this in its footer.
+A server with Discord sign-in keeps a member's Discord ID, in-game name, stats, friend links, and saved game. It keeps a guest's name, stats, and friend links until the account is wiped 24 hours after its last activity. It keeps no email address and no avatar. **Delete my account** removes a player's record, and an admin can delete any account with `npm run delete-user`. The page says this in its footer.

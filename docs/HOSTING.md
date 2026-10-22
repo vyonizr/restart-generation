@@ -1,126 +1,145 @@
 # Run a server
 
-This is for the admin: the person who runs a Restart Generation server for other players. To play on your own PC, the [README](../README.md) is enough.
+This guide is for the admin: the person who runs a Restart Generation server for other players. To play on your own PC, [Start playing](../README.md#start-playing) in the README is enough.
 
-The server replaces Nokia's N-Gage Arena (the SNAP Mobile backend) for the standalone build of Reset Generation (RedLynx, 2008). It restores login, stats, rankings, achievements, friends, ranked Quick Match (2-4 players), friendly rooms, and server-hosted battles. The browser client runs the original engine (a 32-bit Windows DLL) unchanged in a JavaScript x86 emulator. See `docs/protocol.md` for the protocol, `docs/adr` for the architecture decisions, `docs/re` for the reverse-engineering notes and how to regenerate the analysis, `web/emu` for the emulator, and `web/ui` for the page (Svelte components built by Vite, ADR 0013).
+The server replaces Nokia's N-Gage Arena, which used the SNAP Mobile protocol, for the standalone build of Reset Generation (RedLynx, 2008). It restores login, stats, rankings, achievements, friends, ranked Quick Match (2-4 players), friendly rooms, and server-hosted battles. The browser client runs the original engine, the 32-bit Windows program `ResetGeneration-Win32-Web.dll`, unchanged in a JavaScript x86 emulator.
 
-## Run the server
+For more information about how it works, see [the protocol](protocol.md), the [architecture decision records (ADRs)](adr/), the [reverse-engineering notes](re/) (including how to regenerate the analysis), [the emulator](../web/emu), and [the page](../web/ui) (Svelte components built by Vite, [ADR 0013](adr/0013-the-page-is-built-with-vite-and-svelte.md)).
 
-Requires Node.js 22.13 or later, for the built-in `node:sqlite`. The server and the emulator have no npm dependencies, on purpose, so they run with nothing installed. Only building the page needs `npm install` (Vite and Svelte, ADR 0013). The built page is `web/dist`, which the server serves and a static host can take as it is.
+## Run the server with Node.js
 
-Run `npm install` once, copy `.env.example` to `.env` in the repo root and set `RG_GAME=<path>` there, then use these npm scripts:
+The server needs Node.js 22.13 or later, for the built-in `node:sqlite`. The server and the emulator have no npm dependencies, on purpose, so they run with nothing installed. Only building the page needs `npm install` (Vite and Svelte, ADR 0013). The built page is `web/dist`, which the server serves and a static host can take as it is.
 
-- `npm start`, or `npm run start:lan` for `--lan`: starts the server. If `web/dist` is missing it builds the page first, and if Vite is not installed it tells you to run `npm install`.
-- `npm run build`: rebuilds the page after you change anything in `web/`.
-- `npm run dev:web`: serves the page while a gateway runs: a style change swaps in place, a script or component change reloads the page. It forwards `/snap`, `/status`, `/auth`, `/bots` and `/game` to port 8080 (or `HTTP_PORT`).
-- `npm run dev`: restarts the server on file changes.
-- `npm test`: the self-checks that need no local data and no built page.
-- `npm run backup`: copies the accounts database into `data/backups/` while the server runs, keeping the newest 7 (`-- --keep <n>`). In Docker: `docker compose exec rg npm run backup`.
+To set up the server, do the following:
+
+1. Run `npm install`.
+2. Copy `.env.example` to `.env` in the repository root.
+3. In `.env`, set `RG_GAME` to the path of your game copy.
 
 `RG_GAME` is your copy of the game: either `ResetGeneration-Standalone.zip` or the extracted `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files). The server sends these files to the browser, so serve only a copy you own. The dev tools in `web/tools` read the game from `RG_GAME` too.
 
-To start the server alone, once the page is built:
+Use the following npm scripts:
+
+- `npm start`, or `npm run start:lan` for `--lan`: starts the server. If `web/dist` is missing, it builds the page first, and if Vite isn't installed, it tells you to run `npm install`.
+- `npm run build`: rebuilds the page after you change anything in `web/`.
+- `npm run dev:web`: serves the page while a gateway runs. A style change swaps in place, and a script or component change reloads the page. It forwards `/snap`, `/status`, `/auth`, `/bots`, and `/game` to port 8080 (or `HTTP_PORT`).
+- `npm run dev`: restarts the server on file changes.
+- `npm test`: runs the self-checks that need no local data and no built page.
+- `npm run backup`: copies the accounts database into `data/backups/` while the server runs, and keeps the newest 7 backups. To keep a different number, run `npm run backup -- --keep NUMBER`. In Docker, run `docker compose exec rg npm run backup`.
+
+To start the server without npm after you build the page, run the following command:
 
 ```sh
-node server/gateway.js
+node --env-file-if-exists=.env server/gateway.js
 ```
 
-The gateway listens on TCP port 8976 and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](../README.md#play-on-other-devices)) or `--public`. To use a different port, set the `PORT` environment variable. Accounts are created on first login and stored in a SQLite database (ADR 0010): `data/accounts-names.db` on a name-only server (`--lan`, or no Discord settings) and `data/accounts.db` on a Discord server, so switching modes never mixes the two kinds of account. A `data/accounts.json` from an older version is not read, and its players register again. To back up a database while the server runs, use `sqlite3 data/accounts.db "VACUUM INTO 'backup.db'"` (or `accounts-names.db`); copying the file mid-write is not safe.
+The gateway listens on TCP port 8976 for the Java client and serves the page on port 8080. Both accept connections from this PC only, unless you add `--lan` (see [Play on other devices](../README.md#play-on-other-devices)) or `--public`. To change the Java client port (8976), set `PORT`. To change the page port (8080), set `HTTP_PORT`.
 
-Every story and hero is open from the start on any server that isn't `--public` (ADR 0007); on a public server they are earned.
+Accounts are created on first login and stored in a SQLite database ([ADR 0010](adr/0010-sqlite-for-accounts-starting-empty.md)): `data/accounts-names.db` on a name-only server (`--lan`, or no Discord settings) and `data/accounts.db` on a Discord server, so switching modes never mixes the two kinds of account. A `data/accounts.json` file from an older version isn't read, and its players register again.
+
+To back up the database while the server runs, run `npm run backup`; copying the file during a write isn't safe. For more information, see [Back up the accounts](DEPLOY.md#7-back-up-the-accounts).
+
+Every story and hero is open from the start on any server that isn't `--public` ([ADR 0007](adr/0007-patch-the-engine-in-memory.md)); on a public server, players earn them.
 
 To serve people over the internet, use `--public`: it listens on all addresses like `--lan` and turns on Discord sign-in when it is configured (see [Guests and members](#guests-and-members)). Friends need to reach your PC on ports 8080 (the page) and 8976 (the Java client). `--lan` always uses name-only login, with no Discord sign-in.
 
 ### Relaxed friendly matches
 
-To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and the server ends a phase only after 3 minutes (1 minute for cannon shots) if someone stops playing. Ranked matches keep the 20 s limit.
+To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`npm run start:relaxed`, or `npm run start:lan:relaxed` with `--lan`). Friendly matches then show no countdown in any phase, and if someone stops playing, the server ends a phase only after 3 minutes (1 minute for cannon shots). Ranked matches keep the 20-second limit.
 
 ### Bots
 
-If `RG_GAME` is set (and the server is not `--public`, which never runs bots, whatever `RG_GAME` says), the server can also fill friendly matches with bots, players the server controls. A player alone in their room who presses **Start** chooses the difficulty, CPU or Expert, and a bot fills every empty seat. With 2 or 3 people in the room, the page asks "Fill the empty seats with CPU players?" when someone presses **Start**, with No, CPU and Expert. That player moves between the buttons with Left and Right (or the D-pad), presses the focused one with Select (it starts on CPU) and answers No with Back (for a player alone, Back cancels the Start), or clicks a button. CPU is the game's own AI with a random hero. Expert chooses its hero from `server/bot-heroes.json` and runs the AI changes in `server/bot-ai.json`, none yet; self-play has not shown it to be harder (ADR 0012). The game still lets only a player with at least one friend create a room. Each bot runs the game in a worker thread on the server and starts when the match does, which takes about 15 seconds, and needs about 400 MB of memory. Ranked matches never get bots, and the Java client gets no question and starts with people only.
+If `RG_GAME` is set, the server can fill friendly matches with bots, players that the server controls. A `--public` server never runs bots, whatever `RG_GAME` says.
+
+The player who selects **Start** in a friendly room chooses the difficulty, **CPU** or **Expert**, and a bot fills every empty seat. With 2 or 3 people in the room, they can also choose **No** to play with people only. For what players see, see [CPU players](../README.md#cpu-players). The game lets only a player with at least one friend create a room. Ranked matches never get bots, and the Java client gets no question and starts with people only.
+
+**CPU** runs the game's own AI profiles with a random hero. **Expert** chooses its hero from `server/bot-heroes.json` and also applies the AI-profile changes listed in `server/bot-ai.json`. That file lists none, so Expert's AI otherwise plays like CPU's, and self-play hasn't shown Expert to be harder ([ADR 0012](adr/0012-bots-run-with-retuned-ai-profiles.md)).
+
+Each bot runs the game in a worker thread on the server and starts when the match does, which takes about 15 seconds. Each bot needs about 400 MB of memory.
 
 ### Self-checks
 
-```sh
-node server/snap.test.js
-node server/store.test.js
-node server/auth.test.js
-node server/gateway.test.js
-node server/gateway.auth.test.js
-node server/bots.test.js
-node server/battle.test.js
-node server/gameblob.test.js
-```
+To run the self-checks, run `npm test`. They need no local data and no built page.
 
-`battle.test.js` needs a battle template, and `gameblob.test.js` needs raw captures in `RG_CAPTURES`.
+Two checks need local data: `npm run test:battle` needs a battle template, and `npm run test:gameblob` needs raw captures in `RG_CAPTURES`.
 
 ## Host the page without the game files
 
-If the page's host has no game files at `game/` (for example, `web/dist/`, from `npm run build`, deployed to a static host, or a server without `RG_GAME`), the page asks each player to choose their own copy of the game: `ResetGeneration-Standalone.zip`, or the extracted `ResetGeneration` folder or the folder above it. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser. The files never leave the player's computer.
+If the page's host has no game files at `game/` (for example, `web/dist/` from `npm run build` deployed to a static host, or a server without `RG_GAME`), the page asks each player to choose their own copy of the game: `ResetGeneration-Standalone.zip`, the extracted `ResetGeneration` folder, or the folder that contains it. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser. The files never leave the player's computer.
 
 Players need the files of the Windows standalone build. The emulator runs `ResetGeneration-Win32-Web.dll` and can't run the Mac library `libResetGenerationMacApplet.dylib`, but it runs in any desktop browser on any operating system.
 
 ## Guests and members
 
-By default a name is the whole identity (ADR 0009), which suits a local or LAN server, and `--lan` always keeps it that way, whatever the Discord settings say. A public server (`--public`, which the Docker image uses) can turn on guests and members (ADR 0011) by registering a Discord application at <https://discord.com/developers/applications> (upload `web/public/icon-512.png` as its icon), adding `<RG_PUBLIC_URL>/auth/discord/callback` as its redirect, and setting these environment variables (they all go in `.env` for `npm start` and Docker):
+By default, a name is the whole identity ([ADR 0009](adr/0009-a-name-is-the-whole-identity.md)), which suits a local or LAN server, and `--lan` always keeps it that way, whatever the Discord settings say. A public server (`--public`, which the Docker image uses) can turn on guests and members ([ADR 0011](adr/0011-guests-and-members-with-discord-sign-in.md)).
+
+To turn on guests and members, do the following:
+
+1. Register a Discord application in the [Discord Developer Portal](https://discord.com/developers/applications).
+2. Upload `web/public/icon-512.png` as the application's icon.
+3. Add the address in `RG_PUBLIC_URL` followed by `/auth/discord/callback` as the application's redirect, for example `https://play.example.com/auth/discord/callback`.
+4. Set the environment variables in the following table. They all go in `.env`, for both `npm start` and Docker.
+
+The following table lists the variables for guests and members:
 
 | Variable | Meaning |
 | --- | --- |
 | `RG_DISCORD_CLIENT_ID`, `RG_DISCORD_CLIENT_SECRET` | The Discord application. Sign-in asks for the `identify` scope only. |
-| `RG_PUBLIC_URL` | The address players use, such as `https://play.example.com`, with no path. All three above are needed. |
-| `RG_DISCORD_INVITE` | Optional. Your community's `https://discord.gg/...` link, which the page shows as "Join the Discord" in its footer. |
+| `RG_PUBLIC_URL` | The address players use, such as `https://play.example.com`, with no path. |
+| `RG_DISCORD_INVITE` | Optional. Your community's `https://discord.gg/...` link, which the page shows as **Join the Discord** in its footer. |
 | `RG_TRUST_PROXY` | Set to `1` behind one reverse proxy, so the limit on new guests uses the client address the proxy appends to `X-Forwarded-For`. Leave it unset otherwise: anyone can forge that header. |
 | `RG_GUESTS_PER_IP_HOUR` | New guests one address can make per hour. Default 10. |
-| `RG_GUEST_CAP` | Guest accounts the server holds at once. Default 5000. |
+| `RG_GUEST_CAP` | Guest accounts the server holds at once. Default 5,000. |
 
-With all three set, every player is a guest or a member:
+`RG_DISCORD_CLIENT_ID`, `RG_DISCORD_CLIENT_SECRET`, and `RG_PUBLIC_URL` are all required. With all three set, every player is a guest or a member:
 
-- A **guest** is created on the first visit, with no form, and holds a secret token in the browser. It is wiped 24 hours after its last activity, together with its fame, stats and friends. Guests play everything, ranked included, but only members appear in the rankings.
-- A **member** signs in with Discord, picks an in-game name once (letters, numbers and `_`, up to 15; it can't be changed), and keeps the account until they choose **Delete my account**. A guest who signs in keeps what it earned. If the Discord account already has a player, that player wins and the guest's progress is dropped, after a confirmation. The server stores the Discord ID and the name, never an email.
-- A member's **saved game** (story progress, quick-match record, settings and achievements, up to 256 KB a file and 1 MB in all) is kept on the server with the account, so it follows them to another browser or device. A guest's stays in the browser. Signing out clears the browser's copy; deleting the account removes the server's (ADR 0014).
-- The Java client can't send a token, so on such a server it is refused. It still works on servers without Discord sign-in.
+- A **guest** is created on the first visit, with no form, and holds a secret token in the browser. A guest's account is wiped 24 hours after its last activity, together with its fame, stats, and friends. Guests play everything, ranked included, but only members appear in the rankings.
+- A **member** signs in with Discord, picks an in-game name once (letters, numbers, and `_`, up to 15; it can't be changed), and keeps the account until they choose **Delete my account**. A guest who signs in keeps what they earned. If the Discord account already has a player, that player wins and the guest's progress is dropped, after a confirmation. The server stores the Discord ID and the name, never an email address.
+- A member's **saved game** (story progress, quick-match record, settings, and achievements; at most 256 KiB per file, and at most 1 MiB and 16 files per account) is kept on the server with the account, so it follows them to another browser or device. A guest's saved game stays in the browser. Signing out clears the browser's copy; deleting the account removes the server's copy ([ADR 0014](adr/0014-a-members-saved-game-is-kept-on-the-server.md)).
+- The Java client can't send a token, so such a server refuses it. The Java client still works on servers without Discord sign-in.
 
-The page also shows how many players are online, as "3 online" under the game screen (on a phone, a small people icon and the number on the Start screen), from `GET /status`. A public server runs no bots, so a quiet server means a wait.
+The page also shows how many players are online, from `GET /status`: "3 online" under the game screen, or on a phone, a small people icon and the number on the Start screen. A public server runs no bots, so on a quiet server, players wait.
 
 ## Delete an account
 
-A player deletes their own account with **Delete my account**. As the admin you can delete any account from the command line, for a privacy request or to clear test accounts (ADR 0016). It asks the running server, which ends the player's session and removes the account, its friend links, its saved game and its tokens, the same way **Delete my account** does. It doesn't ban anyone: a member can sign in with Discord again and start a new account.
+A player deletes their own account with **Delete my account**. As the admin, you can delete any account from the command line, for a privacy request or to clear test accounts ([ADR 0016](adr/0016-the-admin-deletes-accounts-through-the-running-server.md)). The `delete-user` command asks the running server, which ends the player's session and removes the account, its friend links, its saved game, and its tokens, the same way **Delete my account** does. It doesn't ban anyone: a member can sign in with Discord again and start a new account.
 
-1. Set `RG_ADMIN_TOKEN` in `.env` to a long random secret, and restart the server. Without it the server has no such endpoint at all.
+1. Generate a long random secret:
 
    ```sh
    node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
    ```
-2. Delete by in-game name, or by Discord ID on a server with Discord sign-in:
+2. Set `RG_ADMIN_TOKEN` in `.env` to the output, and then restart the server. Without the token, the server has no admin endpoint.
+3. Delete by in-game name, or by Discord ID on a server with Discord sign-in:
 
    ```sh
    npm run delete-user -- --name Alice
    npm run delete-user -- --discord 123456789012345678
    ```
 
-   It shows the account's kind, fame, matches, friends, saved game files and whether the player is online, then asks `y/N`. `--yes` skips the question (it is required when there is no terminal). A player in a ranked match is deleted anyway, so that match counts as a win for the others (ADR 0005).
+   The command shows the account's kind, fame, matches, friends, saved game files, and whether the player is online, and then asks `y/N`. `--yes` skips the question; it's required when there is no terminal. A player in a ranked match is deleted anyway, so that match counts as a win for the others ([ADR 0005](adr/0005-the-server-relays-battles.md)).
 
-With Docker, run it inside the container, because Caddy answers 404 for `/admin/` and the command talks to the server on `127.0.0.1`:
+With Docker, run the command inside the container, because Caddy answers 404 for `/admin/` and the command talks to the server on `127.0.0.1`:
 
 ```sh
 docker compose exec rg npm run delete-user -- --name Alice
 ```
 
-On `compose.lan.yaml` the server's port is open to whatever `BIND` allows, and the token is then the only protection: use a long one. The server logs `admin deleted <name>`, with no Discord ID.
+With `compose.lan.yaml`, the server's port is open to whatever `BIND` allows, and the token is then the only protection: use a long one. The server logs `admin deleted` and the player's name, with no Discord ID.
 
 ## Run in Docker
 
-The image doesn't contain the game files (ADR 0001), and it builds the page in a first build stage, so it holds no `node_modules`. Two compose files run it: `compose.yaml` for the internet and `compose.lan.yaml` for a private network or this PC.
+The image doesn't contain the game files ([ADR 0001](adr/0001-players-bring-their-own-game-files.md)), and it builds the page in a first build stage, so it holds no `node_modules`. Two compose files run it: `compose.yaml` for the internet and `compose.lan.yaml` for a private network or this PC.
 
 ### On the internet (Caddy)
 
-For the whole procedure on a VPS, from a bare host to updates and backups, see [DEPLOY.md](DEPLOY.md). What follows is the short version for a host that is ready.
+For the whole procedure on a virtual private server (VPS), from a bare host to updates and backups, see [Deploy to a VPS](DEPLOY.md). The following steps are the short version for a host that is ready.
 
-`compose.yaml` runs the server behind [Caddy](https://caddyserver.com), which gets and renews the HTTPS certificate by itself, redirects http to https, and forwards the client's address (the server's `RG_TRUST_PROXY`, on by default here, reads it). The server publishes no port of its own, so Caddy is the only way in. The page needs HTTPS for features such as the screen wake lock, and Discord needs an `https://` address.
+`compose.yaml` runs the server behind [Caddy](https://caddyserver.com), which gets and renews the HTTPS certificate by itself, redirects HTTP to HTTPS, and forwards the client's address (the server's `RG_TRUST_PROXY`, on by default here, reads it). The server publishes no port of its own, so Caddy is the only way in. The page needs HTTPS for features such as the screen wake lock, and Discord needs an `https://` address.
 
-1. Point your domain's DNS `A` (and `AAAA`, if you have IPv6) record at the host, and open ports 80 and 443 (443 for UDP too, for HTTP/3) in its firewall. Nothing else on the host may use 80 or 443.
-2. Register the Discord application as described in [Guests and members](#guests-and-members), with `https://<your domain>/auth/discord/callback` as its redirect.
-3. Copy `.env.example` to `.env` in the repo root (it lists every setting, all empty) and fill in at least these:
+1. Point your domain's DNS `A` record (and `AAAA` record, if you have IPv6) at the host, and open ports 80 and 443 (443 for UDP too, for HTTP/3) in its firewall. Check that nothing else on the host uses port 80 or 443.
+2. Register the Discord application as described in [Guests and members](#guests-and-members), with `https://DOMAIN/auth/discord/callback` as its redirect. Replace `DOMAIN` with your domain.
+3. Copy `.env.example` to `.env` in the repository root (it lists every setting, all empty), and fill in at least these:
 
    ```sh
    # The public name Caddy serves.
@@ -137,19 +156,24 @@ For the whole procedure on a VPS, from a bare host to updates and backups, see [
    # RG_CONTACT=removals@example.org
    ```
 
-   `RG_PUBLIC_URL` defaults to `https://<RG_DOMAIN>`. A public server never runs bots, with or without `RG_GAME_PATH`.
-4. Create the `data` folder next to `compose.yaml` and put your `battle-templates.zip` in it (see [Battle templates](#battle-templates)). It is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. Without a usable template the server refuses to start and prints why, and `restart: unless-stopped` then keeps retrying. On a Linux host, make the folder writable by the container's user (uid 1000), or Docker creates it owned by root and the server stops with `EACCES: permission denied, mkdir '/app/data'`:
+   `RG_PUBLIC_URL` defaults to `https://DOMAIN`, where `DOMAIN` is your `RG_DOMAIN` value. A public server never runs bots, with or without `RG_GAME_PATH`.
+4. Create the `data` folder next to `compose.yaml`, owned by the container's user (UID 1000):
 
    ```sh
    mkdir -p data && sudo chown -R 1000:1000 data
    ```
-5. Run `docker compose up -d --build` and open `https://<your domain>/`. The first visit can take a few seconds while Caddy gets the certificate; `docker compose logs caddy` shows how it went.
 
-Caddy keeps its certificates in a Docker volume (`caddy_data`). Losing it only means asking Let's Encrypt again, which limits how often it will issue for one name. The Java client's TCP port 8976 isn't published: a Discord-enabled server refuses the Java client anyway, because it can't send a token.
+   On a Linux host, without the `chown` command, Docker creates the folder owned by root and the server stops with `EACCES: permission denied, mkdir '/app/data'`.
+5. Copy your `battle-templates.zip` file into `data`. For more information, see [Battle templates](#battle-templates).
+
+   `data` is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. Without a usable template, the server refuses to start and prints why, and `restart: unless-stopped` then keeps retrying.
+6. Run `docker compose up -d --build` and open `https://DOMAIN/`. The first visit can take a few seconds while Caddy gets the certificate; `docker compose logs caddy` shows the result.
+
+Caddy keeps its certificates in a Docker volume (`caddy_data`). If you lose that volume, Caddy requests the certificates from Let's Encrypt again, and Let's Encrypt limits how often it issues certificates for one name. The Java client's TCP port 8976 isn't published: a Discord-enabled server refuses the Java client anyway, because it can't send a token.
 
 ### On a private network or this PC
 
-`compose.lan.yaml` runs the server with `--lan`: name-only login, every story and hero open, and bots when `RG_GAME_PATH` is set. It publishes the page on 8080 and the Java client's port on 8976, to this PC only unless you set `BIND=0.0.0.0` in `.env`:
+`compose.lan.yaml` runs the server with `--lan`: name-only login, every story and hero open, and bots when `RG_GAME_PATH` is set. It publishes the page on 8080 and the Java client's port on 8976, to this PC only, unless you set `BIND=0.0.0.0` in `.env`. The following `.env` lines are an example for this PC only:
 
 ```sh
 RG_GAME_PATH=./ResetGeneration-Standalone.zip
@@ -160,21 +184,30 @@ Run `docker compose -f compose.lan.yaml up -d --build` and open `http://localhos
 
 ## Battle templates
 
-Online battles don't work without templates. A `--public` server (which the Docker image runs) refuses to start when neither `data/templates/` nor `data/battle-templates.zip` holds a usable template, and prints why. Any other server starts and warns, since the page and single-player play don't need them. Whatever the mode, the server also warns for each player count (2, 3 or 4) that has no template: matches of that size won't start, and without a 4-player template CPU players can't fill a room. The server hosts every battle from a level template captured from the game engine, stored as `<name>.game` and `<name>.snap` pairs in `data/templates/`, in `data/battle-templates.zip`, or both. Matchmaking waits until a template with one castle per seat exists, and the server logs `no battle template for N players in data/templates or data/battle-templates.zip`. The templates stay out of the repository and the Docker image because they derive from the game (ADR 0001), so a fresh clone, a rebuilt container or a new server has none until you restore or capture them.
+Online battles don't work without battle templates. The server hosts every battle from a battle template captured from the engine ([ADR 0006](adr/0006-capture-battle-templates-from-a-live-client.md)), stored as a pair of `NAME.game` and `NAME.snap` files, where `NAME` is the template's name, in `data/templates/`, in `data/battle-templates.zip`, or both. The templates stay out of the repository and the Docker image because they derive from the game (ADR 0001), so a fresh clone, a rebuilt container, or a new server has none until you restore or capture them.
 
-To capture one on Windows:
+A `--public` server (which the Docker image runs) refuses to start when neither `data/templates/` nor `data/battle-templates.zip` holds a usable template, and prints why. Any other server starts and warns, because the page and single-player play don't need templates.
+
+In every mode, the server also warns for each player count (2, 3, or 4) that has no template: matches of that size don't start, and without a 4-player template, bots can't fill a room. Matchmaking waits until a template with one castle per seat exists, and the server logs `no battle template for N players in data/templates or data/battle-templates.zip`.
+
+Before you begin, you need Windows, the Visual Studio x86 tools, and the Java client. To capture templates, do the following:
 
 1. Build the capture tool with the Visual Studio x86 tools: `cl /O1 tools\rgtrace\rgtrace.c`.
-2. Start the game, then run `rgtrace <java.exe pid> <outdir> > trace.log`.
-3. In the game, start an Arcade Mode battle with one opponent.
-4. Quit the battle and repeat; each Arcade battle uses a random map, and the opponent count sets the player count.
-5. Run `node tools/rgtrace/import-all.js trace.log <outdir>`. It imports every new level into `data/templates/` and skips ones already there. Restart the server to use them.
+2. Start the Java client, and then run `rgtrace JAVA_PID OUTPUT_DIR > trace.log`.
 
-The game has 6 maps, each in a 2-, 3- and 4-player version (18 levels).
+   Replace the following:
+   - `JAVA_PID`: the process ID of `java.exe`
+   - `OUTPUT_DIR`: the folder where `rgtrace` writes captures
+3. In the game, start an Arcade Mode battle with one opponent.
+4. Leave the battle. To capture more levels, repeat steps 3 and 4. Each Arcade battle uses a random map, and the number of opponents sets the player count.
+5. Run `node tools/rgtrace/import-all.js trace.log OUTPUT_DIR`. It imports every new level into `data/templates/` and skips ones already there.
+6. Restart the server to use the new templates.
+
+The game has 6 maps, each in a 2-, 3-, and 4-player version (18 levels).
 
 ### Back up and restore
 
-Accounts have their own backup, `npm run backup`, which is safe while the server runs: see [Back up the accounts](DEPLOY.md#7-back-up-the-accounts).
+Accounts have their own backup, `npm run backup`, which is safe while the server runs. For more information, see [Back up the accounts](DEPLOY.md#7-back-up-the-accounts).
 
 Keep a private copy of your templates in `data/battle-templates.zip` (about 15 KB for 6 templates), and never put it in the public repository. Make it again after every capture, from the folder that holds `data`:
 
@@ -182,11 +215,13 @@ Keep a private copy of your templates in `data/battle-templates.zip` (about 15 K
 Compress-Archive -Force data\templates data\battle-templates.zip
 ```
 
-(On Linux or macOS: `cd data && zip -r battle-templates.zip templates`.) The server reads the zip as it is, next to `data/templates/`, so restoring is copying it into `data/` on this machine or a server and restarting the server, which loads templates only at start. A zip of the `templates` folder and a zip of the files in it both work. A template in both places is taken from `data/templates/`, with a `differs` warning at start if the two copies aren't the same.
+On Linux or macOS, run `cd data && zip -r battle-templates.zip templates`.
 
-With Docker, copy the zip into the `./data` folder that the compose file mounts, then run `docker compose restart` (add `-f compose.lan.yaml` for a LAN server). When a match starts, the log shows `table uses template <name>`. A template the server can't use is skipped at start with a `battle template <name> skipped` warning, and a zip it can't read with `battle-templates.zip skipped`.
+The server reads the zip as it is, next to `data/templates/`. To restore your templates, copy the zip into `data/` on this computer or a server, and then restart the server, which loads templates only at start. A zip of the `templates` folder and a zip of the files in it both work. A template in both places is taken from `data/templates/`, with a `differs` warning at start if the two copies aren't the same.
 
-If no zip is left, capture the templates again with the steps above. That needs Windows, the Visual Studio x86 tools and the Java client. Keep the `trace.log` and `<outdir>` from each capture session as well: `import-all.js` rebuilds the templates from them without playing the battles again.
+With Docker, copy the zip into the `./data` folder that the compose file mounts, and then run `docker compose restart` (add `-f compose.lan.yaml` for a LAN server). When a match starts, the log shows `table uses template` and the template's name. A template that the server can't use is skipped at start with a warning that names the template and says `skipped`, and a zip that it can't read is skipped with `battle-templates.zip skipped`.
+
+If no zip is left, capture the templates again with the preceding steps. Keep the `trace.log` file and the output folder from each capture session as well: `import-all.js` rebuilds the templates from them without playing the battles again.
 
 ## Point the Java client at the server
 
@@ -198,4 +233,4 @@ Pass the server address with `-gw` in the game's start command:
 
 Alternatively, map `resetgeneration-gw.arena.n-gage.com` to the server's IP address in the hosts file. This works with the unmodified start scripts.
 
-The `-username <name> -password <pw>` flags prefill the login screen and write a client debug log (`applet_<name>_*.txt`) to the game folder.
+The `-username NAME -password PASSWORD` flags prefill the login screen and write a client debug log (`applet_NAME_*.txt`) to the game folder. Replace `NAME` with a player name and `PASSWORD` with a password.

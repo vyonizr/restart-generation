@@ -8,7 +8,7 @@ web
 
 ## Users
 
-People who own Reset Generation (RedLynx, 2008) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in `docs/HOSTING.md`, not on the page.
+People who own Reset Generation (RedLynx, 2008) and want to play it again, alone or online. They have their own copy of the Windows standalone build, as `ResetGeneration-Standalone.zip` or the extracted folder, and either a desktop browser with a keyboard, or a phone or tablet on the same network as a PC that hosts the game. The page speaks to players only; hosting a server is covered in [Run a server](docs/HOSTING.md), not on the page.
 
 ## Product Purpose
 
@@ -16,47 +16,60 @@ The browser client runs the original game engine, unchanged, in an x86 emulator 
 
 ## Positioning
 
-The game itself, not a remake or a port: the original engine runs unmodified, and a replacement Arena server restores login, stats, rankings, achievements, friends, ranked Quick Match (2 to 4 players), friendly rooms, and battles. The page carries none of RedLynx's files; each player brings their own copy (ADR 0001).
+The game itself, not a remake or a port: the original engine runs unmodified, and a replacement Arena server restores login, stats, rankings, achievements, friends, ranked matches through **Quick Match** (two to four players), friendly rooms, and battles. The page carries none of RedLynx's files; each player brings their own copy ([architecture decision record (ADR) 0001](docs/adr/0001-players-bring-their-own-game-files.md)).
 
 ## Operating Context
 
-The page is a single static page, built from `web/` into `web/dist` (ADR 0013), that is served in one of two ways, and neither is the primary one yet:
+The page is a single static page, built from `web/` into `web/dist` ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)), that is served in one of two ways:
 
 - **By a game server with `RG_GAME` set:** the server sends the player's copy of the files, and the player goes straight to **Start**.
 - **By a static host without the files:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
 
-The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the dialogs described below, and errors (missing files, unreadable files, not enough memory, the emulator stopping).
+The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the dialogs described in the following paragraphs, and errors (missing files, unreadable files, not enough memory, the emulator stopping).
 
-Online play depends on the server. On a server with Discord sign-in (ADR 0011), the page makes a guest on the first visit, keeps its name and a secret token in local storage, and logs the engine in with no form. The header (a line under the buttons on a touch device) shows the name and **Sign in with Discord**; a member sees an **Account** menu with **Sign out** and **Delete my account**. Coming back from Discord, a dialog asks a new member to choose a name, or asks an existing member's guest to confirm that its progress is discarded. After a guest earns fame, a one-line offer to sign in appears under the screen, at most once a day. The hero line also says how many players are online and waiting. On any other server (local, LAN), the name dialog appears at the first online login, the name is kept in local storage with no password, and **Change name** under **Start** clears it; a new name starts with fresh stats. Settings and achievements are also kept in local storage.
+Online play depends on the server:
+
+- **With Discord sign-in ([ADR 0011](docs/adr/0011-guests-and-members-with-discord-sign-in.md)):** the page makes a guest on the first visit, keeps its name and a secret token in local storage, and logs the engine in with no form. The header, or the who line on a touch device, shows the name and **Sign in with Discord**; a member sees an **Account** menu with **Sign out** and **Delete my account**. When the player comes back from Discord, a dialog asks a new member to choose a name. When that Discord account already has a player, a dialog asks the player to confirm that their guest progress and this browser's saved game are discarded. After a guest earns fame, a one-line offer to sign in appears under the screen, at most once a day.
+- **Without accounts (local, LAN):** the name dialog appears at the first online login, the name is kept in local storage with no password ([ADR 0009](docs/adr/0009-a-name-is-the-whole-identity.md)), and **Change name** under **Start** clears it; a new name starts with fresh stats. Settings and achievements are also kept in local storage.
+
+When a server answers, the page shows how many players are online: in the online row under the screen on a desktop, and on the Start screen on a touch device.
 
 ## Capabilities and Constraints
 
 - Runs only the Windows standalone build. A player who owns only the Mac copy can't play.
-- Runs in any desktop browser on any operating system. On a keyboard, arrow keys move, **Ctrl** or **Enter** selects, **Shift** goes back, **Esc** opens the menu. A keyboard works on every device, including a tablet with one attached. Those are the default keys. A player changes them in the game's own Custom Keys screen, and the page's key legend and touch pad follow their choice (CONTEXT.md, custom keys).
-- Phones and tablets (touch devices) play over the LAN: a PC runs the server with `--lan`, and the device opens the page it serves in current Android Chrome or iOS and iPadOS Safari. The game plays in portrait with a touch pad under the game screen: a D-pad, with **Select** and **Back** side by side to its right, level with Up, **Keyboard** for typing, **Soft screen** to switch the screen finish, and **Fullscreen** where the browser supports it. Online modes work as on desktop. Nothing has been tested on a real device yet.
-- Every story and hero is open from the start only on a server that isn't `--public` (ADR 0007); elsewhere they are earned. A member's saved game (story progress, settings, achievements) is kept on the server, so it follows them across browsers; a guest's stays in one browser (ADR 0014).
-- The game screen is drawn by the engine at 240 × 320; the page frames it and never redraws it. An optional screen finish (CONTEXT.md) may soften how it is shown, and the player can turn it off; the engine's output is never altered.
-- The page is built with Vite and Svelte (ADR 0013). The server, the emulator and the other modules Node imports stay plain JavaScript with no build step and no dependencies.
-- A public server is planned (`.scratch/accounts-and-joining/spec.md`) but not live. Until one is, online play works only against a server someone runs, so the page must not claim that a public server is live.
+- Runs in any desktop browser on any operating system. On a keyboard, arrow keys move, Ctrl or Enter selects, Shift goes back, and Esc opens the menu. A keyboard works on every device, including a tablet with one attached. Those are the default keys. A player changes them in the game's own Custom Keys screen, and the page's key legend and touch pad follow their choice (see [custom keys](CONTEXT.md)).
+- Phones and tablets (touch devices) play over the LAN: a PC runs the server with `--lan`, and the device opens the page it serves in Android Chrome or in Safari on iOS and iPadOS. The game plays in portrait with a touch pad under the game screen: a D-pad, with **Select** and **Back** side by side to its right, level with Up; **Keyboard** for typing; **Soft screen** to switch the screen finish; and **Fullscreen** where the browser supports it. Online modes work as on desktop. As of October 2026, the touch layout has been tested only in emulation, not on a real device.
+- Every story and hero is open from the start only on a server that isn't `--public` ([ADR 0007](docs/adr/0007-patch-the-engine-in-memory.md)); elsewhere they are earned. A member's saved game (story progress, settings, and achievements) is kept on the server, so it follows them across browsers; a guest's stays in one browser ([ADR 0014](docs/adr/0014-a-members-saved-game-is-kept-on-the-server.md)).
+- The game screen is drawn by the engine at 240 × 320; the page frames it and never redraws it. By default, the soft [screen finish](CONTEXT.md) smooths how the screen is shown. The player can switch to sharp, and the engine's output is never altered.
+- The page is built with Vite and Svelte ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)). The server, the emulator, and the other modules Node imports stay plain JavaScript with no build step and no dependencies.
+- A public server is planned but not live. Until one is, online play works only against a server someone runs, so the page must not claim that a public server is live.
 - Undecided: whether most players arrive through a static host or a server that serves the files. The page must handle both equally.
 
 ## Brand Commitments
 
 - Name: Restart Generation. The page is an unofficial fan revival of Reset Generation (RedLynx, 2008); the game keeps its own name.
-- Required notices: the footer says, in one short line, "Unofficial fan revival of Reset Generation © 2008 RedLynx; not affiliated with RedLynx, Ubisoft or Nokia." (plus "Bring your own copy of the game." only where the player brings the files: not on a server that sends the game files itself, `RG_GAME` set) and credits vyonizr. Its **Notices** button opens a dialog over the page with the full text: "Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It is not affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners."; the note "Windows standalone build only. Your files stay in this browser." where the player brings the files, or, where a server sends the game files itself, that it does, with the admin's `RG_CONTACT` for a rights holder who wants them removed (ADR 0018); where a server has accounts, what it keeps (a Discord ID and a name, no email); and that the project is free software under the GPL, with no warranty, linking to `/licenses.txt` and to the source at https://github.com/vyonizr/restart-generation. The dialog never opens by itself.
+- Required notices: the page shows each of the following, word for word where quoted:
+  - **Footer line, always:** "Unofficial fan revival of Reset Generation © 2008 RedLynx; not affiliated with RedLynx, Ubisoft or Nokia." and a credit to vyonizr.
+  - **Footer line, where the player brings the files:** "Bring your own copy of the game." It doesn't appear on a server that sends the game files itself (`RG_GAME` set).
+  - **Notices dialog:** the footer's **Notices** button opens a dialog over the page. The dialog never opens by itself.
+  - **Notices dialog, always:** "Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It is not affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners."
+  - **Notices dialog, where the player brings the files:** the note "Windows standalone build only. Your files stay in this browser."
+  - **Notices dialog, where a server sends the game files itself:** a statement that it does, with the admin's `RG_CONTACT` for a rights holder who wants them removed ([ADR 0018](docs/adr/0018-publishing-with-legal-guardrails.md)).
+  - **Notices dialog, where a server has accounts:** what it keeps (a Discord ID and a name, no email).
+  - **Notices dialog, always:** that the project is free software under the GNU General Public License, version 3, with no warranty, linking to `/licenses.txt` and to the [source repository](https://github.com/vyonizr/restart-generation).
 - No RedLynx or Ubisoft logos, and nothing that reads as an official RedLynx or Ubisoft site.
 
 ## Evidence on Hand
 
-- No screenshots, art or other assets derived from the game ship with the page or the repository (ADR 0001). The only game imagery is the engine's own screen, after the player's files load.
-- No repository URL yet.
-- No public server, player counts, testimonials or press. Don't invent them.
+- No screenshots, art, or other assets derived from the game ship with the page or the repository ([ADR 0001](docs/adr/0001-players-bring-their-own-game-files.md)). The only game imagery is the engine's own screen, after the player's files load.
+- Repository: [vyonizr/restart-generation](https://github.com/vyonizr/restart-generation), linked from the notices dialog.
+- No public server, player counts, testimonials, or press. Don't invent them.
 
 ## Product Principles
 
 1. The game leads. Everything around it helps a player reach **Start** and then gets out of the way.
 2. The player's files stay theirs. Say plainly that the files stay in the browser, and never ship or imply anything derived from the game.
-3. Honest about status. Say what works today; don't claim a live server, official backing, or support for the Mac build.
+3. Honest about status. Say what works; don't claim a live server, official backing, or support for the Mac build.
 4. One page for both hosting modes. Choosing files and going straight to **Start** are both first-class paths.
 
 ## Accessibility & Inclusion

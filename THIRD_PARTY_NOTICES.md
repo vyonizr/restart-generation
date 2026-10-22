@@ -2,17 +2,19 @@
 
 Restart Generation is free software under the GNU General Public License, version 3 or later: see LICENSE. It comes with no warranty.
 
-It contains no files from Reset Generation, and nothing derived from them. Reset Generation is the work of RedLynx, and N-Gage Arena of Nokia; their names belong to their owners, and this project is not affiliated with them. The page asks each player for their own copy of the game, or a server operator provides one.
+It contains no files from Reset Generation, and nothing derived from them. Reset Generation is the work of RedLynx, and N-Gage Arena of Nokia; their names belong to their owners, and this project is not affiliated with them. The page asks each player for their own copy of the game, or a server's admin provides one.
 
-What the page does carry from others is below. The texts are the licences as their authors published them.
+What the page carries from others is in the following sections. The texts are the licenses as their authors published them.
 
-==============================================================================
-FONTS (web/fonts)
-Anton, Raleway and Roboto Mono are licensed under the SIL Open Font License, Version 1.1. Each font is used unmodified, as a web font file.
-==============================================================================
+## Fonts (web/fonts)
 
---- Anton ---
+Anton, Raleway, and Roboto Mono are licensed under the SIL Open Font License, Version 1.1. Each font is used unmodified, as a web font file.
 
+### Anton
+
+The Anton font comes with the following notice and license:
+
+```text
 Copyright 2020 The Anton Project Authors (https://github.com/googlefonts/AntonFont.git)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
@@ -106,9 +108,13 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+```
 
---- Raleway ---
+### Raleway
 
+The Raleway font comes with the following notice and license:
+
+```text
 Copyright 2010 The Raleway Project Authors (impallari@gmail.com), with Reserved Font Name "Raleway".
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
@@ -202,9 +208,13 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+```
 
---- Roboto Mono ---
+### Roboto Mono
 
+The Roboto Mono font comes with the following notice and license:
+
+```text
 Copyright 2015 The Roboto Mono Project Authors (https://github.com/googlefonts/robotomono)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
@@ -298,11 +308,13 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+```
 
-==============================================================================
-SVELTE (the runtime that the built page includes)
-==============================================================================
+## Svelte
 
+The built page includes the Svelte runtime, under the following license:
+
+```text
 Copyright (c) 2016-2025 [Svelte Contributors](https://github.com/sveltejs/svelte/graphs/contributors)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -310,8 +322,8 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
 
-==============================================================================
-BUILD AND TEST TOOLS
+## Build and test tools
+
 Vite and @sveltejs/vite-plugin-svelte build the page and are not part of what is served; both are MIT licensed. Node.js built-ins are all the server uses.
-==============================================================================
