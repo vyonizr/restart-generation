@@ -1,6 +1,5 @@
 // The touch pad's pointer handling: one control per finger; sliding a finger moves the press to the control under it.
 // It works on elements it is given and returns a function that takes every listener off again. Pad.svelte draws the pad.
-import { CHAR_UNDEFINED } from '../emu/host.js';
 import { javaKey, padKey } from './keys.js';
 import { page } from './page.svelte.js';
 import { stayAwake, needsVideo } from './wake.js';
@@ -8,9 +7,8 @@ import { botQuestion } from './bots.js';
 import { dismissDisconnected } from './gamepad.js';
 
 // pad: the .pad element; typing: the hidden field that raises the system keyboard; typeButton: the Keyboard control.
-// game, input (the queue applied at the start of each tick), audio and presses (the press count every input shares) come from the
-// running game (game.js).
-export function bindPad({ pad, typing, typeButton, game, input, audio, presses }) {
+// audio and presses (the press count every input shares) come from the running game (game.js).
+export function bindPad({ pad, typing, typeButton, audio, presses }) {
   const ac = new AbortController(), { signal } = ac;
   const held = new Map(), fingers = new Map(); // data-key -> fingers on it, pointerId -> data-key (undefined over empty space)
   const codes = new Map(); // data-key -> the Java key code its press sent, so the release lets go of that key even after a rebind
@@ -78,7 +76,7 @@ export function bindPad({ pad, typing, typeButton, game, input, audio, presses }
     e.preventDefault();
     for (const key of e.inputType === 'deleteContentBackward' ? ['Backspace'] : [...(e.data || '')]) {
       const k = javaKey({ key });
-      if (k) input.push(() => { game.key(true, k.code, k.ch, 1); if (k.ch !== CHAR_UNDEFINED) game.typed(k.ch); game.key(false, k.code, k.ch, 1); });
+      if (k) { presses.press(k.code, k.ch, 1); presses.release(k.code, k.ch, 1); }
     }
     typing.value = ' '; // ponytail: a space keeps Backspace firing on an empty field; IME composition isn't handled
   }, { signal });

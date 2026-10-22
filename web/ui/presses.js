@@ -1,7 +1,8 @@
 // One press count per Java key code, shared by the keyboard, the touch pad and the gamepad: the engine sees a key go down at its
 // first press and up at its last release, so letting go of one input doesn't release a key another still holds.
-// game and input (the queue applied at the start of each tick) come from the running game (game.js). ch and loc are the
-// keyboard's typed character and key location; the other inputs leave them to the engine's defaults.
+// game and input (the queue applied at the start of each tick) come from the running game (game.js). ch and loc are the typed
+// character and key location of the keyboard and the touch pad's typing field; the other inputs leave them to the engine's
+// defaults.
 import { CHAR_UNDEFINED } from '../emu/host.js';
 
 export function createPresses(game, input) {
