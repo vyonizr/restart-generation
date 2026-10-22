@@ -43,3 +43,16 @@ assert.match(carol, /^200 /);
 assert.notStrictEqual(sid(bob), sid(carol));
 assert.strictEqual(proxied('R=4242&V=1.4.4&C=1&P1=Bob&P2='), bob);
 console.log('gateway shared-address logins ok');
+
+// The page resends a poll with the same R while the first copy is held, sometimes more than once. The newest copy takes over
+// the held poll, so the events reach it, and a later copy gets that same reply from the cache.
+const dave = sid(proxied('R=1&V=1.4.4&C=1&P1=Dave&P2=')), erin = sid(proxied('R=2&V=1.4.4&C=1&P1=Erin&P2='));
+const copies = [];
+const pollCopy = () => { const i = copies.push(null) - 1; processRequest(`R=77&V=1.4.4&S=${dave}&C=3&P1=1`, '172.18.0.2', b => { copies[i] = b.toString('utf8'); }); };
+pollCopy(); pollCopy(); pollCopy();
+proxied(`R=78&V=1.4.4&S=${erin}&C=306&P1=Dave`); // a friend request: an event for Dave
+assert.match(copies[2], /^200 OK\n308\|\d+\|Erin\|/);
+assert.deepStrictEqual(copies.slice(0, 2), [null, null]); // the copies it replaced get nothing, and nothing is cached for them
+pollCopy();
+assert.strictEqual(copies[3], copies[2]);
+console.log('gateway poll resends ok');

@@ -166,8 +166,11 @@ function handle(req, s, send) {
     case CMD.BOT_CHOICE: // this server's own: what Start in friendly room P1 does about bots: ask, level, go or gone (casino.botQuestion)
       return send(ok([[gameServer.botQuestion(Number(p[1]))]]));
     case CMD.RETRIEVE_ALL_EVENTS: case 311: case 130: { // long poll
+      // A resent copy of the held poll (same R) takes it over, so its events go to the newest copy; nothing is answered or
+      // cached for the old one, whose connection is probably gone.
+      if (s.poll?.rid === req.rid) { s.poll.send = send; return; }
       if (s.poll) flushPoll(s);
-      s.poll = { send, timer: setTimeout(() => flushPoll(s), s.events.length ? 0 : POLL_HOLD_MS) };
+      s.poll = { send, rid: req.rid, timer: setTimeout(() => flushPoll(s), s.events.length ? 0 : POLL_HOLD_MS) };
       if (s.events.length) flushPoll(s);
       return;
     }
