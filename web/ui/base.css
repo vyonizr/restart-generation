@@ -1,0 +1,38 @@
+/* What every page shares (DESIGN.md): the fonts, the tokens, the base type, the header's name and the footer strip. The game page
+   (styles.css) and the Terms and Privacy policy pages (doc.css) build on it. */
+@font-face { font-family: 'Anton'; src: url(../fonts/anton.woff2) format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Raleway'; src: url(../fonts/raleway.woff2) format('woff2'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'Roboto Mono'; src: url(../fonts/roboto-mono.woff2) format('woff2'); font-weight: 100 700; font-display: swap; }
+:root {
+  --ink-0: #11141b; --ink-1: #181c26; --ink-2: #282b35; --ink-3: #373b49;
+  --red: #a50034; --light-2: #e2e4ec; --light-3: #c6cad7;
+  --display: 'Anton', 'Arial Narrow', sans-serif; --body: 'Raleway', system-ui, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace;
+  color-scheme: dark; scrollbar-color: var(--ink-3) var(--ink-1);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ink-1); color: #fff; font: 16px/1.8 var(--body); -webkit-font-smoothing: antialiased; }
+::selection { background: var(--red); color: #fff; }
+h1, h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; line-height: .9; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.bar::after { content: ''; display: block; width: 128px; max-width: 45%; height: 4px; background: var(--red); margin-top: 12px; }
+
+header { position: relative; z-index: 1; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 48px; }
+.name { font: 400 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+
+footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: center; padding: 16px 48px; background: var(--ink-2); }
+footer p { font: 12px/1.7 var(--mono); color: var(--light-3); }
+footer strong { font-weight: 500; color: var(--light-2); }
+footer a { color: var(--light-2); text-underline-offset: 3px; }
+footer a:hover { color: #fff; }
+.disclaimer { max-width: 110ch; }
+
+@media (max-width: 999px) {
+  footer { grid-template-columns: 1fr; gap: 8px; }
+}
+@media (max-width: 759px) {
+  header { height: 64px; padding: 0 16px; }
+  footer { grid-template-columns: 1fr; gap: 12px; padding: 32px 16px; }
+}

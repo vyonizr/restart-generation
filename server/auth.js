@@ -13,12 +13,14 @@ const SAVE_TOTAL_MAX = 1024 * 1024; // all of a member's saved game files
 const SAVE_FILES_MAX = 16;          // and how many of them
 const RESERVED = /^(guest\d+|cpu_\d+)$/i;
 const DISCORD_INVITE = /^https:\/\/(discord\.gg|discord\.com\/invite)\/[\w-]+$/;
-// Where a rights holder can write: an email address or an https address. The page links to it, so nothing else passes.
+// Where a rights holder or a player can write: an email address or an https address. The page links to it, so nothing else passes.
 const CONTACT = /^(?:[^\s@<>"']+@[^\s@<>"']+\.[A-Za-z]{2,}|https:\/\/[^\s<>"']+)$/;
+// A name the Privacy policy prints: one line of up to 120 characters, else unset.
+const oneLine = s => { const t = String(s || '').trim(); return t.length <= 120 && !/[\x00-\x1f\x7f]/.test(t) ? t : ''; };
 
 // Settings from the environment. `enabled` needs all three Discord values: the redirect address can't be derived behind a proxy.
-// `invite` is the admin's own community link, and `contact` where a rights holder can ask for the game's removal (docs/LEGAL.md);
-// the page shows both if they are set.
+// `invite` is the admin's own community link. `adminName` (who runs the server), `hosting` (who stores its data for them) and
+// `contact` (where players and rights holders write) fill in the Terms and the Privacy policy (docs/adr/0021); the page shows them.
 function configFrom(env) {
   const config = {
     clientId: env.RG_DISCORD_CLIENT_ID || '',
@@ -26,6 +28,8 @@ function configFrom(env) {
     publicUrl: (env.RG_PUBLIC_URL || '').replace(/\/+$/, ''),
     invite: DISCORD_INVITE.test(env.RG_DISCORD_INVITE || '') ? env.RG_DISCORD_INVITE : '',
     contact: CONTACT.test(env.RG_CONTACT || '') ? env.RG_CONTACT : '',
+    adminName: oneLine(env.RG_ADMIN_NAME),
+    hosting: oneLine(env.RG_HOSTING),
     trustProxy: env.RG_TRUST_PROXY === '1',
     guestsPerIpHour: Number(env.RG_GUESTS_PER_IP_HOUR || 30),
     guestCap: Number(env.RG_GUEST_CAP || 5000),
@@ -180,6 +184,8 @@ function createAuth({ store, config, busy, remove, discord = config.enabled ? di
 
   // A member's saved game (ADR 0014): the engine's files, one PUT each. The server keeps the bytes and never reads them.
   const SAVE_NAME = /^[A-Za-z0-9_-]{1,56}\.[A-Za-z0-9]{1,6}$/;
+  // The account's saved game files as { name: base64 }, for the page to sync or a player to download.
+  const savedFiles = acc => Object.fromEntries(store.saves(acc).map(f => [f.name, f.data.toString('base64')]));
   const readBytes = (req, max) => new Promise((resolve, reject) => {
     let size = 0, over = false; const chunks = [];
     req.on('data', c => {
@@ -195,7 +201,7 @@ function createAuth({ store, config, busy, remove, discord = config.enabled ? di
     if (acc.kind !== 'member') return json(res, 403, { error: 'members_only' });
     if (url.pathname === '/auth/saves') {
       if (req.method !== 'GET') { res.writeHead(405); return res.end(); }
-      return json(res, 200, { files: Object.fromEntries(store.saves(acc).map(f => [f.name, f.data.toString('base64')])) });
+      return json(res, 200, { files: savedFiles(acc) });
     }
     const name = url.pathname.slice('/auth/saves/'.length);
     if (!SAVE_NAME.test(name)) return json(res, 400, { error: 'bad_name' });
@@ -221,6 +227,19 @@ function createAuth({ store, config, busy, remove, discord = config.enabled ? di
       if (!acc) return json(res, 401, { error: 'unknown' });
       store.touch(acc, now());
       json(res, 200, view(acc));
+    },
+    // Download my data (docs/adr/0021): everything the server keeps about the account, as the page saves it to a file.
+    'GET /auth/data': (req, res) => {
+      const acc = accountOfRequest(req);
+      if (!acc) return json(res, 401, { error: 'unknown' });
+      const { created, lastActive } = store.dates(acc);
+      json(res, 200, {
+        name: acc.name, kind: acc.kind, discordId: acc.discordId,
+        created: new Date(created).toISOString(), lastActive: new Date(lastActive).toISOString(),
+        stats: acc.stats, achievements: acc.achievements,
+        friends: store.friends(acc).map(f => ({ name: f.account.name, state: f.state })),
+        savedGame: savedFiles(acc),
+      });
     },
     'POST /auth/discord/start': (req, res) => {
       const acc = accountOfRequest(req);
@@ -312,8 +331,10 @@ function createAuth({ store, config, busy, remove, discord = config.enabled ? di
       try { await route(req, res); } catch (e) { log(`${url.pathname}: ${e.message}`); if (!res.headersSent) json(res, 400, { error: 'bad_request' }); }
       return true;
     },
-    // Deletes guests idle for a day, except any with a live session.
+    // Deletes guests idle for a day, except any with a live session, and forgets Discord sign-ins that were never finished: the
+    // Privacy policy says a Discord username is gone within 15 minutes (docs/adr/0021).
     sweep() {
+      prune(states); prune(pending);
       store.dropExpiredTokens(now());
       for (const [ip, times] of created) if (!times.some(t => t > now() - HOUR)) created.delete(ip);
       const n = store.sweepGuests(now() - GUEST_IDLE_MS, busy);

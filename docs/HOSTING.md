@@ -84,7 +84,7 @@ To turn on guests and members, do the following:
 
 1. Register a Discord application in the [Discord Developer Portal](https://discord.com/developers/applications).
 2. Upload `web/public/icon-512.png` as the application's icon.
-3. Add the address in `RG_PUBLIC_URL` followed by `/auth/discord/callback` as the application's redirect, for example `https://play.example.com/auth/discord/callback`.
+3. Add the address in `RG_PUBLIC_URL` followed by `/auth/discord/callback` as the application's redirect, for example `https://play.example.com/auth/discord/callback`. Set its **Privacy Policy URL** and **Terms of Service URL** to your server's `/privacy` and `/terms` pages, for example `https://play.example.com/privacy`: Discord's developer terms require a privacy policy that the app links to ([Terms and Privacy policy](#terms-and-privacy-policy)).
 4. Set the environment variables in the following table. They all go in `.env`, for both `npm start` and Docker.
 
 The following table lists the variables for guests and members:
@@ -101,11 +101,29 @@ The following table lists the variables for guests and members:
 `RG_DISCORD_CLIENT_ID`, `RG_DISCORD_CLIENT_SECRET`, and `RG_PUBLIC_URL` are all required. With all three set, every player is a guest or a member:
 
 - A **guest** is created on the first visit, with no form, and holds a secret token in the browser. A guest's account is wiped 24 hours after its last activity, together with its fame, stats, and friends. Guests play everything, ranked included, but only members appear in the rankings.
-- A **member** signs in with Discord, picks an in-game name once (letters, numbers, and `_`, up to 15; it can't be changed), and keeps the account until they choose **Delete my account**. A guest who signs in keeps what they earned. If the Discord account already has a player, that player wins and the guest's progress is dropped, after a confirmation. The server stores the Discord ID and the name, never an email address.
+- A **member** signs in with Discord, picks an in-game name once (letters, numbers, and `_`, up to 15; it can't be changed), and keeps the account until they choose **Delete my account**. **Download my data** in the same menu saves everything the server keeps about the account as one JSON file. A guest who signs in keeps what they earned. If the Discord account already has a player, that player wins and the guest's progress is dropped, after a confirmation. The server stores the Discord ID and the name, never an email address.
 - A member's **saved game** (story progress, quick-match record, settings, and achievements; at most 256 KiB per file, and at most 1 MiB and 16 files per account) is kept on the server with the account, so it follows them to another browser or device. A guest's saved game stays in the browser. Signing out clears the browser's copy; deleting the account removes the server's copy ([ADR 0014](adr/0014-a-members-saved-game-is-kept-on-the-server.md)).
 - The Java client can't send a token, so such a server refuses it. The Java client still works on servers without Discord sign-in.
 
 The page also shows how many players are online, from `GET /status`: "3 online" under the game screen, or on a phone, a small people icon and the number on the Start screen. A public server runs no bots, so on a quiet server, players wait.
+
+## Terms and Privacy policy
+
+A `--public` server serves two pages beside the game: the **Terms** at `/terms` and the **Privacy policy** at `/privacy` ([ADR 0021](adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)). The page's footer, its Notices dialog, a line under **Start**, and the new member's name dialog link to them, and playing online accepts both. Their text ships with the repository; the server fills in three settings, and a `--public` server won't start without all three:
+
+| Variable | Meaning |
+| --- | --- |
+| `RG_ADMIN_NAME` | Your legal name: you run the server and answer for the data it keeps. One line, up to 120 characters. |
+| `RG_HOSTING` | The company that stores the server and its data for you, and where, such as `Example Cloud, Jakarta`. One line, up to 120 characters. |
+| `RG_CONTACT` | Where players and rights holders write: an email address or an `https://` address. A public page, such as a GitHub profile, keeps your inbox private, but then requests arrive in public, and a rights holder who finds no private way to reach you may write to your hosting provider instead. |
+
+The Privacy policy describes the server as this repository runs it. Keep it true:
+
+- Run it with `compose.yaml`, whose log limits are the ones the policy names: 3 files of 10 MB plus `data/capture.log`'s 20 MB for the game server, and 3 files of 10 MB for Caddy, which keeps no access log but whose error lines can hold a client's address. With `npm start`, the server's output is kept wherever you send it.
+- Back up every night as [Back up the accounts](DEPLOY.md#7-back-up-the-accounts) says, and keep only the newest backup off the server: the policy says a deleted account leaves the backups as they're replaced.
+- The Terms say you may delete any account; use [Delete an account](#delete-an-account) for a player who breaks them, and for a privacy request sent to `RG_CONTACT`.
+
+The Terms ask players to be 13 or older, and players under 18 to have a parent's or guardian's permission; the page doesn't check. Neither page is legal advice, and neither names a governing law: what the law where you live asks of you still applies.
 
 ## Delete an account
 
@@ -161,9 +179,11 @@ For the whole procedure on a virtual private server (VPS), from a bare host to u
    # Optional, and your decision and risk: 1 sends the server copy to every visitor. Leave it out and each player chooses
    # their own copy (ADR 0001).
    # RG_SEND_GAME=1
-   # Required with RG_SEND_GAME=1: where a rights holder can ask for the game's removal, an email address or an https address.
-   # The page shows it in its Notices dialog, and the server won't start without it (docs/LEGAL.md).
-   # RG_CONTACT=removals@example.org
+   # Required on a public server: they fill in its Terms and Privacy policy, and it won't start without them (see "Terms and
+   # Privacy policy"). RG_CONTACT is an email address or an https address, also shown to rights holders in the Notices dialog.
+   RG_ADMIN_NAME=Jane Doe
+   RG_HOSTING=Example Cloud, Jakarta
+   RG_CONTACT=admin@example.org
    ```
 
    `RG_PUBLIC_URL` defaults to `https://DOMAIN`, where `DOMAIN` is your `RG_DOMAIN` value. A public server never runs bots, with or without `RG_GAME_PATH`.

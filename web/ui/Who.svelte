@@ -16,6 +16,7 @@
     <details class="menu" bind:this={menu}>
       <summary>Account</summary>
       <div class="menu-panel">
+        <button type="button" class="secondary" onclick={() => { menu.open = false; actions.download(); }}>Download my data</button>
         <button type="button" class="secondary" onclick={actions.signout}>Sign out</button>
         <button type="button" class="secondary" onclick={actions.delete}>Delete my account</button>
       </div>

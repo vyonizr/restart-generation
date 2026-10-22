@@ -1,13 +1,11 @@
 <!-- The notices (docs/LEGAL.md), opened from the footer's Notices button. "Bring your own copy" and the note about the files appear only
      where the player brings them: never on a server that sends the game files itself (RG_SEND_GAME=1), whatever this browser has stored.
-     That server says instead that it sends a copy, and where a rights holder can ask for its removal (RG_CONTACT). A server with
-     accounts says what it keeps. -->
+     That server says instead that it sends a copy, and where a rights holder can ask for its removal (RG_CONTACT). A public server
+     links its Terms and Privacy policy (docs/adr/0021), which say what it keeps. -->
 <script>
   import Dialog from './Dialog.svelte';
   import { page } from './page.svelte.js';
-
-  // An email address becomes a mailto link; the server only passes an email address or an https address (auth.js CONTACT).
-  const contactHref = c => (c.startsWith('https://') ? c : `mailto:${c}`);
+  import { contactHref } from './contact.js';
   // Where this page's source is (the GPL asks that whoever gets the page's code can get its source).
   const SOURCE = 'https://github.com/vyonizr/restart-generation';
   const close = () => { page.notices = false; };
@@ -21,7 +19,7 @@
   {:else}
     <p>This server sends a copy of Reset Generation to its visitors.{#if page.server?.contact}{' A rights holder who wants it removed can write to '}<a href={contactHref(page.server.contact)} target="_blank" rel="noopener">{page.server.contact}</a>.{/if}</p>
   {/if}
-  {#if page.server?.accounts}<p>This server keeps your Discord ID and in-game name, and no email address. <strong>Delete my account</strong> removes them.</p>{/if}
+  {#if page.server?.adminName}<p>The <a href="terms/" target="_blank" rel="noopener">Terms</a> and the <a href="privacy/" target="_blank" rel="noopener">Privacy policy</a> say how to play on this server, what it keeps about you, and how to remove it.</p>{/if}
   <p>Free software under the GNU GPL, version 3, with no warranty. <a href="licenses.txt" target="_blank" rel="noopener">Licenses</a> · <a href={SOURCE} target="_blank" rel="noopener">Source</a>{#if page.server?.version}{' · Version '}{page.server.version.replace(/^v(?=\d)/, '')}{/if}</p>
   <div class="row"><button type="button" id="notices-close" onclick={close}>Close</button></div>
 </Dialog>

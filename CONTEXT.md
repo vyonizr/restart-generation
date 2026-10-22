@@ -54,6 +54,14 @@ _Avoid_: online server, production server, hosted server
 The copy of the game an admin gives the server. The server runs it for its witness and, if it isn't public, for bots, and sends it to visitors only if the admin chooses to.
 _Avoid_: RG_GAME, the game files (for this copy)
 
+**Privacy policy**:
+The page of a public server that tells players what it keeps about them, why, for how long, who else handles it, and how to have it removed. It names the server's admin, who answers for it.
+_Avoid_: privacy notice, data policy
+
+**Terms**:
+The page of a public server with the rules a player accepts by playing online there: how to behave, that the admin may delete any account, and that the server may stop at any time.
+_Avoid_: ToS, terms of service, EULA, rules
+
 **Release**:
 A numbered version of the site, made each time the public repository receives new commits. Its number tells an admin what an update to it asks of them.
 _Avoid_: build, deploy, tag

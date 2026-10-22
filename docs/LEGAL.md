@@ -34,12 +34,21 @@ We say so plainly so that nobody has to find it out:
 - **`server/snap.js` keeps the original protocol's per-command flags** (which parameters are base64 or scrambled), as wire facts a server has to match. It holds no password keys: an unmodified Java client's scrambled password is read as empty, and any password is accepted with a name only ([ADR 0018](adr/0018-publishing-with-legal-guardrails.md)). Older commits of the source checkout still hold the key table; `tools/scrub-tree.mjs` replaces each key in the published history by a digest of it, and rewrites the wording that named the original classes.
 - **A server that sends the game** (`RG_SEND_GAME=1`) distributes it. See [Rules for a server that sends the game](#rules-for-a-server-that-sends-the-game).
 
+## Rules for every public server
+
+A `--public` server keeps players' personal data and lets strangers talk to each other, so it publishes its **Terms** (`/terms`) and its **Privacy policy** (`/privacy`), which name its admin ([ADR 0021](adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)):
+
+- `RG_ADMIN_NAME` (your legal name), `RG_HOSTING` (who stores the data for you), and `RG_CONTACT` (an email address or an https address where players and rights holders write) are required. A `--public` server won't start without all three.
+- The Privacy policy describes what the code keeps, logs, and backs up. A commit that changes any of that changes `web/ui/Privacy.svelte` too, and its date.
+- Run the server as the policy says: `compose.yaml`'s log limits, nightly backups, and one backup copy off the server ([Terms and Privacy policy](HOSTING.md#terms-and-privacy-policy)).
+- In the Discord application, link the two pages as its Privacy Policy and Terms of Service addresses.
+- No advertising, no donation links, and no payments on the server or its page: its Terms say so.
+
 ## Rules for a server that sends the game
 
-ADR 0001 lets an admin set `RG_SEND_GAME=1` and send their copy, the server copy in `RG_GAME`, to every visitor, at their own risk. A server copy alone sends nothing: the server only runs it ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). A server that sends the game must follow these rules:
+ADR 0001 lets an admin set `RG_SEND_GAME=1` and send their copy, the server copy in `RG_GAME`, to every visitor, at their own risk. A server copy alone sends nothing: the server only runs it ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). A server that sends the game must follow these rules, on top of the rules for every public server:
 
-- `RG_CONTACT`, an email address or an https address where a rights holder can ask for the game's removal, is required. A `--public` server won't start without it, and the page shows it in its Notices dialog.
-- No advertising, no donation links, and no payments on that server or its page.
+- Its `RG_CONTACT` is where a rights holder can ask for the game's removal, and the page shows it in its Notices dialog. Answer it: a rights holder who gets no answer writes to your hosting provider or to GitHub instead.
 - The templates in `data/templates/` and `data/battle-templates.zip` are only used by the server and are never sent to a browser. Never commit them, and never publish a backup of `data/`.
 - Keep a way to stop at once: unset `RG_SEND_GAME`, with npm or with Docker Compose, and then restart the server.
 - Say nothing that claims the copy is licensed or official.

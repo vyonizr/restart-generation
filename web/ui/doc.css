@@ -1,0 +1,52 @@
+/* The Terms and the Privacy policy (docs/adr/0021, DESIGN.md "Terms and Privacy policy"): the stage's header and footer around one
+   column of reading text, with the sections listed beside it on a wide screen and the page's name as a ghost behind the title. */
+@import './base.css';
+
+.doc { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; overflow: clip; }
+.doc header a { text-decoration: none; }
+.doc .name { color: #fff; }
+.back { padding: 6px 12px; border: 1px solid var(--light-3); font: 400 13px/1 var(--display); text-transform: uppercase; letter-spacing: .01em;
+  color: var(--light-2); white-space: nowrap; transition: color .2s, border-color .2s; }
+.back:hover { color: #fff; border-color: #fff; }
+.doc-ghost { position: absolute; top: 24px; right: -1.5vw; font: 400 19vw/.82 var(--display); text-transform: uppercase;
+  color: transparent; -webkit-text-stroke: 1px rgb(255 255 255 / 12%); white-space: nowrap; pointer-events: none; user-select: none; }
+
+.doc main { position: relative; display: grid; grid-template-columns: 200px minmax(0, 68ch); justify-content: center; gap: 72px; padding: 72px 48px 112px; }
+.toc { position: sticky; top: 32px; align-self: start; margin-top: 148px; }
+.toc ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.toc a { display: block; padding: 4px 0; font: 500 13px/1.4 var(--body); color: var(--light-3); text-decoration: none; transition: color .2s; }
+.toc a:hover { color: #fff; }
+
+article h1 { font-size: clamp(48px, 6.4vw, 88px); }
+.changed { margin-top: 20px; font: 13px/1.6 var(--body); color: var(--light-3); }
+.facts { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 12px 40px; margin: 40px 0 0; padding: 24px; background: var(--ink-2); }
+.facts div { min-width: 0; }
+.facts dt { font: 500 13px/1 var(--body); color: var(--light-3); }
+.facts dd { margin: 10px 0 0; font: 400 20px/1.2 var(--display); text-transform: uppercase; letter-spacing: .01em; overflow-wrap: anywhere; }
+.facts.lone { display: block; font-size: 15px; line-height: 1.7; color: var(--light-2); }
+.lede { margin-top: 40px; font-size: 19px; line-height: 1.7; color: #fff; }
+
+article section { scroll-margin-top: 24px; }
+article h2 { margin: 64px 0 18px; font-size: 30px; }
+article p, article li { color: var(--light-2); }
+article p + p, article ul + p, article p + ul { margin-top: 14px; }
+article ul { margin: 0; padding-left: 20px; list-style: square; }
+article li + li { margin-top: 6px; }
+article li::marker { color: var(--red); }
+article strong { font-weight: 600; color: #fff; }
+article a { color: #fff; text-decoration-color: var(--light-3); text-underline-offset: 3px; transition: text-decoration-color .2s; }
+article a:hover { text-decoration-color: #fff; }
+.facts dd a { text-decoration-thickness: 1px; }
+
+@media (max-width: 999px) {
+  .doc main { grid-template-columns: minmax(0, 68ch); gap: 0; }
+  .toc { display: none; }
+  .facts { grid-template-columns: 1fr; }
+}
+@media (max-width: 759px) {
+  .doc .name { font-size: 20px; white-space: nowrap; }
+  .doc main { padding: 40px 16px 72px; }
+  .doc-ghost { top: 56px; font-size: 30vw; }
+  .lede { font-size: 17px; }
+  article h2 { margin-top: 48px; font-size: 26px; }
+}

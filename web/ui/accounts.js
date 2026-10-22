@@ -46,6 +46,15 @@ export const actions = {
     if (playing && !await ask({ title: 'Leave this page?', text: 'Signing in opens Discord and ends your current game.', yes: 'Sign in', no: 'Stay' })) return;
     try { location.assign(await account.discordUrl()); } catch { notice("Couldn't reach Discord sign-in. Try again in a moment.", dismiss); }
   },
+  // Saves what the server keeps about the account as a JSON file, without leaving the page.
+  async download() {
+    try {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(await account.data(), null, 2)], { type: 'application/json' }));
+      const a = Object.assign(document.createElement('a'), { href: url, download: `restart-generation-${account.name}.json` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch { notice("Couldn't download your data. Try again in a moment.", dismiss); }
+  },
   async signout() {
     if (!await ask({ title: 'Sign out?', text: 'You play as a new guest until you sign in again. Your account and fame are kept.', yes: 'Sign out' })) return;
     try { await leave(); await account.signOut(); location.reload(); } catch { notice("Couldn't sign out. Try again in a moment.", dismiss); }

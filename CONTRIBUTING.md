@@ -47,4 +47,4 @@ By contributing, you confirm the following:
 
 ## Request removal of material
 
-If you represent RedLynx, Ubisoft, or Nokia and want something removed, [open an issue](https://github.com/vyonizr/restart-generation/issues) (the same address is in the [README's Legal section](README.md#legal)), or use GitHub's own takedown process. A server run by someone else shows its own contact in its Notices dialog. We respond promptly.
+If you represent RedLynx, Ubisoft, or Nokia and want something removed, [open an issue](https://github.com/vyonizr/restart-generation/issues) (the same address is in the [README's Legal section](README.md#legal)), or use GitHub's own takedown process. A server run by someone else names its admin and contact on its Terms and Privacy policy pages, and in its Notices dialog if it sends the game. We respond promptly.

@@ -11,6 +11,10 @@ assert.strictEqual(configFrom({ RG_DISCORD_INVITE: 'https://discord.gg.evil.test
 assert.strictEqual(configFrom({ RG_CONTACT: 'removals@example.org' }).contact, 'removals@example.org');
 assert.strictEqual(configFrom({ RG_CONTACT: 'https://example.org/contact' }).contact, 'https://example.org/contact');
 for (const bad of ['javascript:alert(1)', 'http://example.org', 'a b@example.org', '<x@example.org>', 'no-at-sign.org', '']) assert.strictEqual(configFrom({ RG_CONTACT: bad }).contact, '', bad); // the page links to it
+// Who runs a public server and who stores its data, named on its Privacy policy: one line of text, so blank or multi-line values count as unset.
+const named = env => { const c = configFrom(env); return [c.adminName, c.hosting]; };
+assert.deepStrictEqual(named({ RG_ADMIN_NAME: ' Jane Doe ', RG_HOSTING: 'Example Cloud, Jakarta' }), ['Jane Doe', 'Example Cloud, Jakarta']);
+for (const bad of ['', '   ', 'Jane\nDoe', 'x'.repeat(121)]) assert.deepStrictEqual(named({ RG_ADMIN_NAME: bad, RG_HOSTING: bad }), ['', ''], JSON.stringify(bad));
 assert.strictEqual(configFrom({ RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b' }).enabled, false); // no public address
 assert.strictEqual(configFrom({ RG_DISCORD_CLIENT_ID: 'a', RG_DISCORD_CLIENT_SECRET: 'b', RG_PUBLIC_URL: 'https://x.test/' }).enabled, true);
 assert.strictEqual(configFrom({}).guestsPerIpHour, 30); // phones behind one carrier address share it
@@ -223,6 +227,25 @@ async function call(auth, method, path, { body, bytes, token, ip = '1.1.1.1', he
   // Deleting the account takes its files with it.
   assert.strictEqual((await call(auth, 'POST', '/auth/delete', { token: packedToken })).code, 204);
   assert.deepStrictEqual(store.saves(packed), []);
+
+  // Download my data: everything the server keeps about the account, for that account only.
+  ({ auth, store } = setup());
+  const owner = store.create('Owner', 'member', Date.UTC(2026, 0, 2), 'd42'), ownerToken = store.issueToken(owner);
+  const buddy = store.create('Buddy', 'member', clock, 'd43'), buddyToken = store.issueToken(buddy);
+  store.setLinks(owner, buddy, 'to', 'from');
+  Object.assign(owner.stats, { fame: 30, matches: 3, wins: 2, highestFame: 30 }); owner.achievements = 'ach'; store.save(owner);
+  assert.strictEqual((await put('single_player_game.save', [5, 6], ownerToken)).code, 204);
+  const mine = await call(auth, 'GET', '/auth/data', { token: ownerToken });
+  assert.strictEqual(mine.code, 200);
+  assert.deepStrictEqual(mine.body, {
+    name: 'Owner', kind: 'member', discordId: 'd42', created: '2026-01-02T00:00:00.000Z', lastActive: '2026-01-02T00:00:00.000Z',
+    stats: { fame: 30, matches: 3, wins: 2, rescues: 0, highestFame: 30, favouriteHero: -1 }, achievements: 'ach',
+    friends: [{ name: 'Buddy', state: 'to' }],
+    savedGame: { 'single_player_game.save': Buffer.from([5, 6]).toString('base64') },
+  });
+  assert.deepStrictEqual((await call(auth, 'GET', '/auth/data', { token: buddyToken })).body.friends, [{ name: 'Owner', state: 'from' }]);
+  assert.deepStrictEqual((await call(auth, 'GET', '/auth/data', { token: buddyToken })).body.savedGame, {});
+  assert.strictEqual((await call(auth, 'GET', '/auth/data', { token: 'nope' })).code, 401);
 
   // Without a Discord application there is no /auth at all.
   const off = createAuth({ store: open(':memory:'), config: configFrom({}), busy: () => false, remove() {} });

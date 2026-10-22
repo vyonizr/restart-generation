@@ -29,10 +29,12 @@ The page moves through these states: loading the files, choosing the files, **St
 
 Online play depends on the server:
 
-- **With Discord sign-in ([ADR 0011](docs/adr/0011-guests-and-members-with-discord-sign-in.md)):** the page makes a guest on the first visit, keeps its name and a secret token in local storage, and logs the engine in with no form. The header, or the who line on a touch device, shows the name and **Sign in with Discord**; a member sees an **Account** menu with **Sign out** and **Delete my account**. When the player comes back from Discord, a dialog asks a new member to choose a name. When that Discord account already has a player, a dialog asks the player to confirm that their guest progress and this browser's saved game are discarded. After a guest earns fame, a one-line offer to sign in appears under the screen, at most once a day.
+- **With Discord sign-in ([ADR 0011](docs/adr/0011-guests-and-members-with-discord-sign-in.md)):** the page makes a guest on the first visit, keeps its name and a secret token in local storage, and logs the engine in with no form. The header, or the who line on a touch device, shows the name and **Sign in with Discord**; a member sees an **Account** menu with **Download my data**, **Sign out**, and **Delete my account**. When the player comes back from Discord, a dialog asks a new member to choose a name. When that Discord account already has a player, a dialog asks the player to confirm that their guest progress and this browser's saved game are discarded. After a guest earns fame, a one-line offer to sign in appears under the screen, at most once a day.
 - **Without accounts (local, LAN):** the name dialog appears at the first online login, the name is kept in local storage with no password ([ADR 0009](docs/adr/0009-a-name-is-the-whole-identity.md)), and **Change name** under **Start** clears it; a new name starts with fresh stats. Settings and achievements are also kept in local storage.
 
 When a server answers, the page shows how many players are online: in the online row under the screen on a desktop, and on the Start screen on a touch device.
+
+A public server also serves two reading pages, **Terms** (`/terms`) and the **Privacy policy** (`/privacy`), filled in with its admin, its hosting provider, and its contact ([ADR 0021](docs/adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)). Playing online there accepts both; nothing blocks play to ask.
 
 ## Capabilities and Constraints
 
@@ -43,7 +45,7 @@ When a server answers, the page shows how many players are online: in the online
 - Every story and hero is open from the start only on a server that isn't `--public` ([ADR 0007](docs/adr/0007-patch-the-engine-in-memory.md)); elsewhere they are earned. A member's saved game (story progress, settings, and achievements) is kept on the server, so it follows them across browsers; a guest's stays in one browser ([ADR 0014](docs/adr/0014-a-members-saved-game-is-kept-on-the-server.md)).
 - The game screen is drawn by the engine at 240 × 320; the page frames it and never redraws it. By default, the soft [screen finish](CONTEXT.md) smooths how the screen is shown. The player can switch to sharp, and the engine's output is never altered.
 - The page is built with Vite and Svelte ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)). The server, the emulator, and the other modules Node imports stay plain JavaScript with no build step and no dependencies.
-- A public server is planned but not live. Until one is, online play works only against a server someone runs, so the page must not claim that a public server is live.
+- The project's author runs a public server. The page is the same on every server and names none of them.
 - Undecided: whether most players arrive through a static host or a server that serves the files. The page must handle both equally.
 
 ## Brand Commitments
@@ -56,7 +58,9 @@ When a server answers, the page shows how many players are online: in the online
   - **Notices dialog, always:** "Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It is not affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners."
   - **Notices dialog, where the player brings the files:** the note "Windows standalone build only. Your files stay in this browser."
   - **Notices dialog, where a server sends the game files itself:** a statement that it does, with the admin's `RG_CONTACT` for a rights holder who wants them removed ([ADR 0018](docs/adr/0018-publishing-with-legal-guardrails.md)).
-  - **Notices dialog, where a server has accounts:** what it keeps (a Discord ID and a name, no email).
+  - **Footer line, on a public server:** links to its **Terms** and **Privacy policy**.
+  - **Under Start, on a public server:** "By playing online you accept the Terms and the Privacy policy.", with both linked. The name dialog for a new member says the same of saving the name.
+  - **Notices dialog, on a public server:** links to its Terms and Privacy policy, which say what it keeps ([ADR 0021](docs/adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)).
   - **Notices dialog, always:** that the project is free software under the GNU General Public License, version 3, with no warranty, linking to `/licenses.txt` and to the [source repository](https://github.com/vyonizr/restart-generation). On a server, the same line ends with the version it runs, such as "Version 0.1.2".
 - No RedLynx or Ubisoft logos, and nothing that reads as an official RedLynx or Ubisoft site.
 
@@ -64,13 +68,13 @@ When a server answers, the page shows how many players are online: in the online
 
 - No screenshots, art, or other assets derived from the game ship with the page or the repository ([ADR 0001](docs/adr/0001-players-bring-their-own-game-files.md)). The only game imagery is the engine's own screen, after the player's files load.
 - Repository: [vyonizr/restart-generation](https://github.com/vyonizr/restart-generation), linked from the notices dialog.
-- No public server, player counts, testimonials, or press. Don't invent them.
+- No player counts beyond the live online count, no testimonials, and no press. Don't invent them.
 
 ## Product Principles
 
 1. The game leads. Everything around it helps a player reach **Start** and then gets out of the way.
 2. The player's files stay theirs. Say plainly that the files stay in the browser, and never ship or imply anything derived from the game.
-3. Honest about status. Say what works; don't claim a live server, official backing, or support for the Mac build.
+3. Honest about status. Say what works; don't claim official backing, a server the page isn't on, or support for the Mac build.
 4. One page for both hosting modes. Choosing files and going straight to **Start** are both first-class paths.
 
 ## Accessibility & Inclusion

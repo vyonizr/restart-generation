@@ -102,9 +102,14 @@ RG_DISCORD_CLIENT_ID=
 RG_DISCORD_CLIENT_SECRET=
 # The admin's account delete (docs/HOSTING.md, "Delete an account"). A long random value, for example from: openssl rand -hex 24
 RG_ADMIN_TOKEN=
+# Your legal name, who stores the server and its data, and where players and rights holders write: the Terms and the Privacy
+# policy name them, and the server won't start without them (docs/HOSTING.md, "Terms and Privacy policy").
+RG_ADMIN_NAME=
+RG_HOSTING=
+RG_CONTACT=
 ```
 
-In the Discord application, set the redirect to `https://DOMAIN/auth/discord/callback`. Replace `DOMAIN` with your `RG_DOMAIN` value. `RG_PUBLIC_URL` defaults to `https://DOMAIN`, so leave it empty.
+In the Discord application, set the redirect to `https://DOMAIN/auth/discord/callback`, the Privacy Policy URL to `https://DOMAIN/privacy`, and the Terms of Service URL to `https://DOMAIN/terms`. Replace `DOMAIN` with your `RG_DOMAIN` value. `RG_PUBLIC_URL` defaults to `https://DOMAIN`, so leave it empty.
 
 ## 6. Start and check the server
 
@@ -130,7 +135,7 @@ To check the server, do the following. Replace `play.example.com` with your doma
    ```
 
    The output includes `"accounts":true`, `"servesGame":false`, and `"version"` with the release you checked out, such as `"v0.1.2"`. A version such as `v0.1.2-1-gabc1234` means you pulled a commit before its release was tagged.
-2. Open `https://play.example.com/` in a browser. Check that the page loads, that **Sign in with Discord** goes to Discord and comes back signed in, and that a guest can start a game.
+2. Open `https://play.example.com/` in a browser. Check that the page loads, that **Sign in with Discord** goes to Discord and comes back signed in, and that a guest can start a game. Open `https://play.example.com/privacy` and `https://play.example.com/terms`, and check that they name you, your hosting provider, and your contact.
 3. With `RG_ADMIN_TOKEN` set, check that Caddy keeps `/admin/` from the internet ([ADR 0016](adr/0016-the-admin-deletes-accounts-through-the-running-server.md)):
 
    ```sh
@@ -165,7 +170,7 @@ To make a backup every night, run `crontab -e` as the VPS user and add the follo
 
 The cron job runs `docker` as that user, so the user must be in the `docker` group (see [step 1](#1-prepare-the-vps)). Run the command above once by hand first, and check that a file appears in `data/backups/`.
 
-If you lose the VPS, you lose the backups on it. Copy the newest backup to your PC regularly, for example weekly:
+If you lose the VPS, you lose the backups on it. Copy the newest backup to your PC regularly, for example weekly, and delete the copy it replaces: the Privacy policy says that you keep one copy off the server, and that a deleted account leaves the backups as they're replaced.
 
 ```powershell
 scp VPS_USER@VPS_HOST:restart-generation/data/backups/accounts-TIMESTAMP.db .
@@ -228,7 +233,7 @@ This makes your server send RedLynx's game files to every visitor. That is distr
 
 It also costs bandwidth. Each visitor downloads about 33 MB of game files, and the page doesn't keep them, so every page load, Quit, and sign-out downloads them again. A plan with 512 GB of outbound transfer covers only about 15,000 loads a month, and some hosts shut the VPS down when the allowance runs out. Check what yours does first.
 
-You need the game's `.zip` on the VPS, and a way for a rights holder to reach you.
+You need the game's `.zip` on the VPS, and `RG_CONTACT`, where a rights holder can reach you, which every public server already sets.
 
 1. Copy the game to the VPS:
 
@@ -240,8 +245,6 @@ You need the game's `.zip` on the VPS, and a way for a rights holder to reach yo
    ```sh
    RG_GAME_PATH=./ResetGeneration-Standalone.zip
    RG_SEND_GAME=1
-   # An email address or an https address; the page shows it in its Notices dialog, and the server won't start without it.
-   RG_CONTACT=
    ```
 3. Run `docker compose up -d`.
 

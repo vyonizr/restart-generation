@@ -1,26 +1,8 @@
-@font-face { font-family: 'Anton'; src: url(../fonts/anton.woff2) format('woff2'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Raleway'; src: url(../fonts/raleway.woff2) format('woff2'); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: 'Roboto Mono'; src: url(../fonts/roboto-mono.woff2) format('woff2'); font-weight: 100 700; font-display: swap; }
-:root {
-  --ink-0: #11141b; --ink-1: #181c26; --ink-2: #282b35; --ink-3: #373b49;
-  --red: #a50034; --light-2: #e2e4ec; --light-3: #c6cad7;
-  --display: 'Anton', 'Arial Narrow', sans-serif; --body: 'Raleway', system-ui, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace;
-  color-scheme: dark; scrollbar-color: var(--ink-3) var(--ink-1);
-}
+@import './base.css';
 :root { --screen-h: clamp(300px, 100vh - 330px, 640px); }
 @supports (height: 100dvh) { :root { --screen-h: clamp(300px, 100dvh - 330px, 640px); } }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--ink-1); color: #fff; font: 16px/1.8 var(--body); -webkit-font-smoothing: antialiased; }
-::selection { background: var(--red); color: #fff; }
-h1, h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; line-height: .9; margin: 0; text-wrap: balance; }
-p { margin: 0; }
-[hidden] { display: none !important; }
-:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .page { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; overflow: clip; }
-header { position: relative; z-index: 1; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 48px; }
-.name { font: 400 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
 .ghost { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 400 23vw/.82 var(--display); text-transform: uppercase; text-align: center;
   color: transparent; -webkit-text-stroke: 1px rgb(255 255 255 / 12%); white-space: nowrap; pointer-events: none; user-select: none; }
 main { position: relative; min-height: 0; display: grid; place-content: center; justify-items: center; gap: 18px; padding: 0 48px 24px; }
@@ -41,7 +23,6 @@ canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; 
 #overlay { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 3cqh; padding: 6cqi; text-align: center; overflow-y: auto;
   background: rgb(17 20 27 / 82%); }
 #overlay h2 { font-size: 15cqi; }
-.bar::after { content: ''; display: block; width: 128px; max-width: 45%; height: 4px; background: var(--red); margin-top: 12px; }
 #status { max-width: 30ch; text-wrap: balance; font-size: 15px; line-height: 1.7; color: var(--light-2); }
 #pick, #recover, #unsent { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .hint { flex-basis: 100%; text-wrap: balance; font-size: 13px; line-height: 1.6; color: var(--light-3); }
@@ -75,8 +56,6 @@ button.secondary:hover { background: transparent; color: #fff; border-color: #ff
 .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; max-width: 70ch; font: 15px/1.6 var(--body); color: var(--light-2); text-align: center; }
 .nudge-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .nudge button { font-size: 16px; padding: 8px 14px; }
-footer a { color: var(--light-2); text-underline-offset: 3px; }
-footer a:hover { color: #fff; }
 .online-line { align-items: center; justify-content: center; gap: 6px; font: 500 13px/1 var(--mono); color: var(--light-2); }
 .online-line svg { width: 16px; height: 16px; fill: none; stroke: var(--light-3); stroke-width: 1.4; stroke-linecap: square; }
 
@@ -114,28 +93,24 @@ kbd .on { fill: currentColor; }
 .typing { font-size: 16px; } /* iOS zooms into smaller fields */
 :fullscreen { background: var(--ink-1); }
 
-footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: center; padding: 16px 48px; background: var(--ink-2); }
-footer p { font: 12px/1.7 var(--mono); color: var(--light-3); }
-footer strong { font-weight: 500; color: var(--light-2); }
-.disclaimer { max-width: 110ch; }
+/* The footer's Notices button, and the overlay's links to the Terms and the Privacy policy */
 .notes { text-align: right; }
 .notes button { font-size: 13px; padding: 6px 12px; }
+#overlay a { color: var(--light-2); text-underline-offset: 3px; }
+#overlay a:hover { color: #fff; }
 /* The notices cover the page, not the game screen: they are too long for it. */
 #notices { position: fixed; z-index: 10; width: min(520px, 92vw); max-height: calc(100dvh - 32px); overflow-x: hidden; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 65%); }
-#notices a { color: var(--light-2); text-underline-offset: 3px; }
-#notices a:hover { color: #fff; }
+.login a { color: var(--light-2); text-underline-offset: 3px; }
+.login a:hover { color: #fff; }
 #notices strong { font-weight: 500; color: var(--light-2); }
 
 @media (max-width: 999px) {
-  footer { grid-template-columns: 1fr; gap: 8px; }
   .notes { text-align: left; }
 }
 @media (max-width: 759px) {
-  header { height: 64px; padding: 0 16px; }
   .who .long { display: none; }
   .ghost { font-size: 34vw; }
   main { padding: 24px 16px 48px; }
-  footer { grid-template-columns: 1fr; gap: 12px; padding: 32px 16px; }
   .notes { text-align: left; }
 }
 

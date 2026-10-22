@@ -273,7 +273,7 @@ function processRequest(text, addr, reply) {
   if (s) s.lastSeen = Date.now();
   const cacheKey = req.session ? `${req.session}:${req.rid}` : `${addr}:${text}`;
   if (replies.has(cacheKey)) return reply(replies.get(cacheKey));
-  if (req.cmd !== CMD.RETRIEVE_ALL_EVENTS) log(`<- ${s?.name || addr} C=${req.cmd}`, req.cmd === CMD.EXTENDED_LOGIN ? `user=${req.params[1]}` : '');
+  if (req.cmd !== CMD.RETRIEVE_ALL_EVENTS) log(`<- ${s?.name || '(no session)'} C=${req.cmd}`, req.cmd === CMD.EXTENDED_LOGIN ? `user=${req.params[1]}` : '');
   handle(req, s, body => {
     const payload = Buffer.from(body, 'utf8');
     replies.set(cacheKey, payload);
@@ -289,11 +289,12 @@ const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, li
 module.exports = { staleSessions, lanAddresses, handle, processRequest, db };
 if (require.main !== module) return; // tests import the module without starting the servers
 
-// A server that sends the game to every visitor says where a rights holder can ask for its removal (docs/LEGAL.md): a --public server
-// with RG_SEND_GAME=1 won't start without a valid RG_CONTACT. Any other server doesn't need one.
+// A public server publishes Terms and a Privacy policy that name who runs it, who stores its data for them, and where players and
+// rights holders write (docs/adr/0021, docs/LEGAL.md), so it won't start without all three. Any other server doesn't need them.
 const SEND_GAME = process.env.RG_SEND_GAME === '1';
-if (MODE.public && SEND_GAME && !authConfig.contact) {
-  console.error('Refusing to start a --public server that sends the game (RG_SEND_GAME=1) without RG_CONTACT: an email address or an https address where a rights holder can ask for its removal (docs/LEGAL.md)');
+const missing = MODE.public ? [['RG_ADMIN_NAME', authConfig.adminName], ['RG_HOSTING', authConfig.hosting], ['RG_CONTACT', authConfig.contact]].filter(([, v]) => !v).map(([k]) => k) : [];
+if (missing.length) {
+  console.error(`Refusing to start a --public server without ${missing.join(', ')}: its Terms and Privacy policy name the admin (RG_ADMIN_NAME), the hosting provider that stores its data (RG_HOSTING), and an email address or an https address where players and rights holders can write (RG_CONTACT). See docs/HOSTING.md`);
   process.exitCode = 1; return;
 }
 
@@ -313,22 +314,25 @@ if (process.env.RG_GAME) require('./witness').start(log);
 else log('Warning: no server copy (RG_GAME), so battle results will be guessed: the last player standing, or else the one who made the last move');
 if (SEND_GAME && !process.env.RG_GAME) log('Warning: RG_SEND_GAME=1 without RG_GAME: there is no server copy, so visitors choose their own files');
 
+// The Java client's TCP connections. The log names each by a number, never by its address: the Privacy policy says the server
+// writes no IP address to its logs (docs/adr/0021). The address only keys the reply cache, in memory.
+let connections = 0;
 net.createServer(sock => {
-  const addr = `${sock.remoteAddress}:${sock.remotePort}`;
-  log('connect', addr);
+  const addr = `${sock.remoteAddress}:${sock.remotePort}`, id = `tcp#${++connections}`;
+  log('connect', id);
   let buf = Buffer.alloc(0);
   sock.on('data', chunk => {
     let frames;
-    try { [frames, buf] = readFrames(Buffer.concat([buf, chunk])); } catch (e) { log(addr, e.message); return sock.destroy(); }
+    try { [frames, buf] = readFrames(Buffer.concat([buf, chunk])); } catch (e) { log(id, e.message); return sock.destroy(); }
     for (const f of frames) {
       if (f.type === FRAME.HELLO) { sock.write(frame(FRAME.HELLO_ACK, f.seq)); continue; }
       if (f.type === FRAME.STAT) { sock.write(frame(FRAME.STAT_ACK, f.seq)); continue; }
-      if (f.type !== FRAME.REQUEST) { log(addr, 'frame type', f.type); continue; }
+      if (f.type !== FRAME.REQUEST) { log(id, 'frame type', f.type); continue; }
       processRequest(f.payload.toString('utf8'), addr, payload => { if (!sock.destroyed) sock.write(frame(FRAME.RESPONSE, f.seq, payload)); });
     }
   });
-  sock.on('error', e => log(addr, e.message));
-  sock.on('close', () => log('disconnect', addr));
+  sock.on('error', e => log(id, e.message));
+  sock.on('close', () => log('disconnect', id));
 }).listen(PORT, HOST, () => log(`SNAP gateway on tcp/${PORT}`));
 gameServer.start?.(api);
 setInterval(() => {
@@ -368,8 +372,10 @@ const httpServer = http.createServer((req, res) => {
     return res.end(JSON.stringify({ available: bots.available() }));
   }
   if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
+    // The admin's name and hosting provider fill in the Terms and the Privacy policy, which only a public server publishes: the page
+    // links them when `adminName` is set (docs/adr/0021).
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: servesGame(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
+    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: servesGame(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, adminName: MODE.public ? authConfig.adminName : '', hosting: MODE.public ? authConfig.hosting : '', online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
   }
   if (parsed.pathname.startsWith('/admin/')) {
     admin.http(req, res, parsed);
@@ -388,6 +394,7 @@ const httpServer = http.createServer((req, res) => {
   }
   let file;
   if (url === '/') file = path.join(DIST_DIR, 'index.html');
+  else if (/^\/(?:terms|privacy)\/?$/.test(url)) file = path.join(DIST_DIR, url, 'index.html'); // the Terms and the Privacy policy (docs/adr/0021)
   else if (/^\/(?:[\w-]+\/)*[\w.-]+\.(?:js|css|html|woff2|mp4|svg|png|ico|txt)$/.test(url)) file = path.join(DIST_DIR, url);
   if (url === '/' && !fs.existsSync(file)) { res.writeHead(503, { 'Content-Type': 'text/plain' }); return res.end('The page is not built yet. Run `npm run build` (after `npm install`), then reload.'); }
   if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }

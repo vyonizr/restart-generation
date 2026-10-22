@@ -13,6 +13,6 @@
   <h2 class="bar" id="member-title">Choose your name</h2>
   <label>Player name <input id="member-name" name="username" autocomplete="off" maxlength="15" pattern={'[A-Za-z0-9_]{1,15}'} title="Letters, numbers and _, up to 15" required bind:this={input} value={page.nameDialog.value}></label>
   <p class="error" id="member-error" role="alert" hidden={!page.nameDialog.error}>{page.nameDialog.error}</p>
-  <p>This is the name other players see. You can't change it later.</p>
+  <p>This is the name other players see. You can't change it later.{#if page.server?.adminName} By saving it, you accept the <a href="terms/" target="_blank" rel="noopener">Terms</a> and the <a href="privacy/" target="_blank" rel="noopener">Privacy policy</a>.{/if}</p>
   <div class="row"><button type="button" class="secondary" id="member-cancel" onclick={() => answerName(null)}>Cancel</button><button type="submit">Save</button></div>
 </Dialog>

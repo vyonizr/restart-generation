@@ -56,6 +56,7 @@ function open(file) {
   sql('byName', 'SELECT * FROM accounts WHERE name = ?');
   sql('byDiscord', 'SELECT * FROM accounts WHERE discord_id = ?');
   sql('byToken', 'SELECT a.*, t.expires AS token_expires FROM tokens t JOIN accounts a ON a.id = t.account WHERE t.hash = ?');
+  sql('dates', 'SELECT created, last_active FROM accounts WHERE id = ?');
   sql('insert', 'INSERT INTO accounts (name, kind, discord_id, created, last_active) VALUES (?, ?, ?, ?, ?)');
   sql('touch', 'UPDATE accounts SET last_active = ? WHERE id = ?');
   sql('save', 'UPDATE accounts SET fame = ?, matches = ?, wins = ?, rescues = ?, highest_fame = ?, favourite_hero = ?, achievements = ? WHERE id = ?');
@@ -110,6 +111,8 @@ function open(file) {
       if (renewTo && row.token_expires !== null) q.renewToken.run(renewTo, hash(token));
       return account(row);
     },
+    // When the account was made and last used, in milliseconds since 1970.
+    dates(acc) { const r = q.dates.get(Number(acc.id)); return { created: r.created, lastActive: r.last_active }; },
     create(name, kind, now, discordId = null) {
       return account(q.byId.get(q.insert.run(name, kind, discordId, now, now).lastInsertRowid));
     },

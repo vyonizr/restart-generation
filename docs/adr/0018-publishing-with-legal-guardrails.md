@@ -8,7 +8,7 @@ The project is published on GitHub and run as a public server (ADRs 0001, 0002).
 - **Protocol code.** `web/snap.js` no longer says it is a port of the Java client or names its classes, its internals use our own vocabulary, and the browser sends a plain base64 password with no `K`, so it carries none of the SDK's password keys. `server/snap.js` accepts that, and holds no key table either: a password scrambled by an unmodified Java client is read as empty, which logs in as before, because a name-only server ignores the password (ADR 0009) and the account token never comes from that client (ADR 0011). A scrambled login was checked against a running gateway.
 - **Serving the game.** ADR 0001 lets an admin send their copy, with `RG_SEND_GAME=1` (ADR 0020). A `--public` server that does must set `RG_CONTACT`, where a rights holder can ask for its removal, or it won't start; the Notices dialog shows it. No ads, donations or payments on such a server.
 - **Names.** The page stays "Restart Generation" with a footer line, and a Notices dialog, that say it isn't affiliated with RedLynx, Ubisoft or Nokia. Documentation uses `example.com`, not a domain with the game's name.
-- **Privacy.** The README and the Notices dialog of a server with accounts say what is kept: a Discord ID and a name, no email.
+- **Privacy.** The README and the Notices dialog of a server with accounts say what is kept: a Discord ID and a name, no email. Replaced by the Terms and Privacy policy pages of [ADR 0021](0021-public-servers-publish-terms-and-a-privacy-policy.md), which also make `RG_CONTACT` required on every public server.
 
 ## Considered options
 

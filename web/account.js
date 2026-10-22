@@ -113,6 +113,13 @@ export class Account {
     if (r.status !== 204) throw new AccountError('failed');
   }
 
+  // Download my data (docs/adr/0021): everything the server keeps about this account, as one object.
+  async data() {
+    const r = await this.#call('GET', '/auth/data');
+    if (r.status !== 200) throw new AccountError('failed');
+    return r.json;
+  }
+
   // Back to a new guest. The server forgets this browser's token.
   async signOut() {
     await this.#call('POST', '/auth/signout').catch(() => {});

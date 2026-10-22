@@ -1,6 +1,6 @@
-// Self-check for sending the server copy to visitors: node server/sendgame.test.js
-// RG_GAME is the server copy; only RG_SEND_GAME=1 sends it (docs/adr/0020). Starts a real gateway on free ports for each case, with a
-// made-up game folder.
+// Self-check for a started gateway: node server/sendgame.test.js
+// RG_GAME is the server copy; only RG_SEND_GAME=1 sends it (docs/adr/0020). A --public server names who runs it (docs/adr/0021).
+// Starts a real gateway on free ports for each case, with a made-up game folder.
 const assert = require('assert');
 const fs = require('fs');
 const net = require('net');
@@ -55,12 +55,22 @@ async function gateway(env, args = []) {
     assert.match(g.log(), /RG_SEND_GAME=1 without RG_GAME/);
     g.child.kill();
 
-    // A public server that sends the game needs RG_CONTACT, and doesn't start without it.
-    g = await gateway({ RG_GAME: gameDir, RG_SEND_GAME: '1' }, ['--public']);
+    // A public server names its admin, who stores its data, and where to write, for its Terms and Privacy policy, whether or
+    // not it sends the game. It doesn't start without all three, and says which are missing.
+    g = await gateway({ RG_GAME: gameDir, RG_SEND_GAME: '1', RG_CONTACT: 'https://example.org/contact' }, ['--public']);
     await wait(() => g.code() !== null, 20000);
     assert.strictEqual(g.code(), 1);
-    assert.match(g.log(), /Refusing to start a --public server that sends the game \(RG_SEND_GAME=1\) without RG_CONTACT/);
-    console.log('sending the server copy ok');
+    assert.match(g.log(), /Refusing to start a --public server without RG_ADMIN_NAME, RG_HOSTING\b/);
+    g = await gateway({ RG_ADMIN_NAME: 'Jane Doe', RG_HOSTING: 'Example Cloud', RG_CONTACT: 'http://not-https.example.org' }, ['--public']);
+    await wait(() => g.code() !== null, 20000);
+    assert.match(g.log(), /Refusing to start a --public server without RG_CONTACT\b/); // set, but not an address the page can link
+    g = await gateway({ RG_ADMIN_NAME: 'Jane Doe', RG_HOSTING: 'Example Cloud', RG_CONTACT: 'https://example.org/contact' }, ['--public']);
+    await wait(() => g.code() !== null || g.log().includes('browser client on'), 20000);
+    // Past the check: it starts, or stops at the next one, the battle templates, which a fresh clone doesn't have.
+    assert.match(g.log(), /browser client on|no usable battle template/);
+    assert.doesNotMatch(g.log(), /without RG_/);
+    g.child.kill();
+    console.log('gateway settings ok');
   } finally {
     for (const c of children) c.kill();
     fs.rmSync(gameDir, { recursive: true, force: true });
