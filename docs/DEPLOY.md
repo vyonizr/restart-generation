@@ -247,4 +247,4 @@ You need the game's `.zip` on the VPS, and a way for a rights holder to reach yo
 
 `/status` then says `"servesGame":true`, and the Notices dialog shows your contact. To stop sending the game at once, empty `RG_SEND_GAME` and run `docker compose up -d` again.
 
-`RG_GAME_PATH` alone, without `RG_SEND_GAME=1`, sends nothing: it gives the server its own copy, whose witness decides battle results instead of guessing them ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). It costs about 300 MB of memory and no bandwidth.
+`RG_GAME_PATH` alone, without `RG_SEND_GAME=1`, sends nothing: it gives the server its own copy, whose witness decides battle results instead of guessing them ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). It costs about 270 MB of memory once booted, plus about 4 MB for every battle it follows, and no bandwidth.

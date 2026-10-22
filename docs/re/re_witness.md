@@ -61,4 +61,4 @@ The Arena server ran the logic as a network host (flags `logic+0x90` bit 0), whi
 
 ## Cost
 
-Measured with recorded 2-player battles: the engine boots in about 2 s; starting a table takes 15 to 70 ms; a message takes 1 to 5 ms; a whole battle's history replays in 0.06 to 0.74 s. Every battle followed leaves about 0.4 MB of the emulated heap and about 4 MB of the worker's own memory behind, even with the logic destroyed at the end (vtable slot 0, `FUN_1000f140`), so a long-running witness is restarted from time to time.
+Measured with recorded 2-player battles: the engine boots in about 2 s; starting a table takes 15 to 70 ms; a message takes 1 to 5 ms; the booted engine holds about 270 MB; a whole battle's history replays in 0.06 to 0.74 s. Every battle followed leaves about 0.4 MB of the emulated heap and about 4 MB of the worker's own memory behind, even with the logic destroyed at the end (vtable slot 0, `FUN_1000f140`), so a long-running witness is restarted from time to time.

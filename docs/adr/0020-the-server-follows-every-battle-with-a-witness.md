@@ -17,25 +17,25 @@ To give a server a copy without sending it to every visitor, the two become sepa
 
 ## Considered options
 
-- **Keep guessing (ADR 0005).** Rejected. A ranked result could be wrong, and in a relaxed match a defeat the server missed held a phase for up to 3 minutes. The guesses stay only as the fallback.
+- **Keep guessing (ADR 0005).** Rejected. A ranked result could be wrong, and in a relaxed match a defeat the server missed held a phase for up to 3 minutes. The guesses stay only for a server without a witness, or for a battle whose witness failed.
 - **Run the engine as the battle's host, as the Arena server did.** That would mean a network-host `ServerBattleLogic` that checks orders and state hashes. Rejected:
   - It replaces the relay and its liveness tests.
   - Catching cheats was ruled out of scope.
   - In the measured runs, a host-mode logic hung on the second battle in the same engine. Its acknowledgements go through a connection hub that has no connections.
 - **A witness client that joins each battle as an observer over SNAP.** Rejected. The relay has no observer seat. It also needs a SNAP session and a login, and it costs a whole client per battle. Fed from `table.history`, the witness needs none of that.
-- **One engine per battle.** Rejected. One engine (272 MB) followed several battles at once with the same results as one engine each, at 1 to 5 ms per message.
+- **One engine per battle.** Rejected. One engine (about 270 MB) followed several battles at once with the same results as one engine each, at 1 to 5 ms per message.
 - **A witness for ranked matches only, with friendly matches left to the admin.** Rejected once one shared engine was measured. A witness costs the same for 1 battle as for 20. Relaxed friendly matches, which stall the longest after a missed defeat, gain the most.
 - **Keep `RG_GAME` meaning "send", and add a separate setting for a copy that is only run.** Rejected. Sending the game is the legally risky act (`docs/LEGAL.md`), so it has to be an explicit choice of its own, never a side effect of giving the server a copy.
 
 ## Consequences
 
 - **A breaking change.** An admin whose server sends the game must add `RG_SEND_GAME=1` when updating. The release is a `feat!` with a `BREAKING CHANGE:` footer.
-- **The server copy costs memory.** The witness takes about 272 MB and grows about 5 MB per battle, because the engine frees nothing. The server restarts it after a fixed number of battles, and a restarted witness catches up from the history of every battle still running in under a second.
+- **The server copy costs memory.** The witness takes about 270 MB once booted and keeps about 4 MB of every battle it follows, because the engine frees nothing. The server restarts it after 50 battles, or after it grows by 250 MB, and a restarted witness catches up from the history of every battle still running in under a second.
 - **ADR 0008 is unchanged.** A public server still runs no bots, even with a server copy.
-- **Three engine details** are described in [`docs/re/re_witness.md`](../re/re_witness.md) before any code uses them (`docs/LEGAL.md`, rule 4):
-  - the default battle settings must be loaded before a Game is built;
-  - the battlefield must never report itself busy;
-  - one finish-check clause, which ends a battle that has no local player, is patched off, in memory only (ADR 0007).
+- **Engine details** are described in [`docs/re/re_witness.md`](../re/re_witness.md) before any code uses them (`docs/LEGAL.md`, rule 4). The default battle settings must be loaded before a Game is built, and three patches are applied in memory only (ADR 0007):
+  - the battlefield never reports itself busy;
+  - the finish-check clause that ends a battle with no local player is skipped;
+  - client mode: the server logic's FireCannon and PlaceTile handlers are pointed at the base handlers, so the logic moves on only on the relay's EndTurn messages.
 - **The witness doesn't prove an honest client.** A modified client can still misreport its own turn state, as ADR 0005 noted. The witness only reproduces what honest engines compute.
 - **Two cases have never been observed:**
   - **The original Java client.** It runs the same engine DLL (an identical SHA-256), but the emulator's floating point has never been compared with real hardware in a witnessed battle.

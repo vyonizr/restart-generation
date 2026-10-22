@@ -50,7 +50,7 @@ To give new players more time, set `RG_RELAXED_FRIENDLY=1` or add `--relaxed` (`
 
 ### Battle results
 
-With `RG_GAME` set, the server runs a witness: one more engine, in a worker thread, that follows every battle's orders as the players' engines do ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). The engine then decides who won a ranked match: every player it ranks first gets the win and +10 fame, and every player gets a match. The witness also tells the server the moment a player is defeated, so the server stops waiting for that player. It runs on a `--public` server too, takes about 300 MB of memory, and restarts itself after 50 battles.
+With `RG_GAME` set, the server runs a witness: one more engine, in a worker thread, that follows every battle's orders as the players' engines do ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). The engine then decides who won a ranked match: every player it ranks first gets the win and +10 fame, and every player gets a match. The witness also tells the server the moment a player is defeated, so the server stops waiting for that player. It runs on a `--public` server too, takes about 270 MB of memory once booted, plus about 4 MB for every battle it follows, and restarts itself after 50 battles.
 
 Without `RG_GAME`, or when the witness fails, the server guesses the result: the last player standing, or else the one who made the last move. At startup a server without `RG_GAME` logs that battle results will be guessed, and each battle whose result is guessed logs one `battle over: result guessed (...)` line with the reason: `no server copy`, or `witness failed:` and the cause. Players are never told.
 
