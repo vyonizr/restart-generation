@@ -10,7 +10,7 @@ You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a 
 
 ## 1. Prepare the VPS
 
-1. Log in to the VPS with an SSH key as a user other than `root`.
+1. Log in to the VPS with an SSH key as a user other than `root`. Check that `~/.ssh/authorized_keys` holds your public key (`wc -l ~/.ssh/authorized_keys` prints at least 1). If the file is empty, your provider logs you in some other way, such as a web console or a password, and step 2 would lock you out: add your key first.
 2. Turn off password login: create `/etc/ssh/sshd_config.d/00-keys-only.conf` containing `PasswordAuthentication no`, and then run `sudo systemctl reload ssh`.
 
    > **Warning:** Keep this session open until a second SSH login works.
@@ -33,7 +33,7 @@ You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a 
 
    Docker publishes the ports it is told to by editing the firewall itself, so `ufw` doesn't guard them. That is fine here: `compose.yaml` publishes 80 and 443 for Caddy and nothing else. If your provider has its own firewall panel, allow the same ports there.
 5. Install security updates automatically: run `sudo apt install unattended-upgrades`. Ubuntu turns automatic updates on by default; on Debian, also run `sudo dpkg-reconfigure -plow unattended-upgrades`.
-6. Install Docker Engine and the Compose plugin by following [Docker's installation page for your system](https://docs.docker.com/engine/install/), and then run `sudo apt install git`. To check the installation, run the following command:
+6. Install Docker Engine and the Compose plugin by following [Docker's installation page for your system](https://docs.docker.com/engine/install/), and then run `sudo apt install git`. Use Docker's own apt repository, not Ubuntu's `docker.io` package; installing Docker's packages replaces Ubuntu's `containerd` and `runc`, which is expected. If `sudo apt update` fails with `Malformed entry 1 in sources file /etc/apt/sources.list.d/docker.sources`, an earlier attempt left an incomplete file (empty `Suites:`, no key in `/etc/apt/keyrings/`): run `sudo rm /etc/apt/sources.list.d/docker.sources`, and then follow Docker's page again. To check the installation, run the following command:
 
    ```sh
    docker compose version
@@ -44,6 +44,15 @@ You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a 
 ## 2. Configure DNS
 
 Create an `A` record (and `AAAA` for IPv6) that points your domain straight at the VPS's address, with the provider's proxy turned off ("DNS only"). Don't put a content delivery network or another proxy, such as Cloudflare's proxy (the orange cloud), in front: Caddy sets `X-Forwarded-For` to the visitor's address and the server trusts it (`RG_TRUST_PROXY`), so a second proxy would make every visitor look like one address and share one guest limit. A second proxy can also stop Caddy from getting its certificate.
+
+Before you go on, check that the name already points at this VPS, because Caddy asks Let's Encrypt for the certificate as soon as it starts, and a wrong record makes that fail:
+
+```sh
+getent hosts play.example.com
+curl -s ifconfig.me
+```
+
+Replace `play.example.com` with your domain. Both commands print the same address (the first may also print an IPv6 address). If they differ, wait for DNS to update and check again.
 
 ## 3. Get the code
 
@@ -108,6 +117,8 @@ docker compose logs rg
 docker compose logs caddy
 ```
 
+If you haven't logged in again since `usermod`, Docker needs `sudo`. Then write `RG_VERSION=$(git describe --tags --always) sudo -E docker compose up -d --build`. Without `-E`, `sudo` drops `RG_VERSION` and `/status` reports `"version":"unknown"`. The same applies to every `docker compose up --build` in [step 8](#8-update-the-server).
+
 The server's log contains `Discord sign-in is on: players are guests or members (ADR 0011)`. If the server stops instead, the log says why (usually no usable battle template, or a folder owned by the wrong user). Caddy's log shows it getting the certificate; the first visit can wait a few seconds for it.
 
 To check the server, do the following. Replace `play.example.com` with your domain.
@@ -139,9 +150,10 @@ The accounts database holds each member's Discord ID, name, stats, friend links,
 
 `npm run backup` writes a consistent copy while the server runs, into `data/backups/`, and keeps the newest 7 backups. To keep a different number, add `-- --keep NUMBER` after `npm run backup`, where `NUMBER` is how many backups to keep.
 
-To make a backup now, run the following command:
+To make a backup now, create the backups folder, owned by the container's user, and run the command. The folder must exist before the cron job below runs: the shell opens `cron.log` before Docker starts, and the job fails if the folder is missing.
 
 ```sh
+mkdir -p data/backups && sudo chown 1000:1000 data/backups
 docker compose exec rg npm run backup
 ```
 
@@ -150,6 +162,8 @@ To make a backup every night, run `crontab -e` as the VPS user and add the follo
 ```cron
 17 3 * * * cd /home/VPS_USER/restart-generation && docker compose exec -T rg npm run backup >> data/backups/cron.log 2>&1
 ```
+
+The cron job runs `docker` as that user, so the user must be in the `docker` group (see [step 1](#1-prepare-the-vps)). Run the command above once by hand first, and check that a file appears in `data/backups/`.
 
 If you lose the VPS, you lose the backups on it. Copy the newest backup to your PC regularly, for example weekly:
 
