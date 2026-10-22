@@ -123,12 +123,12 @@ function decide(roster, got) {
   return winner ? { winner, turns: turn, ranks, seats } : { winner: null, why: `winner is player ${firsts[0]}, no Bot`, ranks, seats };
 }
 
-// The witness's ranks for the battle the lane just played, from the gateway's log: it logs them when the witness has them, and
-// "battle over" once the server has scored the battle, up to 5 s later. Null if the witness had none.
+// The witness's ranks for the battle the lane just played, from the gateway's log line. The witness usually has them before the
+// Bots report; a witness still catching up gets 20 s. Null if it had none.
 async function witnessRanks(lane, mark) {
-  for (let i = 0; i < 200 && !lane.lines.slice(mark).some(l => l.includes('battle over')); i++) await sleep(100);
-  const line = lane.lines.slice(mark).find(l => l.includes('the witness ranks'));
-  return line && Object.fromEntries([...line.matchAll(/seat (\d+) (-?\d+)/g)].map(m => [m[1], +m[2]]));
+  const line = () => lane.lines.slice(mark).find(l => l.includes('the witness ranks'));
+  for (let i = 0; i < 200 && !line(); i++) await sleep(100);
+  return line() && Object.fromEntries([...line().matchAll(/seat (\d+) (-?\d+)/g)].map(m => [m[1], +m[2]]));
 }
 
 // The whole schedule is drawn up front from the seed, so a run is the same list of matches whatever the lanes finish first.
