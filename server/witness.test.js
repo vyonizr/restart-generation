@@ -13,6 +13,7 @@ const n = (fs.existsSync(counter) ? +fs.readFileSync(counter, 'utf8') : 0) + 1;
 fs.writeFileSync(counter, String(n));
 const plan = JSON.parse(fs.readFileSync(new URL('./plan.json', import.meta.url), 'utf8'))[n - 1] ?? 'fail';
 if (plan === 'fail') throw new Error('boot ' + n + ' failed');
+parentPort.postMessage({ 'watch:import': [import.meta.url] }); // what node --watch posts from every worker
 parentPort.on('message', m => {
   if (m.start && plan === 'grow') parentPort.postMessage({ grown: 1e12 });
   if (m.start && plan === 'rank') parentPort.postMessage({ ranks: { table: m.start.table, ranks: { 1: 1 } } });

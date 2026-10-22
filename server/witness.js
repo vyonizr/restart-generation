@@ -40,8 +40,10 @@ function spawn() {
       if (m.grown > RESTART_GROWN) restart(`it grew by ${Math.round(m.grown / 2 ** 20)} MB`);
       return;
     }
-    const { table: id } = m.defeat ?? m.ranks ?? m.failed;
-    const table = tables.get(id), f = followed.get(table);
+    // Anything else isn't the witness's: under `node --watch` (npm run dev) Node posts { 'watch:import': [...] } from the worker.
+    const body = m.defeat ?? m.ranks ?? m.failed;
+    if (!body) return;
+    const table = tables.get(body.table), f = followed.get(table);
     if (!f || f.outcome) return;
     if (m.defeat) f.onDefeat(m.defeat.seat);
     else if (m.ranks) {
