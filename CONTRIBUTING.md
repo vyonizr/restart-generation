@@ -18,6 +18,7 @@ After that, git refuses a commit that adds what the rules forbid, or whose messa
 - Read [`CONTEXT.md`](CONTEXT.md) for the words we use, and the architecture decision records (ADRs) in [`docs/adr/`](docs/adr/) for the decisions behind the code. A decision that is hard to reverse, surprising, and a real trade-off gets an ADR.
 - Write the page's text, the docs, and code comments in US English (color, license, canceled). Names that the game, its protocol, or the database fix keep their spelling, such as `favouriteHero`.
 - `npm test` runs the server's tests. `npm run browser-test` needs your own copy of the game (`RG_GAME` in `.env`). `npm run test:gameblob` needs a folder of raw captures (`RG_CAPTURES` in `.env`).
+- `npm run dev` starts a development server with the seed accounts of `server/seed.json`. When your change adds something that players can see on an account, a friend list, a ranking, a saved game, or a replay, add a seed row that shows it ([ADR 0023](docs/adr/0023-development-servers-load-seed-accounts.md)).
 - The server and the emulator have no dependencies and run as plain Node modules; the page is built with Vite and Svelte ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)).
 
 ## Write commit messages

@@ -29,6 +29,8 @@ function open(file) {
   const q = {
     insert: db.prepare('INSERT INTO replays (id, created, meta, text) VALUES (?, ?, ?, ?)'),
     player: db.prepare('INSERT OR IGNORE INTO players (replay, account) VALUES (?, ?)'),
+    replace: db.prepare('INSERT INTO replays (id, created, meta, text) VALUES (?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET created = excluded.created, meta = excluded.meta, text = excluded.text'),
+    dropPlayers: db.prepare('DELETE FROM players WHERE replay = ?'),
     get: db.prepare('SELECT created, meta, text FROM replays WHERE id = ? AND created > ?'),
     list: db.prepare('SELECT r.id, r.created FROM replays r JOIN players p ON p.replay = r.id WHERE p.account = ? AND r.created > ? ORDER BY r.created, r.id'),
     dropOfAccount: db.prepare('DELETE FROM replays WHERE id IN (SELECT replay FROM players WHERE account = ?)'),
@@ -45,6 +47,14 @@ function open(file) {
         for (const account of new Set(accounts)) q.player.run(id, String(account));
       });
       return id;
+    },
+    // A replay under an id the caller chose, as a seed replay (docs/adr/0023): replaces one with that id and its players.
+    put({ id, created, text, accounts, meta }) {
+      inTransaction(() => {
+        q.replace.run(id, created, JSON.stringify(meta), text);
+        q.dropPlayers.run(id);
+        for (const account of new Set(accounts)) q.player.run(id, String(account));
+      });
     },
     // { text, meta } while the replay is younger than 30 days at `now`, else null.
     get(id, now) {

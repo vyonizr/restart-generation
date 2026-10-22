@@ -2,7 +2,8 @@
 const assert = require('assert');
 const { Readable } = require('stream');
 const { open } = require('./store');
-const { configFrom, modeFrom, createAuth, GUEST_IDLE_MS } = require('./auth');
+const path = require('path');
+const { configFrom, modeFrom, dataFiles, createAuth, GUEST_IDLE_MS } = require('./auth');
 
 assert.strictEqual(configFrom({}).enabled, false);
 assert.strictEqual(configFrom({ RG_DISCORD_INVITE: 'https://discord.gg/abc-123' }).invite, 'https://discord.gg/abc-123');
@@ -32,6 +33,13 @@ assert.deepStrictEqual(mode(['--public'], {}), [true, false, false, 'accounts-na
 assert.throws(() => modeFrom(['--lan', '--public'], DISCORD), /choose one/);
 // Only --public marks a server for the internet, which never runs Bots.
 assert.deepStrictEqual([[], ['--lan'], ['--public']].map(f => modeFrom(['node', 'gateway.js', ...f], DISCORD).public), [false, false, true]);
+// A development server keeps both modes' files in data/dev/, so seed accounts never reach the files a player's server opens, and a
+// public server can't be one (docs/adr/0023).
+const files = (flags, env) => { const f = dataFiles(modeFrom(['node', 'gateway.js', ...flags], env), 'D'); return [f.accounts, f.replays]; };
+assert.deepStrictEqual(files([], DISCORD), [path.join('D', 'accounts.db'), path.join('D', 'replays.db')]);
+assert.deepStrictEqual(files(['--dev'], DISCORD), [path.join('D', 'dev', 'accounts.db'), path.join('D', 'dev', 'replays.db')]);
+assert.deepStrictEqual(files(['--dev', '--lan'], DISCORD), [path.join('D', 'dev', 'accounts-names.db'), path.join('D', 'dev', 'replays-names.db')]);
+assert.throws(() => modeFrom(['--dev', '--public'], DISCORD), /never has seed accounts/);
 
 let clock = 1e12;
 const setup = (over = {}) => {

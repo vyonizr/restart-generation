@@ -1,6 +1,7 @@
 // Guests and members (ADR 0011). Enabled only when the admin configures a Discord application;
 // otherwise the server keeps the name-only login of ADR 0009 and none of this runs.
 const crypto = require('crypto');
+const path = require('path');
 const { VALID_NAME } = require('../web/snap-ids.js');
 
 const HOUR = 3600e3;
@@ -41,19 +42,29 @@ function configFrom(env) {
 // How the server runs, from its command line and environment. --lan listens on every interface for a private network and is always
 // name-only (ADR 0009): a sign-in return address can't work from another device, so Discord is ignored. --public listens on every
 // interface for the internet and uses Discord when it is configured. Neither listens on this PC only. Name-only and Discord servers
-// keep their accounts in separate files, so switching modes never exposes one kind of account to the other's login.
+// keep their accounts in separate files, so switching modes never exposes one kind of account to the other's login. --dev keeps them
+// in data/dev/ instead, where `npm run seed` puts the seed accounts (docs/adr/0023); a public server never has seed accounts.
 function modeFrom(argv, env) {
-  const lan = argv.includes('--lan'), pub = argv.includes('--public');
+  const lan = argv.includes('--lan'), pub = argv.includes('--public'), dev = argv.includes('--dev');
   if (lan && pub) throw new Error('--lan and --public together: choose one. --lan is name-only play on a private network; --public serves the internet');
+  if (dev && pub) throw new Error('--dev and --public together: a public server never has seed accounts (docs/adr/0023)');
   const configured = configFrom(env), discord = configured.enabled && !lan;
   return {
     config: { ...configured, enabled: discord },
     listenAll: lan || pub,
     public: pub,         // a server for the internet: it never runs Bots (ADR 0008)
     discord,
+    dev,
     ignoredDiscord: lan && configured.enabled, // Discord is configured but --lan turns it off
     db: discord ? 'accounts.db' : 'accounts-names.db',
   };
+}
+
+// The account and replay files of a server in `mode` under `dataDir`: replays sit beside the accounts they name (replays.db or
+// replays-names.db), so an account id never matches replays the other kind of account played.
+function dataFiles(mode, dataDir) {
+  const dir = mode.dev ? path.join(dataDir, 'dev') : dataDir;
+  return { dir, accounts: path.join(dir, mode.db), replays: path.join(dir, mode.db.replace(/^accounts/, 'replays')) };
 }
 
 // What the guest limit counts as one address: an IPv6 address's /64 network (the first four groups, after expanding ::), since
@@ -346,4 +357,4 @@ function createAuth({ store, config, busy, remove, dropReplays = () => {}, repla
   };
 }
 
-module.exports = { configFrom, modeFrom, createAuth, GUEST_IDLE_MS, MEMBER_TOKEN_MS };
+module.exports = { configFrom, modeFrom, dataFiles, createAuth, GUEST_IDLE_MS, MEMBER_TOKEN_MS };

@@ -2,7 +2,7 @@
 
 Accounts move from `data/accounts.json` to a SQLite database, `data/accounts.db`, opened through the built-in `node:sqlite` (Node 22.13 or later, no flag). The JSON file was rewritten whole and synchronously on every save, and it keyed friend links by name inside each account. The guest wipe (ADR 0011) needs deletes that clean up links, ids that are never reused (the old `count + 1` would hand a living account's id to a new one after a wipe), and indexed lookups by name and Discord ID. SQLite gives all of that with no new dependency and no second service.
 
-The database starts empty. `data/accounts.json` is not imported and is never read again; players on an existing server register again at their next login.
+The database starts empty. `data/accounts.json` is not imported and is never read again; players on an existing server register again at their next login. A development server is the exception: it loads seed accounts into its own files (ADR 0023).
 
 ## Considered options
 

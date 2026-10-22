@@ -12,7 +12,7 @@ const { PORT, HTTP_PORT } = require('./ports');
 const gameServer = require('./casino');
 const bots = require('./bots');
 const store = require('./store');
-const { modeFrom, createAuth } = require('./auth');
+const { modeFrom, dataFiles, createAuth } = require('./auth');
 const { createAdmin } = require('./admin');
 const replays = require('./replays');
 const { replayPage } = require('./replaypage');
@@ -37,15 +37,16 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 
-// Accounts (ADR 0010): accounts-names.db for name-only servers, accounts.db for Discord ones. RG_DB overrides the file; tests use ':memory:'.
-fs.mkdirSync(DATA_DIR, { recursive: true });
-const db = store.open(process.env.RG_DB || path.join(DATA_DIR, MODE.db));
-// Replays (CONTEXT.md), kept for 30 days in a file beside the accounts they name: replays.db, or replays-names.db for the name-only
-// accounts, so an account id never matches replays the other kind of account played. RG_REPLAYS=0 keeps no new ones and serves
-// none; the file stays open so an account deleted meanwhile still takes its replays with it. RG_REPLAYS_DB overrides the file, as
-// RG_DB does for tests.
+// Accounts (ADR 0010): accounts-names.db for name-only servers, accounts.db for Discord ones, in data/dev/ with --dev (docs/adr/0023).
+// RG_DB overrides the file; tests use ':memory:'.
+const FILES = dataFiles(MODE, DATA_DIR);
+fs.mkdirSync(FILES.dir, { recursive: true });
+const db = store.open(process.env.RG_DB || FILES.accounts);
+// Replays (CONTEXT.md), kept for 30 days in a file beside the accounts they name (dataFiles). RG_REPLAYS=0 keeps no new ones and
+// serves none; the file stays open so an account deleted meanwhile still takes its replays with it. RG_REPLAYS_DB overrides the
+// file, as RG_DB does for tests.
 const REPLAYS = process.env.RG_REPLAYS !== '0';
-const replayStore = replays.open(process.env.RG_REPLAYS_DB || (process.env.RG_DB === ':memory:' ? ':memory:' : path.join(DATA_DIR, MODE.db.replace(/^accounts/, 'replays'))));
+const replayStore = replays.open(process.env.RG_REPLAYS_DB || (process.env.RG_DB === ':memory:' ? ':memory:' : FILES.replays));
 
 const LOBBY = { id: '1', name: 'resgen' };
 const sessions = new Map(); // sid -> session
@@ -440,6 +441,7 @@ httpServer.listen(HTTP_PORT, HOST, () => {
   if (!fs.existsSync(path.join(DIST_DIR, 'index.html'))) log('The page is not built: run `npm run build` (after `npm install`)');
   log(MODE.discord ? 'Discord sign-in is on: players are guests or members (ADR 0011)' : 'Name-only login (ADR 0009)');
   if (MODE.ignoredDiscord) log('Discord sign-in is off in --lan mode: it can only work for a public server (--public)');
+  if (MODE.dev) log(`Development server: accounts and replays in data/dev/, with the seed accounts of \`npm run seed\` (docs/adr/0023)`);
   // A public server never runs Bots, whether or not it serves a copy of the game. Without a SNAP address bots.available() is
   // false, so the page never asks and no engine is started.
   if (MODE.public) log('Bots are off on a --public server (ADR 0008)');

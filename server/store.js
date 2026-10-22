@@ -59,11 +59,13 @@ function open(file) {
   sql('byToken', 'SELECT a.*, t.expires AS token_expires FROM tokens t JOIN accounts a ON a.id = t.account WHERE t.hash = ?');
   sql('dates', 'SELECT created, last_active FROM accounts WHERE id = ?');
   sql('insert', 'INSERT INTO accounts (name, kind, discord_id, created, last_active) VALUES (?, ?, ?, ?, ?)');
+  sql('upsert', 'INSERT INTO accounts (name, kind, discord_id, created, last_active) VALUES (?, ?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET kind = excluded.kind, discord_id = excluded.discord_id, created = excluded.created, last_active = excluded.last_active');
   sql('touch', 'UPDATE accounts SET last_active = ? WHERE id = ?');
   sql('save', 'UPDATE accounts SET fame = ?, matches = ?, wins = ?, rescues = ?, highest_fame = ?, favourite_hero = ?, achievements = ? WHERE id = ?');
   sql('promote', "UPDATE accounts SET kind = 'member', name = ?, discord_id = ? WHERE id = ?");
   sql('remove', 'DELETE FROM accounts WHERE id = ?');
   sql('addToken', 'INSERT INTO tokens (hash, account, expires) VALUES (?, ?, ?)');
+  sql('putToken', 'INSERT INTO tokens (hash, account, expires) VALUES (?, ?, ?) ON CONFLICT (hash) DO UPDATE SET account = excluded.account, expires = excluded.expires');
   sql('renewToken', 'UPDATE tokens SET expires = ? WHERE hash = ?');
   sql('dropToken', 'DELETE FROM tokens WHERE hash = ?');
   sql('dropTokens', 'DELETE FROM tokens WHERE account = ?');
@@ -117,12 +119,21 @@ function open(file) {
     create(name, kind, now, discordId = null) {
       return account(q.byId.get(q.insert.run(name, kind, discordId, now, now).lastInsertRowid));
     },
+    // A seed account (docs/adr/0023): made, or brought back to the seed's kind, Discord ID and dates. Stats are save()'s.
+    upsert({ name, kind, discordId = null, created, lastActive }) {
+      q.upsert.run(name, kind, discordId, created, lastActive);
+      const acc = account(q.byName.get(name));
+      acc.name = name; acc.kind = kind; acc.discordId = discordId;
+      return acc;
+    },
     // A fresh token for the account, which the caller hands to the browser. Only its hash is stored.
     issueToken(acc, expires = null) {
       const token = crypto.randomBytes(32).toString('base64url');
       q.addToken.run(hash(token), Number(acc.id), expires);
       return token;
     },
+    // A token the caller already holds, as a seed account's: stored by its hash, moved to `acc` if another account had it.
+    putToken(acc, token, expires = null) { q.putToken.run(hash(token), Number(acc.id), expires); },
     revokeToken: token => { q.dropToken.run(hash(token)); },
     revokeTokens: acc => { q.dropTokens.run(Number(acc.id)); },
     dropExpiredTokens: now => { q.expiredTokens.run(now); },

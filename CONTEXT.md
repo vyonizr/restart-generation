@@ -40,6 +40,10 @@ _Avoid_: user, connected player, active player
 Anyone who opens the browser client's page, online or not. A server that sends the game sends it to every visitor, so visitors, not online players, set what that costs.
 _Avoid_: user, page view, session
 
+**Seed account**:
+A made-up account that a server used for developing the site loads at start, so that rankings, friends, rooms, and replays look lived-in. No player owns it, it isn't a bot, and a public server never has one.
+_Avoid_: dummy account, fake user, test account
+
 ### Running a server
 
 **Admin**:

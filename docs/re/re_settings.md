@@ -68,6 +68,8 @@ These were checked in the emulator. After Primary was rebound to Z, Ctrl no long
 | Up, Down, Left, Right, and their menu twins | The arrow keys |
 | Chat | E |
 
+With no `settings.cfg`, the engine writes its defaults when it next writes the file. The `deinit` export does that, and it was checked in the emulator. The first 19 bytes are then flags 1, 1, and 0, followed by the numbers 4, 4, 4, and a language value that depends on the language the page passes to `init`: 126 for `en`, 139 for `fi`, and 157 for `de`. With the default keys, the whole file is 163 bytes.
+
 ## Key IDs
 
 `FUN_100012c0` turns a Java key code and key location into an engine key ID, and `FUN_10001e70` turns it back. These are the IDs a written file can hold for the keyboard:
