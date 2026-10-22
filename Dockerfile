@@ -17,6 +17,9 @@ COPY web/tools web/tools
 COPY --from=page /app/web/dist web/dist
 USER node
 EXPOSE 8080 8976
+# The release the server reports in /status (ADR 0019). The image has no .git, so compose passes it in (compose.yaml).
+ARG RG_VERSION=unknown
+ENV RG_VERSION=$RG_VERSION
 # --public: listen on all interfaces inside the container, with Discord sign-in if it is configured. Which ports are published
 # decides who connects: compose.yaml publishes none (Caddy is in front), compose.lan.yaml runs it with --lan instead.
 CMD ["node", "server/gateway.js", "--public"]

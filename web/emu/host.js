@@ -16,7 +16,7 @@ export const VK = { ENTER: 10, BACK_SPACE: 8, SHIFT: 16, CONTROL: 17, ESCAPE: 27
 export const UNLOCKS = [
   { what: 'every mission playable', va: 0x100d7a70, from: '8b4424088b4c2404', to: 'b001c20800' }, // mov al, 1; ret 8
   { what: 'no story locked', va: 0x100c8a98, from: '8b570433c9', to: 'eb4c' }, // FUN_100c89c0: a story with no playable mission shows 0%
-  { what: 'no hero greyed out', va: 0x100dc850, from: '8b41348b4c2404c6040101c20400', to: 'c20400' }, // ret 4
+  { what: 'no hero grayed out', va: 0x100dc850, from: '8b41348b4c2404c6040101c20400', to: 'c20400' }, // ret 4
 ];
 // A player alone in their friendly room can press Start, for a match the server fills with bots. The lobby
 // otherwise shows and accepts Start only with another member listed (FUN_100eaaf0, FUN_100eadd0 key 4).

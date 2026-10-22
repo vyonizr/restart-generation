@@ -167,7 +167,9 @@ For the whole procedure on a virtual private server (VPS), from a bare host to u
 5. Copy your `battle-templates.zip` file into `data`. For more information, see [Battle templates](#battle-templates).
 
    `data` is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. Without a usable template, the server refuses to start and prints why, and `restart: unless-stopped` then keeps retrying.
-6. Run `docker compose up -d --build` and open `https://DOMAIN/`. The first visit can take a few seconds while Caddy gets the certificate; `docker compose logs caddy` shows the result.
+6. Run `RG_VERSION=$(git describe --tags --always) docker compose up -d --build` and open `https://DOMAIN/`. The first visit can take a few seconds while Caddy gets the certificate; `docker compose logs caddy` shows the result.
+
+   `RG_VERSION` is the release that `/status` and the **Notices** dialog report, because the build can't see `.git`. Without it they report `unknown`. In PowerShell, run `$env:RG_VERSION = git describe --tags --always` first, and then `docker compose up -d --build`.
 
 Caddy keeps its certificates in a Docker volume (`caddy_data`). If you lose that volume, Caddy requests the certificates from Let's Encrypt again, and Let's Encrypt limits how often it issues certificates for one name. The Java client's TCP port 8976 isn't published: a Discord-enabled server refuses the Java client anyway, because it can't send a token.
 
@@ -180,7 +182,7 @@ RG_GAME_PATH=./ResetGeneration-Standalone.zip
 BIND=127.0.0.1
 ```
 
-Run `docker compose -f compose.lan.yaml up -d --build` and open `http://localhost:8080/`. It keeps accounts and battle templates in `./data` the same way, and it only warns when there are no templates. The container serves plain HTTP, so the screen wake lock isn't available on another device unless you put HTTPS in front.
+Run `RG_VERSION=$(git describe --tags --always) docker compose -f compose.lan.yaml up -d --build` and open `http://localhost:8080/`. It keeps accounts and battle templates in `./data` the same way, and it only warns when there are no templates. The container serves plain HTTP, so the screen wake lock isn't available on another device unless you put HTTPS in front.
 
 ## Battle templates
 

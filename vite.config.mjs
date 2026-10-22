@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
-// The page carries the licences it needs, as licenses.txt next to index.html: the notices of what it includes, then our own LICENSE.
+// The page carries the licenses it needs, as licenses.txt next to index.html: the notices of what it includes, then our own LICENSE.
 // Every deployment of web/dist ships them without anyone copying files (docs/LEGAL.md).
 const licenses = () => ({
   name: 'licenses',

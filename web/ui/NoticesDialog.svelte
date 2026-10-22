@@ -22,6 +22,6 @@
     <p>This server sends a copy of Reset Generation to its visitors.{#if page.server?.contact}{' A rights holder who wants it removed can write to '}<a href={contactHref(page.server.contact)} target="_blank" rel="noopener">{page.server.contact}</a>.{/if}</p>
   {/if}
   {#if page.server?.accounts}<p>This server keeps your Discord ID and in-game name, and no email address. <strong>Delete my account</strong> removes them.</p>{/if}
-  <p>Free software under the GNU GPL, version 3, with no warranty. <a href="licenses.txt" target="_blank" rel="noopener">Licences</a> · <a href={SOURCE} target="_blank" rel="noopener">Source</a></p>
+  <p>Free software under the GNU GPL, version 3, with no warranty. <a href="licenses.txt" target="_blank" rel="noopener">Licenses</a> · <a href={SOURCE} target="_blank" rel="noopener">Source</a>{#if page.server?.version}{' · Version '}{page.server.version.replace(/^v(?=\d)/, '')}{/if}</p>
   <div class="row"><button type="button" id="notices-close" onclick={close}>Close</button></div>
 </Dialog>

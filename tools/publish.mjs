@@ -14,6 +14,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { scrub, scrubbable, DROP } from './scrub-tree.mjs';
+import { badSubject } from './commit-format.mjs';
 
 const USER = 'vyonizr';
 const EMAIL = `${USER}@users.noreply.github.com`;
@@ -131,6 +132,14 @@ const realKeys = [...new Set(git(['log', '-p', '--format=', '-G', '[0-9A-F]{64}'
 const realEmails = [...new Set(list(git(['log', '--format=%ae%n%ce', branch])))].filter(e => e !== EMAIL);
 const leaked = [...realEmails, ...realNames, ...realKeys].filter(s => git(['log', '--format=%h', '-S' + s, range, '--', '.']) || git(['log', '--format=%h', '-i', '--fixed-strings', '--grep=' + s, range]));
 if (leaked.length) problems.push(`${leaked.length} author name(s), address(es) or key(s) found in files or messages`);
+// Releases are numbered from Conventional Commits (ADR 0019). Only commits made after the format check arrived are held to it:
+// those whose first parent already has tools/commit-format.mjs. Merge commits are exempt, as in the hook.
+const misformatted = list(git(['log', '--format=%h%x09%P%x09%s', range])).map(line => line.split('\t')).filter(([, parents, subject]) => {
+  const [parent, ...more] = parents.split(' ').filter(Boolean);
+  if (!parent || more.length) return false;
+  return spawnSync('git', ['cat-file', '-e', `${parent}:tools/commit-format.mjs`], { cwd: root }).status === 0 && badSubject(subject);
+});
+for (const [id, , subject] of misformatted) problems.push(`${id}: ${badSubject(subject)}`);
 
 console.log(`\n${fresh.length} new commit(s) for ${remote} main, from ${branch}:`);
 for (const line of list(git(['log', '--format=%h %s', range]))) console.log(`  ${line}`);

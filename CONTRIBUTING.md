@@ -11,13 +11,31 @@ npm install
 npm run hooks
 ```
 
-After that, git refuses a commit that adds what the rules forbid. `npm test` runs the same check, and so does GitHub on every pull request.
+After that, git refuses a commit that adds what the rules forbid, or whose message doesn't follow the [commit message format](#write-commit-messages). `npm test` runs the same legal check, and so does GitHub on every pull request.
 
 ## How to work here
 
 - Read [`CONTEXT.md`](CONTEXT.md) for the words we use, and the architecture decision records (ADRs) in [`docs/adr/`](docs/adr/) for the decisions behind the code. A decision that is hard to reverse, surprising, and a real trade-off gets an ADR.
+- Write the page's text, the docs, and code comments in US English (color, license, canceled). Names that the game, its protocol, or the database fix keep their spelling, such as `favouriteHero`.
 - `npm test` runs the server's tests. `npm run browser-test` needs your own copy of the game (`RG_GAME` in `.env`). `npm run test:gameblob` needs a folder of raw captures (`RG_CAPTURES` in `.env`).
 - The server and the emulator have no dependencies and run as plain Node modules; the page is built with Vite and Svelte ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)).
+
+## Write commit messages
+
+Every push to the public `main` is a release, numbered from the commit messages ([ADR 0019](docs/adr/0019-releases-are-tagged-in-ci-on-the-public-main.md)), so each subject follows [Conventional Commits](https://www.conventionalcommits.org/): a type, an optional scope in parentheses, a colon, and a plain sentence. For example:
+
+```text
+fix: show the game download as a percentage of its bytes
+feat(bots): let a player alone in a friendly room start with bots
+```
+
+The type is one of `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`, or `style`. The release notes group the commits by type.
+
+A breaking change (see the entry in [`CONTEXT.md`](CONTEXT.md)) is one that makes the admin act during the update, or that makes going back to the previous release unsafe. Mark it with `!` after the type, such as `feat!:`, and say in a `BREAKING CHANGE:` footer what the admin must do. That footer goes into the release notes. Gameplay and page changes are never breaking.
+
+Below version 1.0, a breaking change raises the minor number (0.1.5 to 0.2.0), and everything else raises the patch number. From 1.0, `feat` raises the minor number and a breaking change the major number.
+
+Merge commits and git's own `Revert "…"` subjects are exempt. `tools/publish.mjs` refuses to publish a commit that the hook would have refused.
 
 ## What you confirm by contributing
 

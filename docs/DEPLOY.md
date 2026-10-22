@@ -99,10 +99,10 @@ In the Discord application, set the redirect to `https://DOMAIN/auth/discord/cal
 
 ## 6. Start and check the server
 
-Start the containers and read their logs:
+Start the containers and read their logs. `RG_VERSION` gives the image the release that `/status` reports, because the build can't see `.git`:
 
 ```sh
-docker compose up -d --build
+RG_VERSION=$(git describe --tags --always) docker compose up -d --build
 docker compose ps
 docker compose logs rg
 docker compose logs caddy
@@ -118,7 +118,7 @@ To check the server, do the following. Replace `play.example.com` with your doma
    curl -s https://play.example.com/status
    ```
 
-   The output includes `"accounts":true` and `"servesGame":false`.
+   The output includes `"accounts":true`, `"servesGame":false`, and `"version"` with the release you checked out, such as `"v0.1.2"`. A version such as `v0.1.2-1-gabc1234` means you pulled a commit before its release was tagged.
 2. Open `https://play.example.com/` in a browser. Check that the page loads, that **Sign in with Discord** goes to Discord and comes back signed in, and that a guest can start a game.
 3. With `RG_ADMIN_TOKEN` set, check that Caddy keeps `/admin/` from the internet ([ADR 0016](adr/0016-the-admin-deletes-accounts-through-the-running-server.md)):
 
@@ -175,14 +175,16 @@ A server without Discord sign-in keeps `accounts-names.db` instead. Keep `data/b
 
 ## 8. Update the server
 
+Each release on the repository's [Releases page](https://github.com/vyonizr/restart-generation/releases) lists what changed. Read the notes of every release since the one you run (`/status` shows it). While the version is below 1.0, a new minor number, such as 0.2.0 after 0.1.5, means a breaking change: the notes say what you must do during the update, and going back afterward may need the backup.
+
 The schema has no migrations (`server/store.js`), so a downgrade after a schema change isn't safe. Back up first, every time:
 
 ```sh
 cd ~/restart-generation
 docker compose exec -T rg npm run backup
-git rev-parse --short HEAD     # note it: this is where you roll back to
+git describe --tags --always   # note it: this is where you roll back to
 git pull
-docker compose up -d --build
+RG_VERSION=$(git describe --tags --always) docker compose up -d --build
 ```
 
 Then repeat the checks in [step 6](#6-start-and-check-the-server). To free disk space, run `docker image prune -f`.
@@ -190,11 +192,11 @@ Then repeat the checks in [step 6](#6-start-and-check-the-server). To free disk 
 To roll back, run the following commands:
 
 ```sh
-git checkout COMMIT
-docker compose up -d --build
+git checkout RELEASE
+RG_VERSION=$(git describe --tags --always) docker compose up -d --build
 ```
 
-Replace `COMMIT` with the commit that `git rev-parse` printed before the update.
+Replace `RELEASE` with what `git describe` printed before the update, such as `v0.1.2`.
 
 If the schema changed between the two versions, also restore the backup from before the update ([step 7](#7-back-up-the-accounts)). Before the next update, run `git checkout main`, so that `git pull` has a branch to pull.
 

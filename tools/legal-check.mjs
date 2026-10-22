@@ -2,9 +2,10 @@
 //   node tools/legal-check.mjs                 every tracked file, and every file that git would add
 //   node tools/legal-check.mjs --staged        only what is staged (the pre-commit hook)
 //   node tools/legal-check.mjs --history [rev] every file of every commit that rev reaches (default HEAD)
-//   node tools/legal-check.mjs --install-hook  make git run this before each commit here (core.hooksPath = .githooks)
+//   node tools/legal-check.mjs --install-hook  make git run this before each commit here, and tools/commit-format.mjs on its
+//                                              message (core.hooksPath = .githooks)
 //   (rev may be a range, a..b: tools/publish.mjs checks only the commits it is about to push)
-// Exit code 1 if anything is refused. It cannot recognise a screenshot or a recording of the game; docs/LEGAL.md says what a
+// Exit code 1 if anything is refused. It cannot recognize a screenshot or a recording of the game; docs/LEGAL.md says what a
 // contributor must not add, and an exception goes in tools/legal-allow.json with its provenance.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -49,7 +50,7 @@ export function checkText(file, text) {
   const hits = DECOMPILED.filter(r => r.test(text)).length;
   if (hits >= 3) return 'looks like decompiler output (Ghidra pseudocode names)';
   if (DISASSEMBLY.test(text)) return 'looks like a disassembly listing';
-  // A digest that is labelled as one (sha256:…) is a checksum, not data.
+  // A digest that is labeled as one (sha256:…) is a checksum, not data.
   if (HEX_BLOB.test(text.replace(/\bsha(?:1|256|384|512)[:=\s"]+[0-9A-Fa-f]+/gi, '')) && !allow.hex[file]) return 'contains a long hex string; if it is a protocol constant, list the file in tools/legal-allow.json';
   return null;
 }
@@ -71,7 +72,7 @@ function checkFile(file, read, size) {
 function run(argv) {
   if (argv.includes('--install-hook')) {
     const r = spawnSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root });
-    console.log(r.status === 0 ? 'git will run tools/legal-check.mjs --staged before each commit.' : 'not a git checkout: nothing installed.');
+    console.log(r.status === 0 ? 'git will run tools/legal-check.mjs --staged before each commit, and tools/commit-format.mjs on its message.' : 'not a git checkout: nothing installed.');
     return r.status === 0 ? 0 : 1;
   }
   const problems = [];

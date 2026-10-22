@@ -2,7 +2,11 @@
 # The gateway publishes no port. For a private network use compose.lan.yaml instead. See "Run in Docker" in docs/HOSTING.md.
 services:
   rg:
-    build: .
+    build:
+      context: .
+      args:
+        # The release that /status reports (ADR 0019). Start with RG_VERSION=$(git describe --tags --always) in front.
+        RG_VERSION: ${RG_VERSION:-unknown}
     restart: unless-stopped
     expose:
       - "8080"

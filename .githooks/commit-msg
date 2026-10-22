@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuses a commit whose subject isn't a Conventional Commit, which releases are numbered from (ADR 0019). Turn it on once per
+# clone with: npm run hooks
+exec node tools/commit-format.mjs "$1"

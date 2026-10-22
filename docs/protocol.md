@@ -319,6 +319,7 @@ The `GET /status` reply has the following fields:
 
 | Field | Meaning |
 | --- | --- |
+| `version` | The release the server runs, such as `v0.1.2`: `RG_VERSION`, else `git describe --tags --always` of its clone, else `dev` ([ADR 0019](adr/0019-releases-are-tagged-in-ci-on-the-public-main.md)). |
 | `accounts` | Whether Discord sign-in is on. |
 | `servesGame` | Whether the server sends the game files itself (`RG_GAME` is set). |
 | `unlockAll` | Whether the page opens every story and hero from the start: true unless the server runs with `--public` ([ADR 0007](adr/0007-patch-the-engine-in-memory.md)). |

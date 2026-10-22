@@ -117,7 +117,7 @@ function tableState(t, timeLimit, api) {
   };
 }
 
-// The seat numbers 1..n in random order. A seat number fixes the castle, the colour (the client uses
+// The seat numbers 1..n in random order. A seat number fixes the castle, the color (the client uses
 // (team - 1) % 6) and the place in the turn order.
 function shuffledSeats(n, api) {
   const seats = Array.from({ length: n }, (_, i) => i + 1);

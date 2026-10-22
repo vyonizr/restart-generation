@@ -21,7 +21,7 @@ New images, video, audio, or fonts must be listed in `tools/legal-allow.json` wi
 ## What enforces it
 
 - `npm run legal-check` refuses the file types, folders, unlisted media, decompiler output, disassembly, long hex strings, secrets, and local paths that the preceding rules name. `npm test` runs it.
-- `npm run hooks` makes git run it before every commit in your clone. Run it once.
+- `npm run hooks` makes git run it before every commit in your clone, together with the commit message check ([CONTRIBUTING.md](../CONTRIBUTING.md#write-commit-messages)). Run it once.
 - `.github/workflows/legal.yml` runs it on every push and pull request, over the whole history as well.
 - It can't recognize a screenshot or a recording. Rule 2 is on you.
 
@@ -58,8 +58,10 @@ To publish, do the following:
 1. Merge what you want to publish into `development`, and check that `npm test` passes.
 2. Run `node tools/publish.mjs`. It works only in this checkout and changes nothing remote: it rewrites only the commits that aren't published, runs the legal check, and lists what it found.
 
-   In detail, it fetches the public `main` (into `refs/public/main`), matches each published commit to its source commit, and rewrites only the newer ones on top. Every author becomes the GitHub no-reply address. The files are scrubbed by `tools/scrub-tree.mjs`, which rewrites wording that named the original client's classes, an example domain that held the game's name, and the authors' real names in files. The design critique in `.impeccable/critique`, which says the page's look is borrowed from the rights holder's site, is left out. Then it runs the legal check, looks for real names, addresses, and keys in the new commits, and shows them. It pushes nothing.
+   In detail, it fetches the public `main` (into `refs/public/main`), matches each published commit to its source commit, and rewrites only the newer ones on top. Every author becomes the GitHub no-reply address. The files are scrubbed by `tools/scrub-tree.mjs`, which rewrites wording that named the original client's classes, an example domain that held the game's name, and the authors' real names in files. The design critique in `.impeccable/critique`, which says the page's look is borrowed from the rights holder's site, is left out. Then it runs the legal check, looks for real names, addresses, and keys in the new commits, checks their message format, and shows them. It pushes nothing.
 3. Read the list, and then run `node tools/publish.mjs --push`. It pushes only when the checks pass, and never with force: if the public `main` has a commit it can't match, it stops. The first time you publish to an empty repository, it rewrites the whole branch.
+
+   Each push to the public `main` is a release: once the checks pass there too, `.github/workflows/release.yml` tags it and writes its notes ([ADR 0019](adr/0019-releases-are-tagged-in-ci-on-the-public-main.md)).
 
 Other local branches aren't published. Some of them hold reference screenshots of third-party websites and must never be published.
 

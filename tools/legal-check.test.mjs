@@ -23,7 +23,7 @@ assert.ok(checkText('x.txt', '1000a1b0:  8b 4c 24 04        mov ecx,[esp+4]'));
 assert.ok(checkText('x.md', 'copy it from C:\\Users\\someone\\Documents'));
 assert.ok(checkText('x.md', 'RG_DISCORD_CLIENT_SECRET=abcdefghijklmnop1234'));
 assert.strictEqual(checkText('x.md', 'RG_DISCORD_CLIENT_SECRET=\nRG_ADMIN_TOKEN=<a long random string>'), null);
-// Long hex strings are refused, except in a listed file or when labelled as a checksum.
+// Long hex strings are refused, except in a listed file or when labeled as a checksum.
 const hex = 'A'.repeat(64);
 assert.ok(checkText('web/other.js', `const k = '${hex}';`));
 assert.strictEqual(checkText('server/snap.js', `const k = '${hex}';`), null);

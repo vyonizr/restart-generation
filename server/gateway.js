@@ -13,6 +13,14 @@ const store = require('./store');
 const { modeFrom, createAuth } = require('./auth');
 const { createAdmin } = require('./admin');
 
+// The release this server runs (ADR 0019): RG_VERSION, which the Docker build sets, else what git says of this clone (a tag
+// such as v0.1.2, or a commit for a clone of development, which has no tags), else dev.
+const VERSION = process.env.RG_VERSION || (() => {
+  try {
+    return require('child_process').execFileSync('git', ['describe', '--tags', '--always'], { cwd: path.join(__dirname, '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch { return ''; }
+})() || 'dev';
+
 const PORT = Number(process.env.PORT || 8976);
 let MODE;
 try { MODE = modeFrom(process.argv, process.env); } catch (e) { console.error(e.message); process.exit(1); }
@@ -345,7 +353,7 @@ http.createServer((req, res) => {
   }
   if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ accounts: auth.enabled, servesGame: Boolean(process.env.RG_GAME), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
+    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: Boolean(process.env.RG_GAME), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting() }));
   }
   if (parsed.pathname.startsWith('/admin/')) {
     admin.http(req, res, parsed);

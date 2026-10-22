@@ -64,7 +64,7 @@ async function finishSignIn(code) {
       let name = r.suggested, error = '';
       for (;;) {
         name = await askName(name, error);
-        if (name === null) { closeName(); notice(`Sign-in cancelled. You're still playing as ${account.name}.`, dismiss); return; }
+        if (name === null) { closeName(); notice(`Sign-in canceled. You're still playing as ${account.name}.`, dismiss); return; }
         try { await account.finish(code, { name }); break; } catch (e) {
           if (!NAME_ERRORS[e.code]) { closeName(); throw e; }
           error = NAME_ERRORS[e.code];
@@ -73,7 +73,7 @@ async function finishSignIn(code) {
       closeName();
     } else if (r.status === 'confirm') {
       const yes = await ask({ title: `Sign in as ${r.name}?`, text: `That Discord account already has a player. Your guest progress (${r.guestFame} fame) and this browser's saved game are discarded.`, yes: 'Continue' });
-      if (!yes) { notice(`Sign-in cancelled. You're still playing as ${account.name}.`, dismiss); return; }
+      if (!yes) { notice(`Sign-in canceled. You're still playing as ${account.name}.`, dismiss); return; }
       await account.finish(code, { confirm: true });
     }
     await account.open();
@@ -96,7 +96,7 @@ async function start() {
     notice(reason || "Couldn't reach the account server. Online play won't work until you reload.", dismiss);
     return;
   }
-  if (returned?.[1] === 'signin-error') notice(returned[2] === 'cancelled' ? `Sign-in cancelled. You're still playing as ${account.name}.` : "Discord sign-in didn't work. Try again.", dismiss);
+  if (returned?.[1] === 'signin-error') notice(returned[2] === 'cancelled' ? `Sign-in canceled. You're still playing as ${account.name}.` : "Discord sign-in didn't work. Try again.", dismiss);
   else if (returned) await finishSignIn(returned[2]); // the account must be final before the saved game is settled
 }
 

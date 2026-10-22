@@ -56,7 +56,7 @@ When a server answers, the page shows how many players are online: in the online
   - **Notices dialog, where the player brings the files:** the note "Windows standalone build only. Your files stay in this browser."
   - **Notices dialog, where a server sends the game files itself:** a statement that it does, with the admin's `RG_CONTACT` for a rights holder who wants them removed ([ADR 0018](docs/adr/0018-publishing-with-legal-guardrails.md)).
   - **Notices dialog, where a server has accounts:** what it keeps (a Discord ID and a name, no email).
-  - **Notices dialog, always:** that the project is free software under the GNU General Public License, version 3, with no warranty, linking to `/licenses.txt` and to the [source repository](https://github.com/vyonizr/restart-generation).
+  - **Notices dialog, always:** that the project is free software under the GNU General Public License, version 3, with no warranty, linking to `/licenses.txt` and to the [source repository](https://github.com/vyonizr/restart-generation). On a server, the same line ends with the version it runs, such as "Version 0.1.2".
 - No RedLynx or Ubisoft logos, and nothing that reads as an official RedLynx or Ubisoft site.
 
 ## Evidence on Hand

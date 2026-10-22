@@ -19,7 +19,7 @@ assert.strictEqual(fillsWithBots(3, false, true), false);
 assert.strictEqual(fillsWithBots(4, true, true), false);
 console.log('friendly bot choice ok');
 
-// The page recognises the engine's Start (web/snap.js) by the bytes this server reads.
+// The page recognizes the engine's Start (web/snap.js) by the bytes this server reads.
 const { encode, T, u32 } = require('./mt');
 import('../web/snap.js').then(({ startRoom }) => {
   const start = id => encode(T.CASINO, Buffer.concat([Buffer.from([0, 0x1c]), u32(id)]));

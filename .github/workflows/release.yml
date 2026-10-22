@@ -1,0 +1,43 @@
+# Every push to the public main is a release once the checks pass (ADR 0019). release-it numbers it from the Conventional
+# Commits since the last tag (.release-it.json), tags the pushed commit vX.Y.Z, and writes the GitHub Release. It commits
+# nothing: tools/publish.mjs is the only writer of main. A manual run releases the version typed in, such as 1.0.0.
+name: release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version to release instead of the one the commits give, for example 1.0.0
+        required: false
+permissions:
+  contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: node tools/legal-check.mjs --history HEAD
+      # Pinned, and outside the project, so neither package.json nor the Docker build carries it.
+      - run: npm install --prefix "$RUNNER_TEMP/release-it" --no-audit --no-fund release-it@21.1.1 @release-it/conventional-changelog@12.0.2
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # A rerun of a push that is already released releases nothing.
+          if [ -z "$VERSION" ] && [ -n "$(git tag --points-at HEAD --list 'v*')" ]; then echo 'Already released.'; exit 0; fi
+          # The first release is 0.1.0.
+          if [ -z "$VERSION" ] && [ -z "$(git tag --list 'v*')" ]; then VERSION=0.1.0; fi
+          node "$RUNNER_TEMP/release-it/node_modules/release-it/bin/release-it.js" --ci $VERSION
