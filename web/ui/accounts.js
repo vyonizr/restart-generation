@@ -56,6 +56,9 @@ export const actions = {
   },
 };
 
+// The actions of a notice for a player the server made no guest for.
+const offer = [['Sign in with Discord', actions.signin], ...dismiss];
+
 // Coming back from Discord: the page address carries a one-time code. `refused` shows why the server made no guest, if it made none:
 // canceling then leaves the player there, with the offer to sign in again.
 async function finishSignIn(code, refused = null) {
@@ -82,7 +85,8 @@ async function finishSignIn(code, refused = null) {
     render();
     notice(`Signed in as ${account.name}.`, dismiss);
   } catch (e) {
-    notice(e.code === 'expired' ? 'That sign-in expired. Try again.' : "Discord sign-in didn't work. Try again.", dismiss);
+    // A player without a guest can't play online until a sign-in works, so the offer stays.
+    notice(e.code === 'expired' ? 'That sign-in expired. Try again.' : "Discord sign-in didn't work. Try again.", refused ? offer : dismiss);
   }
 }
 
@@ -96,7 +100,7 @@ async function start() {
   } catch (e) {
     const reason = { too_many: 'This network has made too many guests in the last hour. Try again later, or sign in with Discord.', full: 'This server has no room for more guests right now.' }[e.code];
     // A member counts against neither limit, and signing in with Discord needs no guest.
-    const refused = () => notice(reason || "Couldn't reach the account server. Online play won't work until you reload.", reason ? [['Sign in with Discord', actions.signin], ...dismiss] : dismiss);
+    const refused = () => notice(reason || "Couldn't reach the account server. Online play won't work until you reload.", reason ? offer : dismiss);
     if (reason && returned?.[1] === 'signin') await finishSignIn(returned[2], refused);
     else refused();
     return;
