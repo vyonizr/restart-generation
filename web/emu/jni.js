@@ -2,6 +2,7 @@
 // from native code dispatch by method name to `obj.methods[name](...args)`.
 const FN_COUNT = 232;
 const HANDLE_BASE = 0x7f000000;
+const JNI_VERSION_1_4 = 0x00010004;
 
 // Method signature -> argument kinds ('I' int-like, 'J' long, 'F' float, 'D' double, 'L' object).
 function argKinds(sig) {
@@ -101,8 +102,8 @@ export class JNI {
       self.methods.push({ name: n, sig: s, kinds: argKinds(s), ret: s[s.indexOf(')') + 1], isStatic });
       return self.methods.length - 1;
     };
-    t[4] = [1, () => 0x00010004];
-    t[6] = [2, (env, name) => self.ref(self.classFor(cpu.readCString(name >>> 0)))];
+    t[4] = [1, () => JNI_VERSION_1_4];   // GetVersion
+    t[6] = [2, (env, name) => self.ref(self.classFor(cpu.readCString(name >>> 0)))]; // FindClass
     t[15] = [1, () => 0];                // ExceptionOccurred
     t[16] = [1, () => {}];               // ExceptionDescribe
     t[17] = [1, () => {}];               // ExceptionClear
@@ -111,13 +112,13 @@ export class JNI {
     t[21] = [2, (env, o) => o];          // NewGlobalRef: handles are already global
     t[22] = [2, () => {}];               // DeleteGlobalRef
     t[23] = [2, () => {}];               // DeleteLocalRef
-    t[24] = [3, (env, a, b) => (a === b ? 1 : 0)];
-    t[25] = [2, (env, o) => o];
-    t[26] = [2, () => 0];
-    t[31] = [2, (env, o) => { const ob = self.obj(o); return self.ref(self.classFor(ob ? ob.cls : 'java/lang/Object')); }];
-    t[32] = [3, () => 1];
-    t[33] = [4, (env, cls, name, sig) => methodId(cls, name, sig, false)];
-    t[113] = [4, (env, cls, name, sig) => methodId(cls, name, sig, true)];
+    t[24] = [3, (env, a, b) => (a === b ? 1 : 0)];                         // IsSameObject
+    t[25] = [2, (env, o) => o];                                            // NewLocalRef
+    t[26] = [2, () => 0];                                                  // EnsureLocalCapacity
+    t[31] = [2, (env, o) => { const ob = self.obj(o); return self.ref(self.classFor(ob ? ob.cls : 'java/lang/Object')); }]; // GetObjectClass
+    t[32] = [3, () => 1];                                                  // IsInstanceOf
+    t[33] = [4, (env, cls, name, sig) => methodId(cls, name, sig, false)]; // GetMethodID
+    t[113] = [4, (env, cls, name, sig) => methodId(cls, name, sig, true)]; // GetStaticMethodID
     t[167] = [2, (env, p) => self.str(cpu.readCString(p >>> 0))];          // NewStringUTF
     t[164] = [2, (env, s) => self.obj(s).value.length];                    // GetStringLength
     t[168] = [2, (env, s) => self.obj(s).value.length];                    // GetStringUTFLength
@@ -131,12 +132,12 @@ export class JNI {
       for (let i = 0; i < v.length; i++) dv.setUint16(a + i * 2, v.charCodeAt(i), true);
       if (isCopy) cpu.m8[isCopy >>> 0] = 1; return a;
     }];
-    t[166] = [3, (env, s, p) => { heap.free(p >>> 0); }];
-    t[163] = [3, (env, p, n) => { let v = ''; for (let i = 0; i < n; i++) v += String.fromCharCode(dv.getUint16((p >>> 0) + i * 2, true)); return self.str(v); }];
+    t[166] = [3, (env, s, p) => { heap.free(p >>> 0); }];                  // ReleaseStringChars
+    t[163] = [3, (env, p, n) => { let v = ''; for (let i = 0; i < n; i++) v += String.fromCharCode(dv.getUint16((p >>> 0) + i * 2, true)); return self.str(v); }]; // NewString
     t[171] = [2, (env, a) => self.obj(a).items.length];                   // GetArrayLength
-    t[172] = [4, (env, n, cls, init) => self.ref(new JObject('[Ljava/lang/Object;', { items: new Array(n).fill(self.obj(init)) }))];
-    t[173] = [3, (env, a, i) => self.ref(self.obj(a).items[i])];
-    t[174] = [4, (env, a, i, v) => { self.obj(a).items[i] = self.obj(v); }];
+    t[172] = [4, (env, n, cls, init) => self.ref(new JObject('[Ljava/lang/Object;', { items: new Array(n).fill(self.obj(init)) }))]; // NewObjectArray
+    t[173] = [3, (env, a, i) => self.ref(self.obj(a).items[i])];          // GetObjectArrayElement
+    t[174] = [4, (env, a, i, v) => { self.obj(a).items[i] = self.obj(v); }]; // SetObjectArrayElement
     t[179] = [2, (env, n) => self.ref(new JObject('[I', { items: new Array(n).fill(0) }))]; // NewIntArray
     t[211] = [5, (env, a, start, n, buf) => {                              // SetIntArrayRegion
       const items = self.obj(a).items; for (let i = 0; i < n; i++) items[start + i] = dv.getInt32((buf >>> 0) + i * 4, true);
@@ -152,7 +153,7 @@ export class JNI {
     t[217] = [2, () => 0]; t[218] = [2, () => 0];                         // MonitorEnter/Exit
     t[228] = [1, () => 0];                                                 // ExceptionCheck
     t[230] = [2, (env, b) => self.obj(b).address];                         // GetDirectBufferAddress
-    t[231] = [2, (env, b) => self.obj(b).capacity];
+    t[231] = [2, (env, b) => self.obj(b).capacity];                        // GetDirectBufferCapacity
     return t;
   }
 
