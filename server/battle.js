@@ -9,6 +9,7 @@ const zlib = require('zlib');
 const { T, frames } = require('./mt');
 const gm = require('./gamemsg');
 const g = require('./gameblob');
+const { zipEntries } = require('../web/zip.js');
 
 const DATA = path.join(__dirname, '..', 'data');
 const ZIP = 'battle-templates.zip';
@@ -44,19 +45,12 @@ function snapshotRngAt(game, snapshot) {
 // The .game and .snap files in a zip, by file name, whatever folder holds them: a zip of the templates folder and a zip
 // of its files both work, and so do the backslash paths Windows PowerShell's Compress-Archive writes. Stored and deflated
 // entries (what Windows and zip tools write); ZIP64 isn't supported.
-// Synchronous, unlike web/zip.js, because the server checks its templates before it starts listening.
+// web/zip.js's zipEntries reads the file list synchronously, because the server checks its templates before it starts listening.
 function templateFilesInZip(bytes) {
-  let eocd = bytes.length - 22;
-  while (eocd >= 0 && bytes.readUInt32LE(eocd) !== 0x06054b50) eocd--;
-  if (eocd < 0) throw new Error('not a .zip file');
   const files = new Map();
-  for (let i = 0, n = bytes.readUInt16LE(eocd + 10), p = bytes.readUInt32LE(eocd + 16); i < n; i++) {
-    if (bytes.readUInt32LE(p) !== 0x02014b50) throw new Error('its file list is damaged');
-    const method = bytes.readUInt16LE(p + 10), size = bytes.readUInt32LE(p + 20), nameLen = bytes.readUInt16LE(p + 28);
-    const local = bytes.readUInt32LE(p + 42), file = bytes.toString('utf8', p + 46, p + 46 + nameLen).split(/[/\\]/).pop();
-    p += 46 + nameLen + bytes.readUInt16LE(p + 30) + bytes.readUInt16LE(p + 32);
+  for (const { name, method, data } of zipEntries(bytes)) {
+    const file = name.split(/[/\\]/).pop();
     if (!/\.(game|snap)$/.test(file)) continue;
-    const start = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28), data = bytes.subarray(start, start + size);
     if (method === 0) files.set(file, Buffer.from(data));
     else if (method === 8) files.set(file, zlib.inflateRawSync(data));
     else throw new Error(`${file} uses compression method ${method}; only stored and deflated entries are read`);
