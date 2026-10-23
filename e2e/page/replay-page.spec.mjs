@@ -16,7 +16,7 @@ for (const kept of [ranked, friendly]) {
   test(`a kept ${kept.ranked ? 'ranked' : 'friendly'} replay says what match it was and who played, and asks for the game files`, async ({ page }) => {
     await page.goto(`/replay/${kept.id}`);
     await expect(page.getByText(await factsLine(page, kept.id), { exact: true })).toBeVisible();
-    await expect(page.getByText(kept.ranked ? 'Ranked match on ' : 'Friendly match on ')).toBeVisible();
+    await expect(page.getByText(kept.ranked ? ' - Ranked match' : ' - Friendly match')).toBeVisible();
     const seats = page.getByRole('list', { name: 'Players by seat' }).getByRole('listitem');
     await expect(seats).toHaveCount(kept.players.length);
     for (const [i, p] of [...kept.players].sort((a, b) => a.seat - b.seat).entries()) {
@@ -24,17 +24,17 @@ for (const kept of [ranked, friendly]) {
     }
     await expect(page.getByRole('button', { name: 'Choose .zip file' })).toBeVisible();
     // The controls wait for the engine to build the battle.
-    await expect(page.getByRole('button', { name: 'Play' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
   });
 }
 
 // Footage (CONTEXT.md, docs/adr/0028) needs a browser that encodes H.264 and AAC with WebCodecs, which browsers give only to a
-// secure page. Elsewhere Export footage stays, disabled, and says why.
-test("a browser that can't encode footage says so at Export footage", async ({ page }) => {
+// secure page. Elsewhere Download replay stays, disabled, and says why.
+test("a browser that can't encode footage says so at Download replay", async ({ page }) => {
   await page.addInitScript(() => { delete window.VideoEncoder; delete window.AudioEncoder; });
   await page.goto(`/replay/${ranked.id}`);
-  const why = "Your browser can't export footage. Try Chrome or Edge.";
-  const button = page.getByRole('button', { name: 'Export footage' });
+  const why = "Your browser can't download replays. Try Chrome or Edge.";
+  const button = page.getByRole('button', { name: 'Download replay' });
   await expect(button).toBeDisabled();
   await expect(button).toHaveAccessibleDescription(why);
   await expect(page.getByText(why)).toBeVisible();
@@ -48,8 +48,8 @@ test('a page that isn\'t secure says footage needs one, rather than blaming the 
     delete window.VideoEncoder; delete window.AudioEncoder;
   });
   await page.goto(`/replay/${ranked.id}`);
-  const why = 'Export footage needs a secure page: open this replay over HTTPS, or at localhost on the PC that runs the server.';
-  const button = page.getByRole('button', { name: 'Export footage' });
+  const why = 'Download replay needs a secure page: open this replay over HTTPS, or at localhost on the PC that runs the server.';
+  const button = page.getByRole('button', { name: 'Download replay' });
   await expect(button).toBeDisabled();
   await expect(button).toHaveAccessibleDescription(why);
   await expect(page.getByText(why)).toBeVisible();

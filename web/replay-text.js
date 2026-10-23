@@ -13,6 +13,13 @@ export const andList = items => items.length < 2 ? items.join('') : `${items.sli
 
 const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
+// A day as 30 Oct 2026, in the reader's time zone.
+const SHORT_DAY = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+export const shortDay = time => {
+  const part = Object.fromEntries(SHORT_DAY.formatToParts(time).map(p => [p.type, p.value]));
+  return `${part.day} ${part.month} ${part.year}`;
+};
+
 export const replayTitle = meta => `${andList(meta.players.map(p => p.name))} · Replay · Restart Generation`;
 
 export function replayDescription(meta) {

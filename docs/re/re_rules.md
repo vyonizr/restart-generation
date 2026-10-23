@@ -109,6 +109,10 @@ Client side (Mac `ClientBattleLogic_v23_06ec40`): type 3 with the client's own i
 JoinInfo type (LocalPlayer); type 0/2 -> 3; type 1 -> 4. So send type 3 for every person, including the receiver.
 Validation (`FUN_100228d0`) rejects a non-observer with seat 0, and any index ≤ 0.
 
+Seat colors: with `(team-1) % 6`, seats 1 to 6 take the engine's six owner colors in the order its owner names list them:
+yellow, red, green, blue, pink, and purple. Observed in a replay: seat 1's castle, tiles, and corner panel are yellow, seat 2's
+red, and the battle's messages call seat 1 "Yellow". Seats 3 and 4 follow from the order (static).
+
 ## 2. Index, seat, and start check
 
 - Index `FUN_10023f40` -> `FUN_10023eb0` (Mac `FUN_000be332`/`FUN_000be2e8`): lowest `i >= 1` with no registry entry

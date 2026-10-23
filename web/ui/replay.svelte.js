@@ -1,6 +1,6 @@
 // The replay page (CONTEXT.md "Replay"): fetches the replay, gets the game files as the game page does (gamefiles.js), and runs the
 // engine in its replay player (player mode, docs/re/re_replay.md) with our own controls, which behave as the original player's
-// did (replayflow.js). Export footage renders it to an MP4 file on the same engine (footage.js, docs/adr/0028).
+// did (replayflow.js). Download replay renders it to an MP4 file on the same engine (footage.js, docs/adr/0028).
 import { GameHost } from '../emu/host.js';
 import { page } from './page.svelte.js';
 import { loadFiles, source } from './gamefiles.js';
@@ -20,7 +20,7 @@ const VOLUME = 0.8;
 export const replay = $state({
   meta: null,        // what the server keeps beside the replay: players, heroes, seats, environment, kind, date, result
   gone: false,       // the replay doesn't exist, is 30 days old, or replays are off on this server
-  booted: false,     // the engine is up: Watch and Export footage work
+  booted: false,     // the engine is up: Watch and Download replay work
   loaded: false,     // the engine has built the replay's battle: the controls work
   unplayable: false, // the engine never built it (replayflow.js): the overlay says so and the engine stops
   playing: false,
@@ -28,13 +28,13 @@ export const replay = $state({
   time: 0, length: 0, // whole seconds from BattleBegin
   skipEmpty: true, doubleSpeed: false, // the engine's defaults
   volume: VOLUME, muted: false,
-  // Export footage: 'checking' whether this browser can encode it, 'insecure' (WebCodecs is for secure pages only, which a LAN
+  // Download replay: 'checking' whether this browser can encode it, 'insecure' (WebCodecs is for secure pages only, which a LAN
   // address over plain HTTP isn't), 'unsupported', 'ready', 'rendering', or 'failed' (with `error`).
   // `progress` is 0 to 1 and `left` the seconds still to go, once there is a rate to tell from.
   footage: { status: 'checking', progress: 0, left: null, error: '' },
 });
 
-// `exporting` while Export footage runs, from its press; `taken` once the render has the engine to itself.
+// `exporting` while Download replay runs, from its press; `taken` once the render has the engine to itself.
 let flow = null, sound = null, onWatch = null, game = null, screen = null, exporting = null, taken = false;
 export const pressWatch = () => onWatch?.();
 

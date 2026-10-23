@@ -1,23 +1,24 @@
 /* The replay page (DESIGN.md): the Stage (stage.css) around the engine's 420 × 378 replay view, framed as a broadcast replay: a
-   REPLAY tag on its corner, the seats as a lower third under it, then the control strip, all as wide as the view. */
+   title band over it, the seats as a lower third under it, then the control strip, all as wide as the view. */
 @import './stage.css';
 :root { --screen-w: 420; --screen-h-px: 378;
   --screen-h: min(clamp(260px, 100vh - 400px, 640px), (100vw - 96px) * 378 / 420); --view-w: calc(var(--screen-h) * 420 / 378); }
 @supports (height: 100dvh) { :root { --screen-h: min(clamp(260px, 100dvh - 400px, 640px), (100vw - 96px) * 378 / 420); } }
 
 header .name { color: #fff; text-decoration: none; }
-.copy-link, .export-footage { font-size: 13px; padding: 6px 12px; white-space: nowrap; }
-/* Export footage and Copy link, side by side on the header's right */
-.share { display: flex; gap: 8px; }
-.export-footage { display: flex; align-items: center; gap: 6px; }
-.export-footage svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; }
-.export-footage:disabled { opacity: .45; cursor: default; }
-.export-footage:disabled:hover { color: var(--light-2); border-color: var(--light-3); }
 main { gap: 14px; }
 
-.broadcast { position: relative; display: grid; justify-items: center; width: var(--view-w); margin-top: 25px; container-type: inline-size; }
-/* On the frame's top-left corner, above it, so it never covers the engine's corner panel */
-.replay-tag { position: absolute; z-index: 2; left: 0; top: -25px; height: 25px; padding: 5px 10px; background: var(--red); font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; }
+/* One track as wide as the view, so a band or strip that can't fit shrinks or wraps instead of widening the block */
+.broadcast { position: relative; display: grid; grid-template-columns: 100%; justify-items: center; width: var(--view-w); container-type: inline-size; }
+/* The title band: the crimson REPLAY tag, the day and the kind of match, and Share and Download replay at its right end */
+.title-band { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 40px; padding-right: 6px; background: var(--ink-2); }
+.band-tag { align-self: stretch; display: grid; place-items: center; padding: 0 12px; background: var(--red); font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; }
+.title-band .facts { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 13px/1.3 var(--body); color: var(--light-2); }
+.band-actions { display: flex; gap: 6px; margin-left: auto; }
+.share, .export-footage { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 5px 10px; white-space: nowrap; }
+.share svg, .export-footage svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; }
+.export-footage:disabled { opacity: .45; cursor: default; }
+.export-footage:disabled:hover { color: var(--light-2); border-color: var(--light-3); }
 
 /* The lower third: a band one ink step up from the ground, one cell per seat, the seat number in an ink square, the name in Anton
    over the hero */
@@ -36,6 +37,14 @@ main { gap: 14px; }
 .who-played b { font: 400 17px/1.15 var(--display); color: #fff; text-transform: uppercase; }
 .lower-third .place { flex: none; margin-left: auto; padding: 4px 8px; background: #fff; color: var(--red); font: 400 15px/1 var(--display); text-transform: uppercase;
   animation: arrive .4s cubic-bezier(.16, 1, .3, 1); }
+/* Each seat's square in its color in the battle (docs/re/re_rules.md), the number in a darker shade of it; our own shades */
+.lower-third .seat-1 { background: #f0c42e; color: #4d3900; }
+.lower-third .seat-2 { background: #e2403f; color: #4f0b0d; }
+.lower-third .seat-3 { background: #4fb84a; color: #103a0e; }
+.lower-third .seat-4 { background: #3f8be0; color: #0b2547; }
+
+/* A click on the battle plays or pauses it */
+canvas.clickable { cursor: pointer; }
 
 /* The control strip: a band one ink step down, the play button the one crimson action in it */
 .controls { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 10px; background: var(--ink-0); }
@@ -90,9 +99,8 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
 #overlay h2 { font-size: 9cqi; }
 #overlay h2.bar::after { margin-inline: auto; }
 
-/* Under the strip: what kind of match it was, and the Soft screen toggle */
+/* Under the strip: the Soft screen toggle, and why Download replay is off where it is */
 .sub { width: var(--view-w); grid-template-columns: 1fr auto; gap: 16px; }
-.sub .facts { grid-column: 1; justify-self: start; font: 13px/1.6 var(--body); color: var(--light-3); text-align: left; }
 .sub .finish { grid-column: 2; }
 .sub .footage-note { grid-column: 1 / -1; justify-self: start; margin: 0; font: 13px/1.6 var(--body); color: var(--light-3); text-align: left; }
 
@@ -102,16 +110,17 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
   .controls { flex-wrap: wrap; }
   input[type=range].time { order: 9; flex-basis: 100%; }
 }
-/* A phone's header has room for the name and two small buttons only if Export footage is its icon, the label kept for screen readers */
+/* A phone's title band has room for the day and the kind of match only if Share and Download replay are their icons, the labels kept
+   for screen readers */
 @media (max-width: 459px) {
-  .export-footage { justify-content: center; padding: 6px; }
-  .export-footage .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .export-footage svg { width: 18px; height: 18px; }
+  .share, .export-footage { justify-content: center; padding: 6px; }
+  .share .label, .export-footage .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .share svg, .export-footage svg { width: 18px; height: 18px; }
 }
 /* Touch devices: no key legend; every control a full thumb's size */
 @media (hover: none) and (pointer: coarse) {
   .keys, .ghost { display: none; }
-  .controls button, .ctl.play, .ctl.mute, .copy-link, .export-footage, .footage button { min-width: 44px; min-height: 44px; }
+  .controls button, .ctl.play, .ctl.mute, .share, .export-footage, .footage button { min-width: 44px; min-height: 44px; }
   input[type=range].time { height: 44px; }
   .volume input { display: none; } /* phones and tablets set the volume with their own buttons; mute stays */
 }

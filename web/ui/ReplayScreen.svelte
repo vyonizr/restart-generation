@@ -3,7 +3,7 @@
 <script>
   import { onMount } from 'svelte';
   import { page } from './page.svelte.js';
-  import { replay, startReplay, pressWatch, watchAgain, cancelFootage, dismissFootage } from './replay.svelte.js';
+  import { replay, startReplay, pressWatch, watchAgain, cancelFootage, dismissFootage, togglePlay } from './replay.svelte.js';
   import { chooseZip, chooseFolder, forgetCopy } from './gamefiles.js';
   import { resultOf, ordinal, remaining } from '../replay-text.js';
   import { GRID_MIN_PITCH } from './finish.js';
@@ -30,7 +30,9 @@
 </script>
 
 <div class="screen replay-screen" bind:this={screen} data-finish={page.finish} data-grid={pitch >= GRID_MIN_PITCH ? '' : null}>
-  <canvas width={REPLAY_WIDTH} height={REPLAY_HEIGHT} aria-label="The battle, played back by the game" bind:this={canvas}></canvas>
+  <!-- A click or tap on the battle plays or pauses it, as the strip's play button does; Space does the same from the keyboard -->
+  <canvas width={REPLAY_WIDTH} height={REPLAY_HEIGHT} aria-label="The battle, played back by the game" bind:this={canvas}
+    class:clickable={replay.loaded && !page.overlay} onclick={() => { if (replay.loaded && !page.overlay) togglePlay(); }}></canvas>
   <div id="overlay" hidden={!page.overlay}>
     <h2 class="bar">{replay.gone ? 'Replay not found or expired' : replay.unplayable ? "Can't play" : 'Replay'}</h2>
     <p id="status" role="status" hidden={!page.status}>{page.status}</p>
@@ -62,8 +64,8 @@
   {/if}
   {#if f.status === 'rendering'}
     <div class="footage">
-      <h2 class="footage-headline">Exporting footage</h2>
-      <div class="meter" role="progressbar" aria-label="Footage" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent}>
+      <h2 class="footage-headline">Preparing download</h2>
+      <div class="meter" role="progressbar" aria-label="Download" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent}>
         <span style:transform="scaleX({f.progress})"></span>
       </div>
       <p class="footage-left"><span>{percent}%</span>{#if f.left !== null}<span>{remaining(f.left)}</span>{/if}</p>
@@ -71,7 +73,7 @@
     </div>
   {:else if f.status === 'failed'}
     <div class="footage">
-      <h2 class="footage-headline">Couldn't export footage</h2>
+      <h2 class="footage-headline">Couldn't download the replay</h2>
       <p class="hint" role="alert">{f.error}</p>
       <button bind:this={backButton} onclick={dismissFootage}>Back to the replay</button>
     </div>

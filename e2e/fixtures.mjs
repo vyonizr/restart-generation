@@ -2,7 +2,7 @@
 // console errors a page logged, and the seed (server/seed.json) the tests take their expectations from.
 import { test as base, expect } from '@playwright/test';
 import { createRequire } from 'node:module';
-import { ENVIRONMENTS } from '../web/replay-text.js';
+import { shortDay } from '../web/replay-text.js';
 
 const require = createRequire(import.meta.url);
 const { tokenOf, offset } = require('../server/seed.js');
@@ -45,10 +45,9 @@ export const asPublicServer = page => page.route('**/status', async route => {
   await route.fulfill({ response, json: { ...(await response.json()), ...PUBLIC } });
 });
 
-// What a replay page's facts line says about the replay the server keeps under `id` (web/ui/Replay.svelte): the kind of match, its
-// environment, and the day it was kept, in the visitor's language.
+// What a replay page's title band says about the replay the server keeps under `id` (web/ui/ReplayBroadcast.svelte): the day it
+// was kept and the kind of match.
 export async function factsLine(page, id) {
   const { meta } = await (await page.request.get(`replay/${id}/data`)).json();
-  const day = new Intl.DateTimeFormat(await page.evaluate(() => navigator.language), { dateStyle: 'long' }).format(meta.created);
-  return `${meta.ranked ? 'Ranked' : 'Friendly'} match on ${ENVIRONMENTS[meta.environment]}, ${day}`;
+  return `${shortDay(meta.created)} - ${meta.ranked ? 'Ranked' : 'Friendly'} match`;
 }
