@@ -4,17 +4,18 @@
 
 Restart Generation is an unofficial fan project that revives the Reset Generation experience as faithfully as possible. Reset Generation is a 2008 video game that RedLynx developed for N-Gage 2.0 and Windows (PC).
 
-## Features
+## Compared with the original game
 
-- The playable game on the browser, in place of the Java applet that browsers no longer run
-- A new online architecture that replaces the N-Gage Arena service and the RedLynx server
-- Cross-device multiplayer
-- Local area network (LAN) play
-- Disabled player timer option (experimental), perfect for learning and beginners
-- CPU players to fill empty seats in friendly rooms
-- Instant play with a guest account
-- A soft screen like the display of a 2008 phone
-- Discord sign-in that saves your story progress and online stats
+| Feature | Original game | Restart Generation |
+| --- | --- | --- |
+| Platforms | ✅ N-Gage 2.0 phones and Windows | ✅ A modern browser on Windows, macOS, or Linux, and Chrome on Android or Safari on iOS and iPadOS |
+| Single player | ✅ | ✅ |
+| Online multiplayer | ⚠️ The N-Gage Arena service shut down | ✅ A replacement Arena server, with Discord sign-in or a [guest account](docs/HOSTING.md#guests-and-members) |
+| LAN multiplayer | 🚫 | ✅ |
+| CPU players in friendly matches | 🚫 | ✅ |
+| Friendly matches without phase time limits | 🚫 | ✅ Optional config |
+| Full board view in matches | 🚫 | ✅ |
+| Replays | ✅ | ✅ |
 
 ## Prerequisites
 
