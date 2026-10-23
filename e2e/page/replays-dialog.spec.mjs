@@ -12,7 +12,6 @@ test('a signed-in member opens their replays, newest first, and Escape gives the
   await page.getByRole('button', { name: 'Replays' }).filter({ visible: true }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Replays' });
-  await expect(dialog).toContainText(`Anyone can see them under ${member}.`);
   const watch = dialog.getByRole('link', { name: 'Watch' });
   await expect(watch).toHaveCount(replaysOf(member).length);
   const ids = (await watch.evaluateAll(links => links.map(a => a.href))).map(href => decodeURIComponent(href.split('/').at(-1)));

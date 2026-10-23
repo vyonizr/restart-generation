@@ -13,7 +13,6 @@
    screen. Each replay is a step down the ink ramp, its seats laid out like the replay page's lower third. */
 #replays { position: fixed; z-index: 10; width: min(560px, 92vw); max-height: calc(100dvh - 32px); grid-template-rows: auto auto minmax(0, 1fr) auto;
   overflow: hidden; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 65%); }
-#replays .replays-note b { font-weight: 600; color: #fff; }
 .replays-state { display: grid; justify-items: start; gap: 12px; font: 15px/1.6 var(--body); color: var(--light-2); }
 #replays .replays-state p { font: inherit; color: inherit; }
 .replays-state button { font-size: 16px; padding: 8px 14px; }

@@ -38,7 +38,7 @@
 
 <Dialog id="replays" titleId="replays-title" focus="#replays-close" oncancel={close}>
   <h2 class="bar" id="replays-title">Replays</h2>
-  <p class="replays-note">Kept 30 days. Anyone can see them under <b>{name}</b>.{#if guest}{' Guests lose them a day after their last game. Sign in with Discord to keep them.'}{/if}</p>
+  <p class="replays-note">Last 30 days.{#if guest}{' Guests lose them a day after their last game. Sign in with Discord to keep them.'}{/if}</p>
   {#if status === 'loading'}
     <p class="replays-state" role="status">Loading replays…</p>
   {:else if status === 'failed'}
