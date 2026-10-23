@@ -66,7 +66,7 @@
       <div class="meter" role="progressbar" aria-label="Footage" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent}>
         <span style:transform="scaleX({f.progress})"></span>
       </div>
-      <p class="footage-left">{percent}%{#if f.left !== null} · {remaining(f.left)}{/if}</p>
+      <p class="footage-left"><span>{percent}%</span>{#if f.left !== null}<span>{remaining(f.left)}</span>{/if}</p>
       <button class="secondary" bind:this={cancelButton} onclick={cancelFootage}>Cancel</button>
     </div>
   {:else if f.status === 'failed'}
