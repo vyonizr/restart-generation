@@ -1,8 +1,8 @@
 // Browser host: gets the game files, runs the engine in the emulator, draws frames to the canvas, forwards the keyboard, the
 // touch pad and the gamepad and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page`
 // (page.svelte.js).
-import { GameHost, WIDTH, HEIGHT, UNLOCKS, LONE_START } from '../emu/host.js';
-import { screenPainter } from './screen.js';
+import { GameHost, UNLOCKS, LONE_START } from '../emu/host.js';
+import { createScreen } from './screen.js';
 import { SnapClient } from '../snap.js';
 import { page, padSession } from './page.svelte.js';
 import { touch } from './device.js';
@@ -19,7 +19,7 @@ import { createPresses } from './presses.js';
 import { replaySaved, battleJoined } from './replaynotice.js';
 import { startOnlineCount, serverStatus } from './online.js';
 
-let draw; // paints the engine's frame (screen.js)
+let screen; // the game screen, which paints the engine's frame (screen.js)
 
 // A one-line notice under the pad when the device can't run the game at full speed.
 function slowNotice() {
@@ -156,7 +156,7 @@ async function main(canvas) {
         if (!running) { clearInterval(slowTimer); quit(saveNow, snap); return; } // the loop stops here: no more ticks, input or saves
         if (game.unsaved('settings.cfg')) saveNow(); // the player left the settings: show their keys at once
         if (game.time < now - t0) t0 = now - game.time; // drop the backlog
-        draw(game); // the framebuffer only changes inside a tick
+        screen.paint(game); // the framebuffer only changes inside a tick
       }
       audio.pump();
       if (now - lastSave > 5000) { lastSave = now; saveNow(); }
@@ -198,7 +198,7 @@ export async function retryQuit() {
 
 // Starts the page: the canvas is the game screen.
 export function startGame(canvas) {
-  draw = screenPainter(canvas, WIDTH, HEIGHT);
+  screen = createScreen(canvas);
   watchGamepad(pressStart); // from the start, so the first gamepad press can start the sound while the game loads
   main(canvas).catch(e => fail("The game couldn't start with this copy.", e));
 }

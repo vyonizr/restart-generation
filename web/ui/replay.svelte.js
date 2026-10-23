@@ -6,7 +6,7 @@ import { page } from './page.svelte.js';
 import { loadFiles, source } from './gamefiles.js';
 import { serverStatus } from './online.js';
 import { ReplaySound } from './audio.js';
-import { screenPainter } from './screen.js';
+import { createScreen } from './screen.js';
 import { stayAwake } from './wake.js';
 import { touch } from './device.js';
 import { createReplayFlow } from './replayflow.js';
@@ -67,7 +67,7 @@ async function main(canvas) {
     page.recover = true;
     return;
   }
-  const draw = screenPainter(canvas, game.width, game.height);
+  const screen = createScreen(canvas);
   page.status = 'Ready';
   page.start = true;
   // The engine starts on Watch: the browser plays sound only from a press, and the original player played from its first frame.
@@ -94,7 +94,7 @@ async function main(canvas) {
       if (game.time < now - t0) {
         game.tick();
         if (game.time < now - t0) t0 = now - game.time;
-        draw(game);
+        screen.paint(game);
       }
       sound.pump();
       flow.frame();
