@@ -24,6 +24,9 @@ export function replayDescription(meta) {
 // A playback time in whole seconds as m:ss.
 export const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
+// Whole seconds still to go, as "2m 3s remaining" or "45s remaining".
+export const remaining = s => `${s >= 60 ? `${Math.floor(s / 60)}m ` : ''}${s % 60}s remaining`;
+
 // The file name of a replay's footage (CONTEXT.md "Footage"): restart-generation-2026-10-24-alice-vs-bob.mp4, the battle's date
 // as its page gives it (the visitor's own) and the seats' names in seat order, lowercase, with anything but letters and digits as
 // one dash.

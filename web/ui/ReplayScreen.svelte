@@ -5,7 +5,7 @@
   import { page } from './page.svelte.js';
   import { replay, startReplay, pressWatch, watchAgain, cancelFootage, dismissFootage } from './replay.svelte.js';
   import { chooseZip, chooseFolder, forgetCopy } from './gamefiles.js';
-  import { resultOf, ordinal, clock } from '../replay-text.js';
+  import { resultOf, ordinal, remaining } from '../replay-text.js';
   import { GRID_MIN_PITCH } from './finish.js';
   import { REPLAY_WIDTH, REPLAY_HEIGHT } from '../emu/host.js';
 
@@ -66,8 +66,7 @@
       <div class="meter" role="progressbar" aria-label="Footage" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent}>
         <span style:transform="scaleX({f.progress})"></span>
       </div>
-      <p class="footage-left">{percent}% · {f.left === null ? 'working out the time left' : `about ${clock(f.left)} left`}</p>
-      <p class="hint">The whole battle at 1× with idle time skipped. The MP4 file is saved when it's done.</p>
+      <p class="footage-left">{percent}%{#if f.left !== null} · {remaining(f.left)}{/if}</p>
       <button class="secondary" bind:this={cancelButton} onclick={cancelFootage}>Cancel</button>
     </div>
   {:else if f.status === 'failed'}
