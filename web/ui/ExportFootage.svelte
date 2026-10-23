@@ -25,7 +25,7 @@
 </script>
 
 <button type="button" class="secondary export-footage" bind:this={button} disabled={off} onclick={press}
-  aria-describedby={f.status === 'unsupported' ? 'footage-note' : null}>
+  aria-describedby={f.status === 'unsupported' || f.status === 'insecure' ? 'footage-note' : null}>
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>
   <span class="label" aria-live="polite">{label}</span>
 </button>

@@ -65,7 +65,7 @@ Replays are kept apart from the accounts, beside the accounts they name: in `dat
 
 To keep no replays, set `RG_REPLAYS=0`: the server then keeps no new ones and serves none of those it kept, and the Privacy policy leaves them out. To delete every replay at once, stop the server and delete the replay file with its `-wal` and `-shm` files.
 
-From a replay's page, anyone who can watch it can also save it as footage ([CONTEXT.md](../CONTEXT.md) "Footage"), an MP4 file their own browser makes; the server does nothing more for it. `RG_REPLAYS=0` stops new footage too, but nothing can recall a file someone already saved ([ADR 0028](adr/0028-players-can-export-a-replay-as-footage.md)).
+From a replay's page, anyone who can watch it can also save it as footage ([CONTEXT.md](../CONTEXT.md) "Footage"), an MP4 file their own browser makes; the server does nothing more for it. Browsers make footage only on a secure page, so a `--lan` server over plain HTTP offers it only at `localhost` on its own PC; a public server over HTTPS offers it to everyone. `RG_REPLAYS=0` stops new footage too, but nothing can recall a file someone already saved ([ADR 0028](adr/0028-players-can-export-a-replay-as-footage.md)).
 
 To check that replays play back the battles as they were played, run self-play with `--replays` (`npm run selfplay -- --battles 2 --replays`, needs `RG_GAME`): each battle's replay is played to its end in the engine, which must end on the bots' final turn with their ranks.
 

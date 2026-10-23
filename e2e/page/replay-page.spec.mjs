@@ -29,12 +29,27 @@ for (const kept of [ranked, friendly]) {
   });
 }
 
-// Footage (CONTEXT.md, docs/adr/0028) needs a browser that encodes H.264 and AAC with WebCodecs. Elsewhere Export footage stays,
-// disabled, and says why.
+// Footage (CONTEXT.md, docs/adr/0028) needs a browser that encodes H.264 and AAC with WebCodecs, which browsers give only to a
+// secure page. Elsewhere Export footage stays, disabled, and says why.
 test("a browser that can't encode footage says so at Export footage", async ({ page }) => {
   await page.addInitScript(() => { delete window.VideoEncoder; delete window.AudioEncoder; });
   await page.goto(`/replay/${ranked.id}`);
   const why = "Your browser can't export footage. Try Chrome or Edge.";
+  const button = page.getByRole('button', { name: 'Export footage' });
+  await expect(button).toBeDisabled();
+  await expect(button).toHaveAccessibleDescription(why);
+  await expect(page.getByText(why)).toBeVisible();
+});
+
+// A LAN address over plain HTTP (`--lan`) isn't a secure page, so even Chrome has no WebCodecs there. The test servers are on
+// localhost, which is, so the test takes away what the browser would.
+test('a page that isn\'t secure says footage needs one, rather than blaming the browser', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'isSecureContext', { value: false });
+    delete window.VideoEncoder; delete window.AudioEncoder;
+  });
+  await page.goto(`/replay/${ranked.id}`);
+  const why = 'Export footage needs a secure page: open this replay over HTTPS, or at localhost on the PC that runs the server.';
   const button = page.getByRole('button', { name: 'Export footage' });
   await expect(button).toBeDisabled();
   await expect(button).toHaveAccessibleDescription(why);

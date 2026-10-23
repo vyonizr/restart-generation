@@ -12,8 +12,8 @@ import { touch } from './device.js';
 import { createReplayFlow } from './replayflow.js';
 import { BUTTONS, usable } from './pads.js';
 import { footageName } from '../replay-text.js';
-// Footage needs Mediabunny (footage.js), so it comes in a chunk of its own, after the page.
-const footageModule = import('./footage.js');
+// Footage needs Mediabunny (footage.js), so it comes in a chunk of its own, after the page, and only to a page that can use it.
+const footageModule = () => import('./footage.js');
 
 const VOLUME = 0.8;
 
@@ -27,7 +27,8 @@ export const replay = $state({
   time: 0, length: 0, // whole seconds from BattleBegin
   skipEmpty: true, doubleSpeed: false, // the engine's defaults
   volume: VOLUME, muted: false,
-  // Export footage: 'checking' whether this browser can encode it, 'unsupported', 'ready', 'rendering', or 'failed' (with `error`).
+  // Export footage: 'checking' whether this browser can encode it, 'insecure' (WebCodecs is for secure pages only, which a LAN
+  // address over plain HTTP isn't), 'unsupported', 'ready', 'rendering', or 'failed' (with `error`).
   // `progress` is 0 to 1 and `left` the seconds still to go, once there is a rate to tell from.
   footage: { status: 'checking', progress: 0, left: null, error: '' },
 });
@@ -47,7 +48,8 @@ function stopped(e) {
 
 export async function startReplay(canvas) {
   watchGamepad(); // from the start, so its press can start the replay too
-  footageModule.then(m => m.canExportFootage(), () => false).then(can => { replay.footage.status = can ? 'ready' : 'unsupported'; });
+  if (!isSecureContext) replay.footage.status = 'insecure';
+  else footageModule().then(m => m.canExportFootage(), () => false).then(can => { replay.footage.status = can ? 'ready' : 'unsupported'; });
   try { await main(canvas); } catch (e) { stopped(e); }
 }
 
@@ -158,7 +160,7 @@ export async function exportFootage() {
   if (touch) stayAwake();
   const started = performance.now();
   try {
-    const { renderFootage } = await footageModule;
+    const { renderFootage } = await footageModule();
     const blob = await renderFootage(game, { signal: exporting.signal, progress: p => {
       f.progress = p;
       f.left = p >= 0.05 ? Math.ceil((performance.now() - started) / 1000 / p * (1 - p)) : null;

@@ -13,6 +13,11 @@
   import ReplayKeys from './ReplayKeys.svelte';
 
   const day = meta => new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(meta.created);
+  // Why Export footage is disabled where it can never work (replay.svelte.js)
+  const FOOTAGE_NOTES = {
+    insecure: 'Export footage needs a secure page: open this replay over HTTPS, or at localhost on the PC that runs the server.',
+    unsupported: "Your browser can't export footage. Try Chrome or Edge.",
+  };
 </script>
 
 <div class="page replay-page">
@@ -24,7 +29,7 @@
       <div class="sub">
         {#if replay.meta}<p class="facts">{replay.meta.ranked ? 'Ranked' : 'Friendly'} match on {ENVIRONMENTS[replay.meta.environment] ?? 'an unknown environment'}, {day(replay.meta)}</p>{/if}
         <button type="button" class="secondary finish" aria-pressed={page.finish === 'soft'} onclick={toggleFinish}>Soft screen</button>
-        {#if replay.footage.status === 'unsupported'}<p class="footage-note" id="footage-note">Your browser can't export footage. Try Chrome or Edge.</p>{/if}
+        {#if FOOTAGE_NOTES[replay.footage.status]}<p class="footage-note" id="footage-note">{FOOTAGE_NOTES[replay.footage.status]}</p>{/if}
       </div>
       {#if !touch}<ReplayKeys />{/if}
     {/if}
