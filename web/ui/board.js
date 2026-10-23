@@ -1,14 +1,18 @@
-// The Board view (CONTEXT.md): 'full', the whole battlefield on a 420 × 378 screen (the default), or 'classic', the phone's 240 × 320.
-// It is a display setting, so it stays in this browser like the Screen finish (finish.js). The engine takes a change between two
-// ticks, in a battle too (docs/adr/0017); a princess's rescue or a fight that is playing finishes first. `rg:board` has no dot, so the
-// saved-game code (gamefiles.js) never takes it for a game file.
+// The Board view (CONTEXT.md): 'full', the whole battlefield on a 420 × 378 screen, or 'classic', the phone's 240 × 320. A desktop
+// starts on the Full board; a phone or tablet (device.js) on Classic, since a 420-pixel-wide board on a phone's width comes out
+// smaller than the engine drew it and costs a slow phone a third more per tick. It is a display setting, so it stays in this browser
+// like the Screen finish (finish.js). The engine takes a change between two ticks, in a battle too (docs/adr/0017); a princess's
+// rescue or a fight that is playing finishes first. `rg:board` has no dot, so the saved-game code (gamefiles.js) never takes it for
+// a game file.
 import { page } from './page.svelte.js';
+import { touch } from './device.js';
 
 const KEY = 'rg:board';
 // The game screen's frame in game pixels for each view.
 export const FRAMES = { full: { width: 420, height: 378 }, classic: { width: 240, height: 320 } };
 
-try { if (localStorage.getItem(KEY) === 'classic') page.board = 'classic'; } catch { /* storage blocked: Full board, for this visit */ }
+page.board = touch ? 'classic' : 'full';
+try { const saved = localStorage.getItem(KEY); if (Object.hasOwn(FRAMES, saved ?? '')) page.board = saved; } catch { /* storage blocked: the default, for this visit */ }
 
 export function setBoard(view) {
   page.board = view;

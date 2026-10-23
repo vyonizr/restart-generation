@@ -111,7 +111,7 @@ How the browser client shows the game screen: soft (the default), with the pixel
 _Avoid_: filter, shader, CRT mode, retro mode
 
 **Board view**:
-How the browser client frames a battle: **Full board**, the whole battlefield at once, as the original's replay player showed it, or **Classic**, the phone's 240 × 320 screen, where the battlefield scrolls. Full board is the default; the player chooses, at any time, a battle included, the choice stays in their browser, and it never changes the battle itself.
+How the browser client frames a battle: **Full board**, the whole battlefield at once, as the original's replay player showed it, or **Classic**, the phone's 240 × 320 screen, where the battlefield scrolls. Full board is the default on a desktop and Classic on a phone or tablet; the player chooses, at any time, a battle included, the choice stays in their browser, and it never changes the battle itself.
 _Avoid_: zoom, widescreen, HD mode, resolution
 
 **Curtain**:

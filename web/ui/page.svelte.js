@@ -28,7 +28,7 @@ export const page = $state({
   finish: 'soft',   // how the game screen is shown, 'soft' or 'sharp' (the Screen finish, finish.js)
   keys: { ...DEFAULT_KEYS }, // the player's custom keys, from the saved game's settings.cfg (keys.js)
   input: 'keys',    // what the key legend shows: 'keys', or 'gamepad' after a press on the pad in use (gamepad.js)
-  board: 'full',    // the Board view the player chose, 'full' or 'classic' (board.js)
+  board: 'full',    // the Board view the player chose, 'full' or 'classic'; its default depends on the device (board.js)
   battle: null,     // the Board view of the battle on now, or null outside a battle
   boardable: true,  // this copy of the engine can show the Full board (until booting it says otherwise)
 });

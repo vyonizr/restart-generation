@@ -1,4 +1,4 @@
-// The Board view (CONTEXT.md, docs/adr/0017): the Full board by default, a switch beside Soft screen, and a change that applies in
+// The Board view (CONTEXT.md, docs/adr/0017): the Full board by default on a desktop, a switch beside Soft screen, and a change that applies in
 // the middle of a battle too.
 import { test, expect } from '../fixtures.mjs';
 import { start, mainMenu, walk, byKey } from './engine.mjs';
@@ -6,7 +6,7 @@ import { start, mainMenu, walk, byKey } from './engine.mjs';
 const canvasSize = page => page.getByLabel('Game screen').evaluate(c => `${c.width}x${c.height}`);
 const screenIs = (page, size) => page.waitForFunction(s => window.rgStats?.screen === s, size, { timeout: 60000 });
 
-test('the Full board is the default, and the switch changes the view in the middle of a battle', async ({ page }) => {
+test('the Full board is the default on a desktop, and the switch changes the view in the middle of a battle', async ({ page }) => {
   test.setTimeout(240000);
   await start(page);
   const toggle = page.getByRole('button', { name: 'Full board' }).filter({ visible: true });
