@@ -47,7 +47,7 @@
     <section id="replays">
       <h2>Replays</h2>
       <p>The server keeps every online battle that began as a replay, so its players and anyone they share its link with can watch it again. A replay holds the players' names as they were in that battle, their heroes and seats, every move, and the chat sent during the battle, with when each arrived. It is kept for 30 days and then deleted. Anyone who has a replay's link can watch it.</p>
-      <p>Each replay is also listed under the name of every player in it, for anyone to see, for its 30 days: anyone who knows your name can see the battles you played and watch them.{#if discord} When a guest account is wiped, its replays stop being listed under its name, but anyone with a link can still watch them until they expire. When a guest signs in to a member that already exists, its replays are listed under the member.{/if}</p>
+      <p>Each replay is also listed under every player's name for its 30 days, so anyone who knows your name can watch your battles.{#if discord} A wiped guest's replays leave its list but stay watchable by link. A guest who signs in to an existing member moves its replays to the member.{/if}</p>
       <p>A replay is kept for its 30 days even after a guest account in it is deleted. {#if discord}When a member deletes their account{:else}When {admin} deletes an account{/if}, the replays of every battle it played are deleted with it.</p>
     </section>
   {/if}

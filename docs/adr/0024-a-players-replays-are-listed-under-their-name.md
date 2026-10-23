@@ -2,7 +2,7 @@
 
 The replay notice after a battle (ADR 0022) was the only way to reach a replay: once a player dismissed it, or the next battle replaced it, the link was gone. Each replay is now also listed under the name of every player in it, for anyone to see, for its 30 days, and `GET /replays?name=` returns the list. That is what the original game did. Nokia's producer described its website this way: "When you click on any player name on the Reset Generation website, you will be taken to that player's 'player page' which houses a replay of every game that player has ever played" ([Pocket Gamer, July 2008](https://www.pocketgamer.com/reset-generation/n-gage-reset-generation-interviews-a-go-go-reveal-more-exciting-details/)). A listing open to anyone works the same on every server: a name-only server has no identity to check anyway (ADR 0009), and on a Discord server the names are the ones the rankings already show.
 
-The page lists only the player's own name: **Replays** sits in a member's Account menu, beside a guest's **Sign in with Discord**, and on the "Online as" line of a name-only server, and it opens the **Your replays** dialog. It is hidden when the server keeps no replays (`RG_REPLAYS=0`).
+The page lists only the player's own name: **Replays** sits in a member's Account menu, beside a guest's **Sign in with Discord**, and on the "Online as" line of a name-only server, and it opens the **Replays** dialog. It is hidden when the server keeps no replays (`RG_REPLAYS=0`).
 
 ## Considered options
 

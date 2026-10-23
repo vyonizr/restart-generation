@@ -109,7 +109,7 @@ async function main(canvas) {
 function unplayable() {
   sound.ctx.suspend();
   page.overlay = true;
-  page.status = "This replay can't be played: the game couldn't build its battle from it.";
+  page.status = "The game couldn't load this replay.";
 }
 
 // ---- the controls (replayflow.js), which do nothing until the replay has loaded ----

@@ -27,7 +27,7 @@
 <div class="screen replay-screen" bind:this={screen} data-finish={page.finish} data-grid={pitch >= GRID_MIN_PITCH ? '' : null}>
   <canvas width={REPLAY_WIDTH} height={REPLAY_HEIGHT} aria-label="The battle, played back by the game" bind:this={canvas}></canvas>
   <div id="overlay" hidden={!page.overlay}>
-    <h2 class="bar">{replay.gone ? 'Replay gone' : 'Replay'}</h2>
+    <h2 class="bar">{replay.gone ? 'Replay gone' : replay.unplayable ? "Can't play" : 'Replay'}</h2>
     <p id="status" role="status">{page.status}</p>
     <div id="pick" hidden={!page.pick}>
       <button id="pick-zip" bind:this={zipButton} onclick={() => zipInput.click()}>Choose .zip file</button>

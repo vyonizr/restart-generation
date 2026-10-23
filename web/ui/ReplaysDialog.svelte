@@ -27,7 +27,7 @@
   const WHEN = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
   const link = id => new URL(`replay/${encodeURIComponent(id)}`, location.href).href;
-  const environment = n => ENVIRONMENTS[n] ?? 'an unknown environment';
+  const environment = n => { const e = ENVIRONMENTS[n] ?? 'unknown environment'; return e[0].toUpperCase() + e.slice(1); };
   const seats = r => [...r.players].sort((a, b) => a.seat - b.seat);
   const mine = p => !p.bot && p.name.toLowerCase() === name.toLowerCase();
   // Each player's place where the witness ranked them, else "Won" for the winners of a guessed result, else nothing.
@@ -37,23 +37,23 @@
 </script>
 
 <Dialog id="replays" titleId="replays-title" focus="#replays-close" oncancel={close}>
-  <h2 class="bar" id="replays-title">Your replays</h2>
-  <p class="replays-note">Every online battle you play is kept for 30 days and listed under <b>{name}</b>, where anyone can see it.{#if guest}{' As a guest, your list goes when your account is wiped, a day after you last play. Sign in with Discord to keep it.'}{/if}</p>
+  <h2 class="bar" id="replays-title">Replays</h2>
+  <p class="replays-note">Kept 30 days. Anyone can see them under <b>{name}</b>.{#if guest}{' Guests lose them a day after their last game. Sign in with Discord to keep them.'}{/if}</p>
   {#if status === 'loading'}
-    <p class="replays-state" role="status">Loading your replays…</p>
+    <p class="replays-state" role="status">Loading replays…</p>
   {:else if status === 'failed'}
     <div class="replays-state" role="alert">
-      <p>Couldn't load your replays. Check your connection, then try again.</p>
+      <p>Couldn't load replays.</p>
       <button type="button" class="secondary" onclick={load}>Try again</button>
     </div>
   {:else if !replays.length}
-    <p class="replays-state" role="status">No replays yet. Play an online battle, and it appears here.</p>
+    <p class="replays-state" role="status">No replays yet.</p>
   {:else}
     <ol class="replay-list">
       {#each replays as r (r.id)}
         <li class="replay-item">
           <p class="replay-facts">
-            <span><b>{r.ranked ? 'Ranked' : 'Friendly'}</b> match on {environment(r.environment)}</span>
+            <span><b>{r.ranked ? 'Ranked' : 'Friendly'}</b> · {environment(r.environment)}</span>
             <time datetime={new Date(r.created).toISOString()}>{WHEN.format(r.created)}</time>
           </p>
           <ol class="replay-seats">
@@ -68,7 +68,7 @@
           <div class="replay-actions">
             <a class="button" href={link(r.id)} target="_blank" rel="noopener">Watch</a>
             <button type="button" class="secondary" onclick={() => copy(r.id)}>{labels[r.id] ?? 'Copy link'}</button>
-            <span class="replay-expires">{r.result ? '' : 'No result: every player left. '}Kept until {DAY.format(r.expires)}</span>
+            <span class="replay-expires">{r.result ? '' : 'No result · '}Expires {DAY.format(r.expires)}</span>
           </div>
         </li>
       {/each}
