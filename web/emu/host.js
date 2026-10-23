@@ -45,7 +45,14 @@ const BOARD_SITES = [
   { hook: 'phoneOnly', va: 0x100d5d90, bytes: '568bf1e858c4f2ff8b40' }, // FUN_100d5d90: the battle menu and its dialogs
   { hook: 'phoneOnly', va: 0x100b8570, bytes: '558bec83e4f86aff6848' }, // FUN_100b8570: a story dialog in a battle
   { hook: 'curtain', va: 0x10028ae0, bytes: '83ec1853568bf18a8628' },   // FUN_10028ae0: draws the curtain at a level (0 to 255)
+  { hook: 'margin', va: 0x10028360, bytes: '8b41088b10568b70102b' },    // FUN_10028360: the camera's bounds, with a margin around the map
+  { hook: 'focus', va: 0x10073e00, bytes: '83ec0c535533c056578b' },     // FUN_10073e00: the camera turns to a cell
+  { hook: 'ease', va: 0x100290e0, bytes: '83ec085355568bf18d9e' },      // FUN_100290e0: the camera glides 1/8 of the way to its target
+  { hook: 'eased', va: 0x1002be45, bytes: '8b8eac0200008b49' },         // FUN_1002be10, just after it called FUN_100290e0
 ];
+// The curtain image (CONTEXT.md "Curtain"), and where FUN_1002e3f0 keeps the pointer to its name: the operand of the push at 0x1002e9a4.
+export const CURTAIN_PATH = 'data/gameplay/ui/animframe.gfx';
+const CURTAIN_NAME_PUSH = 0x1002e9a5;
 const APP = 0x101b828c;             // the engine's app object; +0x2c its display, +0x9c the battle view while a battle is on
 const DISPLAY_VTABLE = 0x1017b130;  // the display's surface: width at +0x18, height at +0x1c
 const CURTAIN_FADE_IN = 0x32c; // the battle view's curtain fade-in counter
@@ -58,7 +65,7 @@ export class GameHost {
   // files: { name: Uint8Array } for the DLL and everything in the ResetGeneration folder.
   // patches: entries like UNLOCKS, applied after the DLL loads.
   // replay: the text of a replay (server/replay.js) to start the engine in player mode, which plays that battle and nothing else.
-  // board: boot able to show a battle on the Full board; `fullBoard` (settable at any time) says whether the next battle does.
+  // board: boot able to show a battle on the Full board; `fullBoard` (settable at any time) says whether battles do, the one on included.
   constructor(files, { log = () => {}, warn = console.warn, language = 'en', snap = null, jit = true, fast = true, patches = [], replay = null, board = false } = {}) {
     this.jit = jit; this.fast = fast; this.patches = patches; this.warn = warn;
     this.files = files; this.log = log; this.language = language;
@@ -131,27 +138,65 @@ export class GameHost {
     this.#app = app;
     this.#surface = surface;
     this.#rowInfo = rowInfo;
+    // The curtain a switch to the Full board loads in the middle of a battle (#largeScreen) is named where FUN_1002e3f0 names it.
+    if (cpu.readCString(rd(this.m.addr(CURTAIN_NAME_PUSH))) !== CURTAIN_PATH) return this.#bootStock('curtain not found');
     this.#screen(WIDTH, HEIGHT, WIDTH);
     const hooks = {
-      // The battle lays its view and corners out once, here, so this is where a battle becomes Full board.
+      // The battle lays its view and corners out here as it starts, taking the board view then; a change of view in the battle
+      // (#switchBoard) calls it again, which this hook leaves alone.
       setup: () => {
+        if (this.#switching) return;
         this.battleFull = this.fullBoard;
         this.#drawn = false;
+        this.#focus = null;
+        this.#other = null;
+        this.#margin = [0, 0];
         if (this.battleFull) this.#screen(REPLAY_WIDTH, REPLAY_HEIGHT, REPLAY_WIDTH);
       },
       // An online battle sets its view up while the lobby's "Game starting" is still on screen; tick() narrows the screen for the
       // lobby until the battlefield is first drawn.
       draw: () => {
-        if (!this.battleFull || this.#drawn) return;
+        if (this.#drawn) return;
         this.#drawn = true;
-        this.#screen(REPLAY_WIDTH, REPLAY_HEIGHT, REPLAY_WIDTH);
+        if (this.battleFull) this.#screen(REPLAY_WIDTH, REPLAY_HEIGHT, REPLAY_WIDTH);
       },
       // The battle menu and story dialogs are laid out for the phone: while one is up the screen is the phone's, and the page puts
       // it inside the curtain. tick() widens it again once none of them was built or drawn in a tick.
       phoneOnly: () => {
-        if (!this.battleFull || !this.#drawn) return;
+        if (!this.#drawn) return;
         this.#phoneSeen = true;
-        if (this.width !== WIDTH) this.#screen(WIDTH, HEIGHT, REPLAY_WIDTH);
+        if (this.battleFull && this.width !== WIDTH) this.#screen(WIDTH, HEIGHT, REPLAY_WIDTH);
+      },
+      // The playfield widens the camera's bounds by a margin around the map once its battle is set up; a change of board view
+      // must widen them again. FUN_10028f20 itself passes no margin.
+      margin: c => {
+        if (this.#switching) return;
+        const esp = c.r[4] >>> 0, ret = c.rd32(esp) >>> 0, p = c.rd32(esp + 4) >>> 0;
+        if (ret >= this.m.addr(0x10028f20) && ret < this.m.addr(0x10029080)) return;
+        this.#margin = [c.rd32(p) | 0, c.rd32(p + 4) | 0];
+      },
+      // The point of the battlefield the camera was last turned to, in pixels; its target depends on the screen size.
+      focus: c => {
+        const o = c.r[1] >>> 0, view = c.rd32(this.#battleView + 8) >>> 0;
+        this.#focus = [c.rd32(o + 0x24) * c.rd32(view + 0x20) + c.rd32(o + 0x14), c.rd32(o + 0x28) * c.rd32(view + 0x24) + c.rd32(o + 0x18)];
+        if (this.#other) [this.#other.tx, this.#other.ty] = this.#otherTarget();
+      },
+      // The camera the battle would have at the other view's size, kept in step with the engine's (FUN_100290e0: 1/8 of the way
+      // to the target, plus the same shake), so that a change of view can swap the two.
+      ease: c => {
+        const bv = c.r[1] >>> 0, ri = a => c.rd32(a) | 0;
+        this.#eased = [ri(bv + 0x2b0), ri(bv + 0x2b4), ri(bv + 0x2b8), ri(bv + 0x2bc)];
+        if (!this.#other) {
+          const [tx, ty] = this.#focus ? this.#otherTarget() : this.#otherTarget(true);
+          this.#other = { x: this.#eased[0], y: this.#eased[1], tx, ty };
+        }
+      },
+      eased: c => {
+        const bv = this.#battleView, o = this.#other, e = this.#eased;
+        if (!o || !e) return;
+        const sx = (c.rd32(bv + 0x2b0) | 0) - e[0] - ((e[2] - e[0]) >> 3), sy = (c.rd32(bv + 0x2b4) | 0) - e[1] - ((e[3] - e[1]) >> 3);
+        o.x = (o.x + ((o.tx - o.x) >> 3) + sx) | 0; o.y = (o.y + ((o.ty - o.y) >> 3) + sy) | 0;
+        this.#eased = null;
       },
       // The curtain fades in and out over 8 frames. In, by its level alone: the engine's own fade-in holds the animation back, and
       // with it this player's battle (tick() clears it). Out, by stepping the level the engine's own fade-out gives (255 down to 0
@@ -172,9 +217,113 @@ export class GameHost {
     for (const s of BOARD_SITES) this.watch(s.va, hooks[s.hook]);
   }
 
-  #app = 0; #surface = 0; #rowInfo = 0; #drawn = false; #phoneSeen = false;
+  #app = 0; #surface = 0; #rowInfo = 0; #drawn = false; #phoneSeen = false; #phoneUp = false;
   #ticks = 0; #wasNarrow = true; #curtainTick = -2; #curtainStep = 0; // the curtain's fade-in
+  #switching = false; #margin = [0, 0]; #focus = null; #other = null; #eased = null; #animTick = -100;
   battleFull = false; // the battle now on is shown on the Full board
+
+  // The camera's target at the other view's size: FUN_10073e00's target for the last focus, inside FUN_10028360's bounds for
+  // the playfield's margin, clamped as FUN_10029080 does; `initial`: FUN_1002e3f0's first target, inside bounds with no margin.
+  #otherTarget(initial = false) {
+    const cpu = this.m.cpu, ri = a => cpu.rd32(a) | 0, view = cpu.rd32(this.#battleView + 8) >>> 0;
+    const size = this.battleFull ? [WIDTH, HEIGHT] : [REPLAY_WIDTH, REPLAY_HEIGHT];
+    return [0, 1].map(i => {
+      const s = size[i], map = ri(view + 0x10 + i * 4), tile = ri(view + 0x20 + i * 4), m = initial ? 0 : this.#margin[i];
+      let lo = -m * 0x10000, hi = (map - s + m) * 0x10000;
+      if (map + 2 * m < s) lo = hi = -((s - map) >> 1) * 0x10000;
+      let t;
+      if (initial) { t = 0; if (hi < 1) t = hi; } else { t = ((tile >> 1) - (s >> 1) + (this.#focus?.[i] ?? 0)) * 0x10000; if (hi <= t) t = hi; }
+      if (t < lo) t = lo;
+      return t | 0;
+    });
+  }
+
+  // Calls the engine's thiscall at the original address va (or, with `at`, the loaded address) with ECX = self.
+  #thiscall(va, self, ...args) { return this.#callAt(this.m.addr(va), self, ...args); }
+  #callAt(at, self, ...args) {
+    const cpu = this.m.cpu, ecx = cpu.r[1];
+    cpu.r[1] = self;
+    try { return cpu.call(at, args) >>> 0; } finally { cpu.r[1] = ecx; }
+  }
+  // Runs fn(p) with p the address of these dwords in scratch space below the guest's stack.
+  #scratch(dwords, fn) {
+    const cpu = this.m.cpu, esp = cpu.r[4];
+    cpu.r[4] = (esp - 64) | 0;
+    const p = (cpu.r[4] >>> 0) + 16;
+    dwords.forEach((v, i) => cpu.wr32(p + i * 4, v));
+    try { return fn(p); } finally { cpu.r[4] = esp; }
+  }
+
+  // Changes the board view of the battle that is on, between two ticks: lays the battle view out again for the new screen size
+  // the way its setup (FUN_1002e3f0) does, keeping what that setup would lose (cell highlights, the playfield's camera margin, the
+  // camera's and the corner panels' motion), and makes or drops the large-screen mode with the curtain.
+  #switchBoard(full) {
+    const cpu = this.m.cpu, rd = a => cpu.rd32(a) >>> 0, ri = a => cpu.rd32(a) | 0, wr = (a, v) => cpu.wr32(a, v);
+    const bv = this.#battleView, game = rd(bv + 4), renderer = rd(bv + 0xc), view = rd(bv + 8);
+    const [w, h] = full ? [REPLAY_WIDTH, REPLAY_HEIGHT] : [WIDTH, HEIGHT];
+    this.#switching = true;
+    try {
+      this.battleFull = full;
+      this.#screen(w, h, w);
+      // FUN_10028f20 clears the cell highlights (bv+0x288, one dword a cell; bv+0x290 their count; renderer+0x28 the shown ones).
+      const cells = ri(bv + 0x284), marks = rd(bv + 0x288), saved = cpu.m8.slice(marks, marks + cells * 4);
+      const marked = rd(bv + 0x290), shown = rd(renderer + 0x28);
+      this.#thiscall(0x10028f20, bv, game);
+      cpu.m8.set(saved, marks); wr(bv + 0x290, marked); wr(renderer + 0x28, shown);
+      this.#scratch(this.#margin, p => this.#thiscall(0x10028360, bv, p));
+      this.#thiscall(0x10087440, renderer, view); // the tile renderer's copy of the view
+      // The camera: the one kept for this size (see the ease hook); before the battle's first glide there is none, and the camera
+      // goes straight to its target for the new size, as FUN_10073e00 sets it from the last focus.
+      const mine = { x: ri(bv + 0x2b0), y: ri(bv + 0x2b4), tx: ri(bv + 0x2b8), ty: ri(bv + 0x2bc) };
+      if (this.#other) {
+        const o = this.#other;
+        wr(bv + 0x2b0, o.x); wr(bv + 0x2b4, o.y); wr(bv + 0x2b8, o.tx); wr(bv + 0x2bc, o.ty);
+      } else {
+        const [fx, fy] = this.#focus ? [(ri(view + 0x20) >> 1) - (w >> 1) + this.#focus[0], (ri(view + 0x24) >> 1) - (h >> 1) + this.#focus[1]] : [0, 0];
+        this.#thiscall(0x10029080, bv, fx, fy);
+        wr(bv + 0x2b0, ri(bv + 0x2b8)); wr(bv + 0x2b4, ri(bv + 0x2bc));
+      }
+      this.#other = mine;
+      // The four corner panels (FUN_1008a500), each as far from its place as before.
+      const panels = rd(rd(bv + 0x1b8) + 8);
+      for (let i = 0; i < 4; i++) {
+        const p = panels + i * 0x6c, ox = ri(p + 0x3c) - ri(p + 0xc), oy = ri(p + 0x40) - ri(p + 0x10);
+        this.#thiscall(0x1008a500, p, i + 1, game);
+        wr(p + 0x3c, ri(p + 0xc) + ox); wr(p + 0x40, ri(p + 0x10) + oy);
+      }
+      this.#largeScreen(bv, full);
+      if (full && this.#phoneUp) this.#screen(WIDTH, HEIGHT, REPLAY_WIDTH); // a battle menu or story dialog stays on the phone's screen
+    } finally { this.#switching = false; }
+  }
+
+  // The end of FUN_1002e3f0 above a 240-pixel screen: the large-screen flag, a 240 x 320 offscreen with its graphics context, and
+  // the curtain image; dropped the way the battle view's teardown (FUN_1002bc10) drops them. The image store (app+0x34) releases an
+  // image through its vtable's +0 and loads one by name through +0xc; a graphics context releases itself through its vtable's +0.
+  #largeScreen(bv, on) {
+    const cpu = this.m.cpu, rd = a => cpu.rd32(a) >>> 0, wr = (a, v) => cpu.wr32(a, v), app = this.#app, images = rd(app + 0x34);
+    for (const at of [0x1b4, 0x334]) if (rd(bv + at)) { this.#callAt(rd(rd(images)), images, rd(bv + at), 1); wr(bv + at, 0); }
+    const gc = rd(bv + 0x338);
+    if (gc) { this.#callAt(rd(rd(gc)), gc, 1); wr(bv + 0x338, 0); }
+    cpu.m8[bv + 0x328] = on ? 1 : 0;
+    if (!on) return;
+    // The curtain fades out over 16 engine frames after an animation (FUN_1002b5a0); a Full board battle would be that far into it.
+    wr(bv + CURTAIN_FADE_IN, 0); wr(bv + 0x330, Math.max(0, 16 - (this.#ticks - 1 - this.#animTick)));
+    // FUN_1004ad50 makes an image of a size; FUN_1004a000 sets a mode on an image, 2 on the offscreen and 1 on the curtain as the
+    // setup does (what the modes mean wasn't looked into); FUN_1000a2e0 makes the graphics context.
+    const offscreen = this.#scratch([WIDTH, HEIGHT], p => cpu.call(this.m.addr(0x1004ad50), [p, 0]) >>> 0);
+    wr(bv + 0x334, offscreen);
+    this.#thiscall(0x1004a000, offscreen, 2);
+    wr(bv + 0x338, this.#thiscall(0x1000a2e0, rd(app + 0x40), 1, rd(rd(app + 0x2c) + 4)));
+    const name = rd(this.m.addr(CURTAIN_NAME_PUSH));
+    // The name goes to the store as one of the engine's strings, built by FUN_100f0e10 and freed by FUN_100ef720.
+    this.#scratch([0], s => {
+      this.#thiscall(0x100f0e10, s, name, 0);
+      const curtain = this.#callAt(rd(rd(images) + 0xc), images, s, 0);
+      wr(bv + 0x1b4, curtain);
+      this.#thiscall(0x100ef720, s);
+      this.#thiscall(0x1004a000, curtain, 1);
+    });
+  }
 
   // Gives the engine a screen of w x h in the top-left corner of the frame buffer, whose rows are `pitch` pixels long.
   #screen(w, h, pitch) {
@@ -196,17 +345,30 @@ export class GameHost {
     if (!bv) { this.battleFull = false; this.#screen(WIDTH, HEIGHT, WIDTH); return; }
     if (!this.#drawn) { if (this.width !== WIDTH) this.#screen(WIDTH, HEIGHT, REPLAY_WIDTH); return; }
     if (!this.#phoneSeen && this.width !== REPLAY_WIDTH) this.#screen(REPLAY_WIDTH, REPLAY_HEIGHT, REPLAY_WIDTH);
-    this.#phoneSeen = false;
     if (cpu.rd32(bv + CURTAIN_FADE_IN) !== 0) cpu.wr32(bv + CURTAIN_FADE_IN, 0);
+  }
+
+  // A rescue (bv+0x2a0, state +8) or a fight (bv+0x29c, state +0x14 at 1) plays over a backdrop snapshot taken at its start, at the
+  // size then: a change of board view waits for it to end.
+  get #cutIn() {
+    const cpu = this.m.cpu, bv = this.#battleView, rd = a => cpu.rd32(a) >>> 0;
+    return rd(rd(bv + 0x2a0) + 8) !== 0 || rd(rd(bv + 0x29c) + 0x14) === 1;
   }
 
   // One game step. The engine paces itself: its frame limiter (FUN_100eddc0) runs a frame only while
   // the clock is before the next frame deadline, then Sleeps to it. Time therefore advances only
   // through Sleep; the host keeps calling tick() until `time` catches up with real time.
+  // A change of board view in a battle is made here, between two ticks, where no frame is half drawn (docs/adr/0017).
   tick() {
     this.#ticks++;
+    if (this.#drawn && this.inBattle && this.battleFull !== this.fullBoard && !this.#cutIn) this.#switchBoard(this.fullBoard);
     const running = this.call('_Java_rg_natives_NativeGameEngine_tick@8', this.jni.ref(this.engine)) & 0xff;
-    if (this.board) { this.#afterTick(); this.#wasNarrow = this.width === WIDTH; }
+    if (this.board) {
+      this.#afterTick(); this.#wasNarrow = this.width === WIDTH; this.#phoneUp = this.#phoneSeen; this.#phoneSeen = false;
+      const bv = this.#battleView, rd = a => this.m.cpu.rd32(a) >>> 0;
+      // the last tick an animation that goes inside the curtain played: the chain (intro, banners, ...), a rescue or a fight
+      if (bv && (this.m.cpu.m8[rd(bv + 0x2a4) + 0x50] || this.#cutIn)) this.#animTick = this.#ticks;
+    }
     return running;
   }
   get time() { return this.m.win.now - this.clock0; }

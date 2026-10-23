@@ -71,7 +71,7 @@ To use other keys, open **Settings > Custom Keys** in the game. You can change t
 
 The game screen is soft by default, like the display of a 2008 phone. For sharp pixels, turn off **Soft screen** under the game screen. On the touch pad, tap **Soft screen**, the grid icon beside **Keyboard**.
 
-A battle shows the whole board at once by default, as the original website's replays did (the **Full board**). For the phone's own view, where the board scrolls, turn off **Full board** under the game screen, or tap the board icon on the touch pad; it applies from your next battle.
+A battle shows the whole board at once by default, as the original website's replays did (the **Full board**). For the phone's own view, where the board scrolls, turn off **Full board** under the game screen, or tap the board icon on the touch pad, even in the middle of a battle.
 
 ## Play online
 

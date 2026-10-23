@@ -2,14 +2,14 @@
 // from the player's own gameplay.pak each time the game starts and kept only in memory (docs/LEGAL.md); its .gfx format is in
 // docs/re/re_screen.md "The .gfx image container", its run codes in docs/re/re_render.md "The run-length image".
 import { pakRead } from '../pak.js';
+import { CURTAIN_PATH } from '../emu/host.js';
 
-const PATH = 'data/gameplay/ui/animframe.gfx';
 const HEADER = 0x28, RUN_LENGTH = 4;
 
 // The curtain as an Int32Array in the engine's color layout (web/ui/screen.js), its top byte 255 where it is opaque and 0 in its
 // hole, or null when this copy has no such image in a form we know.
 export async function loadCurtain(files, width, height) {
-  const gfx = files['gameplay.pak'] && await pakRead(files['gameplay.pak'], PATH);
+  const gfx = files['gameplay.pak'] && await pakRead(files['gameplay.pak'], CURTAIN_PATH);
   if (!gfx || gfx.length < HEADER) return null;
   const dv = new DataView(gfx.buffer, gfx.byteOffset, gfx.byteLength);
   if (dv.getUint32(4, true) !== RUN_LENGTH || dv.getUint32(8, true) !== width || dv.getUint32(12, true) !== height) return null;

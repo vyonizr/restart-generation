@@ -155,17 +155,17 @@ async function main(canvas) {
   let lastSave = 0, frames = 0, statT = t0, statI = 0;
   const frame = now => {
     try {
-      if (++frames % 60 === 0) { // exposed for debugging and the end-to-end tests, which wait on the engine's own clock (time, ms)
+      if (++frames % 60 === 0) { // exposed for debugging and the end-to-end tests, which wait on the engine's own clock (time, ms), its screen and the battle's board view
         const ic = game.m.cpu.icount;
         window.rgStats = { fps: +(60000 / (now - statT)).toFixed(1), mips: +((ic - statI) / (now - statT) / 1000).toFixed(1),
-          lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20), time: game.time, screen: `${game.width}x${game.height}` };
+          lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20), time: game.time, screen: `${game.width}x${game.height}`, battle: page.battle };
         statT = now; statI = ic;
       }
       // At most one tick per frame, when the engine's clock is behind real time; each tick sleeps the
       // engine to its next frame. A late frame slows the game instead of bursting catch-up ticks.
       if (game.time < now - t0) {
         while (input.length) input.shift()();
-        game.fullBoard = page.board === 'full'; // taken by the engine as a battle starts
+        game.fullBoard = page.board === 'full'; // taken by the engine between ticks, in a battle too
         const running = game.tick(); snap.pump();
         if (!running) { clearInterval(slowTimer); quit(saveNow, snap); return; } // the loop stops here: no more ticks, input or saves
         if (game.unsaved('settings.cfg')) saveNow(); // the player left the settings: show their keys at once

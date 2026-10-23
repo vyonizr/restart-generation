@@ -47,7 +47,7 @@ A battle left at 240 × 320 with the pitch at 420 is not quite stock, though: ob
 
 What goes wrong otherwise:
 
-- **Widening late.** Widening between ticks, one tick after `FUN_10028f20`, or later in the battle, shows the whole board, but the corner HUD panels stay where a 240 × 320 screen has them: the top-right one at x ≈ 200 and the bottom ones at y ≈ 290. The HUD is laid out inside the battle's first tick, so the widening has to happen at or before `FUN_10028f20`. Narrowing in the middle of a battle has the same problem, so a change of board view can only apply from the next battle.
+- **Widening late.** Widening between ticks, one tick after `FUN_10028f20`, or later in the battle, shows the whole board, but the corner HUD panels stay where a 240 × 320 screen has them: the top-right one at x ≈ 200 and the bottom ones at y ≈ 290. The HUD is laid out inside the battle's first tick, so writing the size alone has to happen at or before `FUN_10028f20`. Narrowing in the middle of a battle has the same problem. A change of board view in the middle of a battle therefore lays the battle view out again, as "Changing the board view in a battle" below describes.
 - **Changing the pitch.** Setting the pitch to 420 when widening and back to 240 when narrowing also works, except for the snapshot that `FUN_10009b20` takes as the battle ends. It copies a frame drawn at pitch 420 using pitch 240, and the results screens' backdrop comes out garbled. With a constant pitch the snapshot is a crop: the results backdrop is the top-left 240 × 320 of the grayed full board rather than stock's view, while the results themselves are stock.
 
 ### Online battles
@@ -113,6 +113,40 @@ While the battle menu is up, `FUN_100d5d90` runs every frame: it grays the width
 At 420 × 378 these two are laid out for a phone but not inside the curtain. The battle menu's wheel stays at its 240 × 320 position, its title bar is centered at x 210, and its Select and Back soft keys sit in the 420 × 378 screen's bottom corners. A story message's text box stays at its 240 × 320 position, while the princess's portrait is anchored to the bottom, 58 pixels lower than stock. Chat entry is centered at 420 and works.
 
 Narrowing the width and height to 240 × 320 while they are up lays them out exactly as stock. The host narrowed on entry to `FUN_100f94a0` while `app+0x114` is set, and on entry to `FUN_100d5d90` and `FUN_100b8570`, and widened again after the tick once `M+4` no longer was the battle menu or a story message. The battle menu, its Exit confirmation, and the story messages then matched stock, apart from the board behind them, which is the top-left corner of the full board rather than the phone camera's view. After widening, the engine was pixel-identical to a stock 420 × 378 engine again, so the narrowing leaves nothing behind. The tick in which such a state closes is still drawn narrow, one frame each time.
+
+## Changing the board view in a battle
+
+A host can move a battle between 240 × 320 and 420 × 378 between two ticks by running again the part of the battle view's setup that depends on the screen size, and keeping what that part would throw away. Observed over whole Arcade battles switched back and forth up to twelve times: from the switching tick on, every frame matched a stock 240 × 320 engine while the battle was on Classic and a never-switched Full board engine while it was on the Full board, phases and turns changed on the same ticks, and after the battle the heap held the same blocks as the engine it then matched. The measurements are in `.scratch/full-board/research/midswitch.md`.
+
+### What the setup lays out from the size
+
+`FUN_1002e3f0` sets the battle view up in the battle's first tick. The parts of it that depend on the screen size:
+
+- `FUN_10028f20`, a thiscall whose one stack argument is the battle's `Game` (`[bv+4]`), the source of the map's columns and rows. It writes the screen size, the map's size in cells and pixels, the visible columns and rows, and the tile size into the view `[bv+8]`. It sets the camera's bounds through `FUN_10028360` with a zero margin. It also zeroes the cell highlights: one dword per map cell at `[bv+0x288]` (`[bv+0x284]` of them, reallocated only when the map's size changes), and the tile renderer's pointer to them at `renderer+0x28`, where `renderer` is `[bv+0xc]`. The highlights mark the cells a special skill can target (static: no cell was highlighted in our runs). Called without its argument, it reads a stray stack value and lays the view out for a 1 × 1 map, so no tile is drawn.
+- `FUN_10028360(bv, margin)`, where `margin` points at two dwords. It sets the camera's bounds in `view+0x28` to `+0x34`, 16.16 fixed point: from minus the margin to the map's size minus the screen's plus the margin, or, when the map and its margins together are narrower than the screen, both at the value that centers the map: minus half, rounded down, of the pixels the screen has over the map. Later in the setup the playfield calls it again with its own margin, 40 × 40 on the Arcade map, so a second call of `FUN_10028f20` loses that margin unless the host calls `FUN_10028360` again with it.
+- `FUN_10087440(renderer, view)` copies the view into the tile renderer, which draws from its copy.
+- The HUD's four corner panels at `[[bv+0x1b8]+8]`, `0x6c` bytes each. `FUN_1008a500(panel, corner, game)`, with the corners numbered 1 to 4, places a panel from the screen size: its home at `+0xc` and `+0x10`, where it is now at `+0x3c` and `+0x40`. A panel glides a quarter of the way home each frame, so keeping its distance from home keeps any glide in progress.
+- The camera's first target, and the large-screen mode at the setup's end ("The battle view's large-screen mode" above).
+
+### The camera
+
+The camera's position is at `bv+0x2b0` and `+0x2b4`, its target at `+0x2b8` and `+0x2bc`, all 16.16. `FUN_10073e00` turns the camera to a cell: its object holds the cell at `+0x24` and `+0x28` and an offset in pixels at `+0x14` and `+0x18`. The target is that point plus half a tile minus half the screen. `FUN_10029080` clamps it: first down to the upper bound, then up to the lower bound, so the lower bound wins when the two cross. The setup's first target is 0, or the upper bound when that is below 1 (in 16.16), then raised to the lower bound, with the bounds worked out with no margin, since the playfield's margin comes later. `FUN_100290e0`, called once a frame from the battle view's update `FUN_1002be10`, moves the position an eighth of the way to the target (an arithmetic shift) and adds the battle's shake. Nothing else writes these fields (static).
+
+A camera at one size isn't one at the other: on the Arcade map the Full board's camera stays centered, since the whole board fits, while Classic's follows the cursor. Moving the camera straight to the new size's target leaves the view up to 30 frames behind a never-switched engine, or 1 pixel off until the camera next moves, because the engine's glide stops a fraction short of its target. Exact frames need the other size's camera kept beside the engine's, every frame: its target worked out by the same formula with the other size and the playfield's margin, and its position moved by the same eighth plus the same shake. A switch swaps the two.
+
+### The large-screen mode
+
+Widening in a battle does what the setup's end does above a 240-pixel screen: it sets `bv+0x328`, makes the 240 × 320 offscreen (`FUN_1004ad50`, then `FUN_1004a000` on it) and its graphics context (`FUN_1000a2e0`), and loads the curtain (`FUN_100f0e10` builds the name, the image store at `app+0x34` loads it). The setup pushes the address of the curtain's name with a `push` at `0x1002e9a4`, so the address is the dword at `0x1002e9a5`. Narrowing releases those three objects as the battle view's teardown `FUN_1002bc10` does, through the image store's and the context's own release methods, and clears the flag; with the flag clear every curtain path draws straight on the screen, as on a stock phone.
+
+The fade-out counter `bv+0x330` needs the value a Full board battle would have at that moment. A battle on Classic never counts it down and leaves it at 16, which fades a curtain out over the board for the first frames after widening. A Full board battle has it at 16 minus the ticks since the last curtain animation played, and at 0 from 16 ticks on.
+
+### When it can't happen
+
+- **Inside a frame.** Between two ticks no frame is half drawn and no guest register is live; a frame's update and draw then both run at the new size.
+- **During a rescue or a fight.** Both draw over a picture of the board taken as they start (`FUN_100831a0` and, static, `FUN_100828a0`), so after a switch they keep the old size's board behind them: on the Arcade run, 72 frames of the rest of a rescue differed. A switch waits while the rescue's state `[[bv+0x2a0]+8]` isn't 0 or the fight's `[[bv+0x29c]+0x14]` is 1.
+- **Before the battlefield is first drawn**, the setup hasn't finished laying the battle out.
+
+While the battle menu or a story dialog is up, a switch to the Full board lays the battle out at 420 × 378 and then narrows the screen to 240 × 320 again, as the narrowing hooks would. A switch takes about 27 ms of a tick to the Full board, most of it the curtain's loading, and 3.5 ms to Classic.
 
 ## The `.gfx` image container
 
