@@ -1,13 +1,13 @@
-<!-- Export footage (CONTEXT.md "Footage"): renders the replay to an MP4 file and saves it (replay.svelte.js). It works once the engine
-     has built the battle, in a browser that can encode the file; it says "Footage saved" for 2.5 s after a save, and takes focus
-     back when the screen's progress or failure goes away. -->
+<!-- Export footage (CONTEXT.md "Footage"): renders the replay to an MP4 file and saves it (replay.svelte.js). It works as soon as
+     Watch does, in a browser that can encode the file, and says why where it never will; it says "Footage saved" for 2.5 s after a
+     save, and takes focus back when the screen's progress or failure goes away. -->
 <script>
   import { tick } from 'svelte';
   import { replay, exportFootage } from './replay.svelte.js';
 
   let button, label = $state('Export footage'), timer;
   const f = replay.footage;
-  const off = $derived(f.status !== 'ready' || !replay.loaded || replay.unplayable);
+  const off = $derived(f.status !== 'ready' || !replay.booted || replay.unplayable);
 
   async function press() {
     const saved = await exportFootage();

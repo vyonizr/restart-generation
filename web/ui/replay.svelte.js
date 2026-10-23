@@ -20,6 +20,7 @@ const VOLUME = 0.8;
 export const replay = $state({
   meta: null,        // what the server keeps beside the replay: players, heroes, seats, environment, kind, date, result
   gone: false,       // the replay doesn't exist, is 30 days old, or replays are off on this server
+  booted: false,     // the engine is up: Watch and Export footage work
   loaded: false,     // the engine has built the replay's battle: the controls work
   unplayable: false, // the engine never built it (replayflow.js): the overlay says so and the engine stops
   playing: false,
@@ -33,7 +34,8 @@ export const replay = $state({
   footage: { status: 'checking', progress: 0, left: null, error: '' },
 });
 
-let flow = null, sound = null, onWatch = null, game = null, screen = null, exporting = null;
+// `exporting` while Export footage runs, from its press; `taken` once the render has the engine to itself.
+let flow = null, sound = null, onWatch = null, game = null, screen = null, exporting = null, taken = false;
 export const pressWatch = () => onWatch?.();
 
 const id = decodeURIComponent(location.pathname.split('/').filter(Boolean).at(-1) ?? '');
@@ -79,6 +81,7 @@ async function main(canvas) {
   screen = createScreen(canvas);
   page.status = 'Ready';
   page.start = true;
+  replay.booted = true;
   // The engine starts on Watch: the browser plays sound only from a press, and the original player played from its first frame.
   await new Promise(resolve => {
     onWatch = () => {
@@ -100,7 +103,7 @@ async function main(canvas) {
   const frame = now => {
     try {
       // Footage has the engine to itself, and leaves its clock wherever it stopped.
-      if (exporting) { resync = true; requestAnimationFrame(frame); return; }
+      if (taken) { resync = true; requestAnimationFrame(frame); return; }
       if (resync) { t0 = now - game.time; resync = false; }
       // As the game page: at most one tick per frame, when the engine's clock is behind real time, and no catch-up bursts.
       if (game.time < now - t0) {
@@ -150,18 +153,29 @@ export function toggleMute() {
 
 const confirmLeave = e => { e.preventDefault(); e.returnValue = ''; };
 
-// Renders the footage and saves it; resolves true once it is saved, false if it was canceled or failed.
+// Renders the footage and saves it; resolves true once it is saved, false if it was canceled or failed. Pressed before Watch, it
+// starts the replay as Watch does (this press lets its sound play later) and waits for the battle to be built, as the page's
+// controls need it afterwards.
 export async function exportFootage() {
   const f = replay.footage;
-  if (exporting || !replay.loaded || replay.unplayable || f.status !== 'ready') return false;
+  if (exporting || !replay.booted || replay.unplayable || f.status !== 'ready') return false;
   exporting = new AbortController();
+  const { signal } = exporting;
   Object.assign(f, { status: 'rendering', progress: 0, left: null, error: '' });
   addEventListener('beforeunload', confirmLeave);
   if (touch) stayAwake();
+  pressWatch();
   const started = performance.now();
   try {
+    await new Promise(resolve => {
+      const check = () => replay.loaded || replay.unplayable || signal.aborted ? resolve() : requestAnimationFrame(check);
+      check();
+    });
+    signal.throwIfAborted();
+    if (replay.unplayable) throw new Error("The game couldn't load this replay.");
     const { renderFootage } = await footageModule();
-    const blob = await renderFootage(game, { signal: exporting.signal, progress: p => {
+    taken = true;
+    const blob = await renderFootage(game, { signal, progress: p => {
       f.progress = p;
       f.left = p >= 0.05 ? Math.ceil((performance.now() - started) / 1000 / p * (1 - p)) : null;
       screen.paint(game); // the battle races by under the progress bar
@@ -170,19 +184,22 @@ export async function exportFootage() {
     f.status = 'ready';
     return true;
   } catch (e) {
-    if (exporting.signal.aborted) { f.status = 'ready'; return false; }
+    if (signal.aborted) { f.status = 'ready'; return false; }
     console.error(e);
     Object.assign(f, { status: 'failed', error: failure(e) });
     return false;
   } finally {
     removeEventListener('beforeunload', confirmLeave);
     exporting = null;
-    // The engine boots again for footage; one that couldn't, as main() tells it, or never rebuilt the battle can't play on.
-    if (game.m && game.replayLoaded) {
-      sound.caughtUp();
-      flow.restart();
-      screen.paint(game);
-    } else Object.assign(replay, { loaded: false, unplayable: true });
+    if (taken) {
+      taken = false;
+      // The engine boots again for footage; one that couldn't, as main() tells it, or never rebuilt the battle can't play on.
+      if (game.m && game.replayLoaded) {
+        sound.caughtUp();
+        flow.restart();
+        screen.paint(game);
+      } else Object.assign(replay, { loaded: false, unplayable: true });
+    } else if (replay.loaded) flow.restart(); // canceled before the render began: still at 0 and paused, as after one
   }
 }
 export const cancelFootage = () => exporting?.abort();

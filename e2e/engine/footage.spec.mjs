@@ -69,3 +69,18 @@ test('a played replay exports as footage: an MP4 of the whole battle at 30 fps, 
   expect(Math.abs(await audio.computeDuration() - expected)).toBeLessThanOrEqual(1);
   expect(errors).toEqual([]);
 });
+
+// Export footage works as soon as Watch does, so it is never disabled with nothing on screen saying why.
+test('a replay exports as footage straight from Watch, and then waits at the start', async ({ page, errors }) => {
+  await page.goto(`/replay/${seed.played[1].id}`);
+  await expect(page.getByRole('button', { name: 'Watch' })).toBeVisible({ timeout: 30000 });
+  const saving = page.waitForEvent('download', { timeout: 150000 });
+  await page.getByRole('button', { name: 'Export footage' }).click();
+  await expect(page.getByRole('progressbar', { name: 'Footage' })).toBeVisible();
+  expect((await saving).suggestedFilename()).toMatch(/\.mp4$/);
+  await expect(page.getByRole('button', { name: 'Watch' })).toBeHidden();
+  const play = page.getByRole('group', { name: 'Replay controls' }).getByRole('button').first();
+  await expect(play).toHaveAccessibleName('Play');
+  await expect(page.getByRole('slider', { name: 'Time' })).toHaveAttribute('aria-valuetext', /^0:00 of /);
+  expect(errors).toEqual([]);
+});
