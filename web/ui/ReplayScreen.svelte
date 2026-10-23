@@ -1,17 +1,20 @@
 <!-- The replay's screen: the engine's 420 × 378 battle view, the overlay until the visitor presses Watch (the game files, as on the
-     game page), and the end screen with the result and Watch again. -->
+     game page), the end screen with the result and Watch again, and while footage is rendered its progress, or why it failed. -->
 <script>
   import { onMount } from 'svelte';
   import { page } from './page.svelte.js';
-  import { replay, startReplay, pressWatch, watchAgain } from './replay.svelte.js';
+  import { replay, startReplay, pressWatch, watchAgain, cancelFootage, dismissFootage } from './replay.svelte.js';
   import { chooseZip, chooseFolder, forgetCopy } from './gamefiles.js';
-  import { resultOf, ordinal } from '../replay-text.js';
+  import { resultOf, ordinal, clock } from '../replay-text.js';
   import { GRID_MIN_PITCH } from './finish.js';
   import { REPLAY_WIDTH, REPLAY_HEIGHT } from '../emu/host.js';
 
   let canvas, screen, zipInput, folderInput, zipButton, watchButton, pitch = $state(0);
   let againButton = $state(); // inside the end screen, which comes and goes
+  let cancelButton = $state(), backButton = $state(); // inside the footage panel, likewise
   const result = $derived(replay.meta && resultOf(replay.meta));
+  const f = replay.footage;
+  const percent = $derived(Math.floor(f.progress * 100));
 
   onMount(() => {
     startReplay(canvas);
@@ -22,6 +25,8 @@
   $effect(() => { if (page.start) watchButton?.focus(); });
   $effect(() => { if (page.pick) zipButton?.focus(); });
   $effect(() => { if (replay.ended) againButton?.focus(); });
+  $effect(() => { cancelButton?.focus(); });
+  $effect(() => { backButton?.focus(); });
 </script>
 
 <div class="screen replay-screen" bind:this={screen} data-finish={page.finish} data-grid={pitch >= GRID_MIN_PITCH ? '' : null}>
@@ -53,6 +58,23 @@
       {/if}
       {#if result.guessed}<p class="hint">The server had no copy of the game to follow this battle, so it guessed the result.</p>{/if}
       <button bind:this={againButton} onclick={watchAgain}>Watch again</button>
+    </div>
+  {/if}
+  {#if f.status === 'rendering'}
+    <div class="footage">
+      <h2 class="footage-headline">Exporting footage</h2>
+      <div class="meter" role="progressbar" aria-label="Footage" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent}>
+        <span style:transform="scaleX({f.progress})"></span>
+      </div>
+      <p class="footage-left">{percent}% · {f.left === null ? 'working out the time left' : `about ${clock(f.left)} left`}</p>
+      <p class="hint">The whole battle at 1× with idle time skipped. The MP4 file is saved when it's done.</p>
+      <button class="secondary" bind:this={cancelButton} onclick={cancelFootage}>Cancel</button>
+    </div>
+  {:else if f.status === 'failed'}
+    <div class="footage">
+      <h2 class="footage-headline">Couldn't export footage</h2>
+      <p class="hint" role="alert">{f.error}</p>
+      <button bind:this={backButton} onclick={dismissFootage}>Back to the replay</button>
     </div>
   {/if}
 </div>

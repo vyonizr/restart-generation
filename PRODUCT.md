@@ -40,6 +40,8 @@ After each online battle, the notice line under the screen says the battle is sa
 
 A replay whose battle the engine hasn't built after 10 seconds of its own time, such as damaged data or a development seed's placeholder, never will: the page says **Can't play**, with **Play Restart Generation**, instead of staying black.
 
+**Export footage**, beside **Copy link** in the replay page's header, saves the replay as [footage](CONTEXT.md): an MP4 file to cut in a video editor and share ([ADR 0028](docs/adr/0028-players-can-export-a-replay-as-footage.md)). The page renders it on its own engine, faster than real time, with a progress bar and **Cancel** over the battle view: the whole battle at 1× with idle time skipped, the engine's picture only, three times its size at 30 frames a second, with its sound. Then the replay waits at the start for **Play**. It needs a browser that encodes H.264 and AAC (WebCodecs); in others the button stays disabled and the page says to try Chrome or Edge.
+
 **Replays** lists every replay under the player's name, newest first, for anyone to see, for its 30 days ([ADR 0024](docs/adr/0024-a-players-replays-are-listed-under-their-name.md)), so a dismissed notice loses nothing. On a Discord server it sits in a member's **Account** menu and beside a guest's **Sign in with Discord**; on a server without accounts, on the "Online as" line under **Start**. It opens the **Replays** dialog, with **Watch** and **Copy link** for each one. On a touch device it is on the Start screen only.
 
 ## Capabilities and Constraints

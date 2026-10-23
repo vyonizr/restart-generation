@@ -1,11 +1,11 @@
 <!-- The replay's control bar (replay.svelte.js): play or pause, the time slider with the time, skip idle time, double speed, and the
-     volume. It works once the engine has built the battle. -->
+     volume. It works once the engine has built the battle, except while footage is rendered on it. -->
 <script>
   import { replay, togglePlay, seek, holdSlider, releaseSlider, setSkipEmpty, setDoubleSpeed, setVolume, toggleMute } from './replay.svelte.js';
   import { clock } from '../replay-text.js';
   import { STEP_S } from './replayflow.js';
 
-  const off = $derived(!replay.loaded);
+  const off = $derived(!replay.loaded || replay.footage.status === 'rendering');
   const SEEK_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
 </script>
 

@@ -6,7 +6,13 @@
 @supports (height: 100dvh) { :root { --screen-h: min(clamp(260px, 100dvh - 400px, 640px), (100vw - 96px) * 378 / 420); } }
 
 header .name { color: #fff; text-decoration: none; }
-.copy-link { font-size: 13px; padding: 6px 12px; white-space: nowrap; }
+.copy-link, .export-footage { font-size: 13px; padding: 6px 12px; white-space: nowrap; }
+/* Export footage and Copy link, side by side on the header's right */
+.share { display: flex; gap: 8px; }
+.export-footage { display: flex; align-items: center; gap: 6px; }
+.export-footage svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; }
+.export-footage:disabled { opacity: .45; cursor: default; }
+.export-footage:disabled:hover { color: var(--light-2); border-color: var(--light-3); }
 main { gap: 14px; }
 
 .broadcast { position: relative; display: grid; justify-items: center; width: var(--view-w); margin-top: 25px; container-type: inline-size; }
@@ -66,12 +72,23 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
 .places { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font: 15px/1.6 var(--body); color: var(--light-2); }
 .places .place { display: inline-block; min-width: 3ch; font: 400 18px/1 var(--display); color: #fff; text-transform: uppercase; }
 .ending .hint { max-width: 40ch; }
+
+/* Footage being rendered, or why it failed: over the battle as the end screen is, the battle racing by under it */
+.footage { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 3cqh; padding: 6cqi; text-align: center;
+  background: rgb(17 20 27 / 82%); animation: arrive .4s cubic-bezier(.16, 1, .3, 1); }
+.footage-headline { margin: 0; font: 400 7cqi/.9 var(--display); text-transform: uppercase; text-wrap: balance; }
+.meter { width: min(320px, 70cqi); height: 6px; background: var(--ink-3); overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--red); transform-origin: left; transition: transform .2s linear; }
+.footage-left { margin: 0; font: 15px/1.6 var(--body); font-variant-numeric: tabular-nums; color: var(--light-2); }
+.footage .hint { max-width: 40ch; margin: 0; }
+.footage button { font-size: 18px; padding: 12px 20px; }
 #overlay .button { font-size: 18px; padding: 12px 18px; }
 
 /* Under the strip: what kind of match it was, and the Soft screen toggle */
 .sub { width: var(--view-w); grid-template-columns: 1fr auto; gap: 16px; }
 .sub .facts { grid-column: 1; justify-self: start; font: 13px/1.6 var(--body); color: var(--light-3); text-align: left; }
 .sub .finish { grid-column: 2; }
+.sub .footage-note { grid-column: 1 / -1; justify-self: start; margin: 0; font: 13px/1.6 var(--body); color: var(--light-3); text-align: left; }
 
 @media (max-width: 759px) {
   :root { --screen-h: min(clamp(220px, 100dvh - 320px, 640px), (100vw - 32px) * 378 / 420); }
@@ -79,10 +96,16 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
   .controls { flex-wrap: wrap; }
   input[type=range].time { order: 9; flex-basis: 100%; }
 }
+/* A phone's header has room for the name and two small buttons only if Export footage is its icon, the label kept for screen readers */
+@media (max-width: 459px) {
+  .export-footage { justify-content: center; padding: 6px; }
+  .export-footage .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .export-footage svg { width: 18px; height: 18px; }
+}
 /* Touch devices: no key legend; every control a full thumb's size */
 @media (hover: none) and (pointer: coarse) {
   .keys, .ghost { display: none; }
-  .controls button, .ctl.play, .ctl.mute, .copy-link { min-width: 44px; min-height: 44px; }
+  .controls button, .ctl.play, .ctl.mute, .copy-link, .export-footage, .footage button { min-width: 44px; min-height: 44px; }
   input[type=range].time { height: 44px; }
   .volume input { display: none; } /* phones and tablets set the volume with their own buttons; mute stays */
 }

@@ -28,3 +28,15 @@ for (const kept of [ranked, friendly]) {
     await expect(page.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 }
+
+// Footage (CONTEXT.md, docs/adr/0028) needs a browser that encodes H.264 and AAC with WebCodecs. Elsewhere Export footage stays,
+// disabled, and says why.
+test("a browser that can't encode footage says so at Export footage", async ({ page }) => {
+  await page.addInitScript(() => { delete window.VideoEncoder; delete window.AudioEncoder; });
+  await page.goto(`/replay/${ranked.id}`);
+  const why = "Your browser can't export footage. Try Chrome or Edge.";
+  const button = page.getByRole('button', { name: 'Export footage' });
+  await expect(button).toBeDisabled();
+  await expect(button).toHaveAccessibleDescription(why);
+  await expect(page.getByText(why)).toBeVisible();
+});

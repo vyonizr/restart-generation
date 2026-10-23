@@ -23,7 +23,7 @@ OWN-WORLD: The game page's Stage, unchanged: ink ground, one crimson, Anton uppe
 
 STORY: The visitor sees who played and on what before the game loads (the lower third and the facts line), presses Watch, watches the battle with the seats under it, and at the end the view dims to the result while each seat gets its place.
 
-FIRST VIEWPORT: A `72px` header with the name (a link home) and **Copy link**. Centered: the battle view at the largest size that fits with the strip under it, the crimson REPLAY tag sitting on its top-left corner, just above the frame; under it, flush, the lower third with one cell per seat (an ink square with the seat number, the name in Anton over the hero), then the ink control strip (crimson play, the time slider, `m:ss / m:ss`, Skip idle, 2×, mute and volume). Under that, the facts line on the left and Soft screen on the right, then the key legend. Footer strip as on every page.
+FIRST VIEWPORT: A `72px` header with the name (a link home), **Export footage** and **Copy link**. Centered: the battle view at the largest size that fits with the strip under it, the crimson REPLAY tag sitting on its top-left corner, just above the frame; under it, flush, the lower third with one cell per seat (an ink square with the seat number, the name in Anton over the hero), then the ink control strip (crimson play, the time slider, `m:ss / m:ss`, Skip idle, 2×, mute and volume). Under that, the facts line on the left and Soft screen on the right, then the key legend. Footer strip as on every page.
 
 FORM: Broadcast replay, position 1 of the prototype's three, chosen by the user over Stage with control strip and Theater.
 

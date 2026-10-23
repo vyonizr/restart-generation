@@ -79,6 +79,7 @@ export class GameHost {
   }
 
   boot() {
+    this.m = null; // booted again (web/ui/footage.js): the old machine's memory can go before the new one takes as much
     const m = this.m = new Machine({ log: this.log });
     m.cpu.jit = this.jit;
     for (const [name, data] of Object.entries(this.files)) if (!name.endsWith('.dll') && !name.endsWith('.dylib')) m.vfs.put(`${HOME}\\${name}`, data);

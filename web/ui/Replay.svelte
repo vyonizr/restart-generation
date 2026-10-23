@@ -8,6 +8,7 @@
   import Footer from './Footer.svelte';
   import NoticesDialog from './NoticesDialog.svelte';
   import CopyLink from './CopyLink.svelte';
+  import ExportFootage from './ExportFootage.svelte';
   import ReplayBroadcast from './ReplayBroadcast.svelte';
   import ReplayKeys from './ReplayKeys.svelte';
 
@@ -15,7 +16,7 @@
 </script>
 
 <div class="page replay-page">
-  <header><a class="name" href="./">Restart Generation</a>{#if !replay.gone}<CopyLink />{/if}</header>
+  <header><a class="name" href="./">Restart Generation</a>{#if !replay.gone}<span class="share"><ExportFootage /><CopyLink /></span>{/if}</header>
   <span class="ghost" aria-hidden="true">Restart<br>Generation</span>
   <main>
     <ReplayBroadcast />
@@ -23,6 +24,7 @@
       <div class="sub">
         {#if replay.meta}<p class="facts">{replay.meta.ranked ? 'Ranked' : 'Friendly'} match on {ENVIRONMENTS[replay.meta.environment] ?? 'an unknown environment'}, {day(replay.meta)}</p>{/if}
         <button type="button" class="secondary finish" aria-pressed={page.finish === 'soft'} onclick={toggleFinish}>Soft screen</button>
+        {#if replay.footage.status === 'unsupported'}<p class="footage-note" id="footage-note">Your browser can't export footage. Try Chrome or Edge.</p>{/if}
       </div>
       {#if !touch}<ReplayKeys />{/if}
     {/if}

@@ -24,6 +24,16 @@ export function replayDescription(meta) {
 // A playback time in whole seconds as m:ss.
 export const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
+// The file name of a replay's footage (CONTEXT.md "Footage"): restart-generation-2026-10-24-alice-vs-bob.mp4, the battle's date
+// as its page gives it (the visitor's own) and the seats' names in seat order, lowercase, with anything but letters and digits as
+// one dash.
+export function footageName(meta) {
+  const names = [...meta.players].sort((a, b) => a.seat - b.seat)
+    .map(p => p.name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || `seat-${p.seat}`);
+  const d = new Date(meta.created), two = n => String(n).padStart(2, '0');
+  return `restart-generation-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${names.join('-vs-')}.mp4`;
+}
+
 const SUFFIX = ['th', 'st', 'nd', 'rd'];
 export const ordinal = n => `${n}${(n % 100 >= 11 && n % 100 <= 13) ? 'th' : SUFFIX[n % 10] ?? 'th'}`;
 
