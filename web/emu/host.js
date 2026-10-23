@@ -44,10 +44,12 @@ const BOARD_SITES = [
   { hook: 'phoneOnly', va: 0x100f94a0, bytes: '568bf1e8488df0ff8b48' }, // FUN_100f94a0: a menu screen takes the screen size
   { hook: 'phoneOnly', va: 0x100d5d90, bytes: '568bf1e858c4f2ff8b40' }, // FUN_100d5d90: the battle menu and its dialogs
   { hook: 'phoneOnly', va: 0x100b8570, bytes: '558bec83e4f86aff6848' }, // FUN_100b8570: a story dialog in a battle
+  { hook: 'curtain', va: 0x10028ae0, bytes: '83ec1853568bf18a8628' },   // FUN_10028ae0: draws the curtain at a level (0 to 255)
 ];
 const APP = 0x101b828c;             // the engine's app object; +0x2c its display, +0x9c the battle view while a battle is on
 const DISPLAY_VTABLE = 0x1017b130;  // the display's surface: width at +0x18, height at +0x1c
-const CURTAIN_FADES = [0x32c, 0x330]; // the battle view's curtain fade-in and fade-out counters
+const CURTAIN_FADE_IN = 0x32c; // the battle view's curtain fade-in counter
+const CURTAIN_FADE_STEPS = 16; // frames the engine takes to fade its curtain in or out
 
 // The n bytes at the engine's address va, as hex.
 const bytesAt = (m, va, n) => [...m.cpu.m8.subarray(m.addr(va), m.addr(va) + n)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -151,11 +153,25 @@ export class GameHost {
         this.#phoneSeen = true;
         if (this.width !== WIDTH) this.#screen(WIDTH, HEIGHT, REPLAY_WIDTH);
       },
+      // The curtain fades in over 16 frames as the engine's fades out, but by its level alone: the engine's own fade-in holds the
+      // animation back, and with it this player's battle (tick() clears it). A curtain that comes up while the page already shows
+      // its own around a phone-only screen is there at once.
+      curtain: c => {
+        if (!this.battleFull) return;
+        if (this.#curtainTick !== this.#ticks) {
+          this.#curtainStep = this.#curtainTick === this.#ticks - 1 ? Math.min(this.#curtainStep + 1, CURTAIN_FADE_STEPS)
+            : this.#wasNarrow ? CURTAIN_FADE_STEPS : 1;
+          this.#curtainTick = this.#ticks;
+        }
+        const at = (c.r[4] >>> 0) + 4; // the level argument, above the return address
+        c.wr32(at, Math.min(c.rd32(at), Math.round(255 * this.#curtainStep / CURTAIN_FADE_STEPS)));
+      },
     };
     for (const s of BOARD_SITES) this.watch(s.va, hooks[s.hook]);
   }
 
   #app = 0; #surface = 0; #rowInfo = 0; #drawn = false; #phoneSeen = false;
+  #ticks = 0; #wasNarrow = true; #curtainTick = -2; #curtainStep = 0; // the curtain's fade-in
   battleFull = false; // the battle now on is shown on the Full board
 
   // Gives the engine a screen of w x h in the top-left corner of the frame buffer, whose rows are `pitch` pixels long.
@@ -171,7 +187,7 @@ export class GameHost {
 
   // After each tick of a Full board battle: back to the phone's screen when the battle is over (the results' backdrop, taken in that
   // tick, keeps the battle's 420-pixel rows) or its battlefield isn't drawn yet, back to the Full board when no phone-only screen is
-  // up, and no curtain fades, which would hold up this player's battle at every rescue or fight (docs/adr/0017).
+  // up, and no fade-in held by the engine, which would hold up this player's battle at every rescue or fight (docs/adr/0017).
   #afterTick() {
     if (!this.battleFull) return;
     const bv = this.#battleView, cpu = this.m.cpu;
@@ -179,15 +195,16 @@ export class GameHost {
     if (!this.#drawn) { if (this.width !== WIDTH) this.#screen(WIDTH, HEIGHT, REPLAY_WIDTH); return; }
     if (!this.#phoneSeen && this.width !== REPLAY_WIDTH) this.#screen(REPLAY_WIDTH, REPLAY_HEIGHT, REPLAY_WIDTH);
     this.#phoneSeen = false;
-    for (const o of CURTAIN_FADES) if (cpu.rd32(bv + o) !== 0) cpu.wr32(bv + o, 0);
+    if (cpu.rd32(bv + CURTAIN_FADE_IN) !== 0) cpu.wr32(bv + CURTAIN_FADE_IN, 0);
   }
 
   // One game step. The engine paces itself: its frame limiter (FUN_100eddc0) runs a frame only while
   // the clock is before the next frame deadline, then Sleeps to it. Time therefore advances only
   // through Sleep; the host keeps calling tick() until `time` catches up with real time.
   tick() {
+    this.#ticks++;
     const running = this.call('_Java_rg_natives_NativeGameEngine_tick@8', this.jni.ref(this.engine)) & 0xff;
-    if (this.board) this.#afterTick();
+    if (this.board) { this.#afterTick(); this.#wasNarrow = this.width === WIDTH; }
     return running;
   }
   get time() { return this.m.win.now - this.clock0; }
@@ -206,12 +223,12 @@ export class GameHost {
   seekReplay(seconds) { this.#replayCall('setTime@12', seconds | 0); }
   setReplayMode({ skipEmpty, doubleSpeed }) { this.#replayCall('setReplayMode@16', skipEmpty ? 1 : 0, doubleSpeed ? 1 : 0); }
 
-  // Calls fn(cpu) each time the guest reaches the original address `va`, then runs the instruction there as
-  // usual. A watch for debugging only reads; the Full board's hooks (ADR 0017) also change engine memory, which
+  // Calls fn(cpu) each time the guest reaches the original address `va`, then whatever was there before: an earlier watch, or
+  // the instruction itself. A watch for debugging only reads; the Full board's hooks (ADR 0017) also change engine memory, which
   // ADR 0007's byte patches don't cover. Call it after boot().
   watch(va, fn) {
-    const cpu = this.m.cpu, at = this.m.addr(va), step = cpu.decode(at);
-    cpu.traps.set(at, c => { fn(c); return step(); });
+    const cpu = this.m.cpu, at = this.m.addr(va), next = cpu.traps.get(at) ?? cpu.decode(at);
+    cpu.traps.set(at, c => { fn(c); return next(c); });
     cpu.codeCache[at - cpu.codeBase] = undefined;
   }
 
