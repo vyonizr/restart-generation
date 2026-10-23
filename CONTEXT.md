@@ -70,6 +70,10 @@ _Avoid_: ToS, terms of service, EULA, rules
 A numbered version of the site, made each time the public repository receives new commits. Its number tells an admin what an update to it asks of them.
 _Avoid_: build, deploy, tag
 
+**Version**:
+What a server says it runs: a release's number, followed by `+N` when it runs N commits past that release.
+_Avoid_: build number, commit, hash
+
 **Breaking change**:
 A change that makes the admin act during an update, such as a renamed setting or a client the server no longer accepts, or that makes going back to the previous release unsafe, such as a changed account database. Gameplay and page changes are never breaking.
 _Avoid_: major change, incompatible update

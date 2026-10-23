@@ -16,14 +16,16 @@ const { modeFrom, dataFiles, createAuth } = require('./auth');
 const { createAdmin } = require('./admin');
 const replays = require('./replays');
 const { replayPage } = require('./replaypage');
+const { versionOf } = require('./version');
 
-// The release this server runs (ADR 0019): RG_VERSION, which the Docker build sets, else what git says of this clone (a tag
-// such as v0.1.2, or a commit for a clone of development, which has no tags), else dev.
-const VERSION = process.env.RG_VERSION || (() => {
+// The version this server runs (CONTEXT.md "Version", ADR 0019, ADR 0027), as SemVer: RG_VERSION, which the Docker build sets, else
+// what git says of this clone (a release tag, or the commits past one: a clone of development has the tags that tools/publish.mjs
+// copies), else dev. Without a release to count from, it stays what git said, and the Notices dialog shows none.
+const VERSION = versionOf(process.env.RG_VERSION || (() => {
   try {
     return require('child_process').execFileSync('git', ['describe', '--tags', '--always'], { cwd: path.join(__dirname, '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch { return ''; }
-})() || 'dev';
+})() || 'dev');
 
 let MODE;
 try { MODE = modeFrom(process.argv, process.env); } catch (e) { console.error(e.message); process.exit(1); }

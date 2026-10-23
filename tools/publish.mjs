@@ -7,7 +7,8 @@
 // top of it: every author and committer becomes USER with GitHub's no-reply address, tools/scrub-tree.mjs rewrites wording and the
 // source authors' real names, and the DROP folders are left out. A new commit's tree is its rewritten parent's tree plus what the
 // commit changed, so only the files a commit touches are read. It then checks the new commits and pushes only if they pass, and never
-// with force: if the public main has commits this checkout can't match, it stops.
+// with force: if the public main has commits this checkout can't match, it stops. Every run also copies the public release tags onto
+// the source commits they came from, as local tags it never pushes, so a server run from this checkout reports its version (ADR 0027).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -74,6 +75,26 @@ for (const id of sourceIds) if (byKey.has(source.get(id).key)) rewritten.set(id,
 if (publicTip && ![...rewritten.values()].includes(publicTip)) {
   console.error(`The public main (${publicTip.slice(0, 8)}) has commits that ${branch} doesn't have. Nothing was published.`);
   process.exit(1);
+}
+
+// 1b. The releases (ADR 0027). CI tags the public main, whose commits are the rewritten ones, so each release tag is copied onto the
+// source commit it came from, as a local tag: `git describe` then finds it, and a server run from this checkout reports its version.
+// This script never pushes tags, so the copies stay here. A tag already in this checkout is left as it is.
+if (published) {
+  const sourceOf = new Map([...rewritten].map(([sourceId, publicId]) => [publicId, sourceId]));
+  const tagged = new Map(); // tag name to the public commit it marks; an annotated tag's peeled line (^{}) names the commit
+  for (const [id, ref] of list(git(['ls-remote', '--tags', remote])).map(line => line.split('\t'))) {
+    const name = ref.replace(/^refs\/tags\//, '').replace(/\^\{\}$/, '');
+    if (/^v\d+\.\d+\.\d+/.test(name) && (ref.endsWith('^{}') || !tagged.has(name))) tagged.set(name, id);
+  }
+  for (const [name, publicId] of tagged) {
+    const sourceId = sourceOf.get(publicId);
+    const local = spawnSync('git', ['rev-parse', '--quiet', '--verify', `refs/tags/${name}^{commit}`], { cwd: root, encoding: 'utf8' }).stdout.trim();
+    if (local === sourceId) continue;
+    if (local) console.log(`Release ${name}: this checkout already has a tag of that name, on ${local.slice(0, 8)}; left as it is.`);
+    else if (!sourceId) console.log(`Release ${name}: its public commit ${publicId.slice(0, 8)} matches no commit of ${branch}; not copied.`);
+    else { git(['tag', name, sourceId]); console.log(`Release ${name}: tagged ${sourceId.slice(0, 8)} of ${branch}.`); }
+  }
 }
 const fresh = sourceIds.filter(id => !rewritten.has(id));
 if (!fresh.length) { console.log(`Nothing to publish: ${branch} is published as ${remote} main ${publicTip.slice(0, 8)}.`); process.exit(0); }

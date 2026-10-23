@@ -212,7 +212,7 @@ For the whole procedure on a virtual private server (VPS), from a bare host to u
    `data` is a bind mount, so the database and the templates live on the host's disk, not in a Docker volume. Without a usable template, the server refuses to start and prints why, and `restart: unless-stopped` then keeps retrying.
 6. Run `RG_VERSION=$(git describe --tags --always) docker compose up -d --build` and open `https://DOMAIN/`. The first visit can take a few seconds while Caddy gets the certificate; `docker compose logs caddy` shows the result.
 
-   `RG_VERSION` is the release that `/status` and the **Notices** dialog report, because the build can't see `.git`. Without it they report `unknown`. In PowerShell, run `$env:RG_VERSION = git describe --tags --always` first, and then `docker compose up -d --build`.
+   `RG_VERSION` gives the image the version that `/status` and the **Notices** dialog report, such as `0.1.2`, because the build can't see `.git`. Without it, `/status` reports `unknown` and the dialog shows no version. In PowerShell, run `$env:RG_VERSION = git describe --tags --always` first, and then `docker compose up -d --build`.
 
 Caddy keeps its certificates in a Docker volume (`caddy_data`). If you lose that volume, Caddy requests the certificates from Let's Encrypt again, and Let's Encrypt limits how often it issues certificates for one name. The Java client's TCP port 8976 isn't published: a Discord-enabled server refuses the Java client anyway, because it can't send a token.
 

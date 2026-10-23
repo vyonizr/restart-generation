@@ -113,7 +113,7 @@ In the Discord application, set the redirect to `https://DOMAIN/auth/discord/cal
 
 ## 6. Start and check the server
 
-Start the containers and read their logs. `RG_VERSION` gives the image the release that `/status` reports, because the build can't see `.git`:
+Start the containers and read their logs. `RG_VERSION` gives the image the version that `/status` reports, because the build can't see `.git`:
 
 ```sh
 RG_VERSION=$(git describe --tags --always) docker compose up -d --build
@@ -134,7 +134,7 @@ To check the server, do the following. Replace `play.example.com` with your doma
    curl -s https://play.example.com/status
    ```
 
-   The output includes `"accounts":true`, `"servesGame":false`, and `"version"` with the release you checked out, such as `"v0.1.2"`. A version such as `v0.1.2-1-gabc1234` means you pulled a commit before its release was tagged.
+   The output includes `"accounts":true`, `"servesGame":false`, and `"version"` with the release you checked out, such as `"0.1.2"`. A version such as `0.1.2+1` means that you pulled a commit, one commit past that release, before its own release was tagged.
 2. Open `https://play.example.com/` in a browser. Check that the page loads, that **Sign in with Discord** goes to Discord and comes back signed in, and that a guest can start a game. Open `https://play.example.com/privacy` and `https://play.example.com/terms`, and check that they name you, your hosting provider, and your contact.
 3. With `RG_ADMIN_TOKEN` set, check that Caddy keeps `/admin/` from the internet ([ADR 0016](adr/0016-the-admin-deletes-accounts-through-the-running-server.md)):
 
