@@ -111,7 +111,7 @@ The player confirming Quit on the game's main menu, which ends the engine; the b
 _Avoid_: exit, close, shut down
 
 **Screen finish**:
-How the browser client shows the game screen: soft (the default), with the pixels smoothed and a faint pixel grid like a 2008 phone's display, or sharp, as the engine drew them. The player chooses, the choice stays in their browser, and it never changes what the engine draws.
+How the browser client shows the game screen: soft (the default), with the pixels smoothed and a faint pixel grid like a 2008 phone's display, or sharp, as the engine drew them. The player chooses, the choice stays in their browser, and it never changes what the engine draws. Footage is made in the finish the replay page shows.
 _Avoid_: filter, shader, CRT mode, retro mode
 
 **Board view**:

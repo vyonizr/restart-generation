@@ -2,14 +2,15 @@
 // (web/emu/win32.js), so the page steps it as fast as it can instead of in real time, hands each frame to an H.264 encoder and each
 // block of sound to an AAC encoder (WebCodecs, through Mediabunny), and gets an exact 30 frames a second whatever the device does.
 // It always renders the whole replay as the original player first showed it: from the engine's first frame, at 1× with idle time
-// skipped, to one second after the replay ends.
+// skipped, to one second after the replay ends, in the Screen finish the page shows (CONTEXT.md).
 // The replay page loads this module, and with it Mediabunny, in a chunk of its own after the page (replay.svelte.js).
 import { Output, Mp4OutputFormat, BufferTarget, VideoSampleSource, AudioSampleSource, VideoSample, AudioSample, canEncodeVideo, canEncodeAudio } from 'mediabunny';
 import { REPLAY_WIDTH, REPLAY_HEIGHT } from '../emu/host.js';
 import { LOAD_LIMIT_MS, replayEnded } from './replayflow.js';
 import { SOUND_BLOCK_MS } from './audio.js';
+import { rgbaOf } from './screen.js';
 
-const SCALE = 3; // nearest neighbour, so the pixels stay sharp in an editor that can only scale smoothly
+const SCALE = 3; // a whole number, so the pixels stay square in an editor that can only scale smoothly
 const WIDTH = REPLAY_WIDTH * SCALE, HEIGHT = REPLAY_HEIGHT * SCALE;
 const FPS = 30;
 const VIDEO = { codec: 'avc', bitrate: 8e6, keyFrameInterval: 1 };
@@ -26,16 +27,17 @@ export async function canExportFootage() {
   } catch { return false; }
 }
 
-// Renders the replay of `game` (a GameHost started with one, web/emu/host.js) and resolves with the MP4 as a Blob. It boots the
-// engine again, so the replay starts over, and once that boot has worked leaves it with the replay's battle built, wherever it
-// stopped: done, canceled through `signal` (rejects with its reason), or failed. Its sound is drained up to `game.time` by the
-// page's rule (audio.js). `progress(fraction)` is called each time the page gets the main thread back.
-export async function renderFootage(game, { signal, progress }) {
+// Renders the replay of `game` (a GameHost started with one, web/emu/host.js) and resolves with the MP4 as a Blob, in the soft
+// Screen finish if `soft`. It boots the engine again, so the replay starts over, and once that boot has worked leaves it with the
+// replay's battle built, wherever it stopped: done, canceled through `signal` (rejects with its reason), or failed. Its sound is
+// drained up to `game.time` by the page's rule (audio.js). `progress(fraction)` is called each time the page gets the main
+// thread back.
+export async function renderFootage(game, { soft, signal, progress }) {
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: false }), target: new BufferTarget() });
   const video = new VideoSampleSource(VIDEO), audio = new AudioSampleSource(AUDIO);
   output.addVideoTrack(video, { frameRate: FPS });
   output.addAudioTrack(audio);
-  const picture = new Uint32Array(WIDTH * HEIGHT);
+  const paint = painter(soft);
   let booted = false, frames = 0, blocks = 0, last = 0, loaded = false, endAt = Infinity, yielded = performance.now();
   try {
     await output.start();
@@ -51,11 +53,10 @@ export async function renderFootage(game, { signal, progress }) {
       if (!loaded && game.time >= LOAD_LIMIT_MS) throw new Error("The game couldn't load this replay.");
       // Frame n shows what the engine drew in the frame that covers n / 30 s. Its frames are 33 ms apart, so one in a hundred of
       // them is never shown, which keeps the picture on the sound's clock.
-      for (let drawn = false; frames * 1000 / FPS < game.time; frames++) {
-        if (!drawn) { enlarge(game, picture); drawn = true; }
+      for (let picture = null; frames * 1000 / FPS < game.time; frames++) {
+        picture ??= paint(game);
         // The frame copies the picture, so the next one can be drawn over it.
-        const sample = new VideoSample(new VideoFrame(picture, { format: 'BGRX', codedWidth: WIDTH, codedHeight: HEIGHT,
-          timestamp: Math.round(frames * 1e6 / FPS), duration: Math.round(1e6 / FPS) }));
+        const sample = new VideoSample(new VideoFrame(picture, { timestamp: Math.round(frames * 1e6 / FPS), duration: Math.round(1e6 / FPS) }));
         await video.add(sample);
         sample.close();
       }
@@ -88,15 +89,33 @@ export async function renderFootage(game, { signal, progress }) {
   }
 }
 
-// The engine's 420 × 378 frame, each pixel as a 3 × 3 square, in its own byte order (blue, green, red, unused), which VideoFrame
-// takes as BGRX.
-function enlarge(game, out) {
-  const src = game.pixels, pitch = game.pitch;
-  for (let y = 0; y < REPLAY_HEIGHT; y++) {
-    const row = y * SCALE * WIDTH;
-    for (let x = 0, o = row; x < REPLAY_WIDTH; x++, o += SCALE) out.fill(src[y * pitch + x], o, o + SCALE);
-    for (let k = 1; k < SCALE; k++) out.copyWithin(row + k * WIDTH, row, row + WIDTH);
-  }
+// Draws the engine's 420 × 378 frame three times its size as the page shows it in the Screen finish (CONTEXT.md, stage.css): sharp,
+// each pixel a 3 × 3 square, or soft, smoothed and under a faint grid of one cell per game pixel. The canvas it returns is drawn
+// over on the next call.
+function painter(soft) {
+  const frame = new OffscreenCanvas(REPLAY_WIDTH, REPLAY_HEIGHT), frameCtx = frame.getContext('2d');
+  const image = frameCtx.createImageData(REPLAY_WIDTH, REPLAY_HEIGHT), rgba = new Uint32Array(image.data.buffer);
+  const out = new OffscreenCanvas(WIDTH, HEIGHT), ctx = out.getContext('2d', { alpha: false });
+  ctx.imageSmoothingEnabled = soft;
+  const grid = soft ? ctx.createPattern(gridCell(), 'repeat') : null;
+  return game => {
+    const src = game.pixels, pitch = game.pitch;
+    for (let y = 0, i = 0; y < REPLAY_HEIGHT; y++) for (let x = 0; x < REPLAY_WIDTH; x++, i++) rgba[i] = rgbaOf(src[y * pitch + x]);
+    frameCtx.putImageData(image, 0, 0);
+    ctx.drawImage(frame, 0, 0, WIDTH, HEIGHT);
+    if (grid) { ctx.fillStyle = grid; ctx.fillRect(0, 0, WIDTH, HEIGHT); }
+    return out;
+  };
+}
+
+// One game pixel's cell of the soft finish's grid, as stage.css draws it: across the cell, clear for 55%, then darkening to black
+// at 22% at its right edge, and the same down to its bottom edge; read at each output pixel's middle.
+function gridCell() {
+  const shade = k => Math.max(0, ((k + 0.5) / SCALE - 0.55) / 0.45) * 0.22;
+  const cell = new OffscreenCanvas(SCALE, SCALE), ctx = cell.getContext('2d'), image = ctx.createImageData(SCALE, SCALE);
+  for (let y = 0; y < SCALE; y++) for (let x = 0; x < SCALE; x++) image.data[(y * SCALE + x) * 4 + 3] = Math.round((1 - (1 - shade(x)) * (1 - shade(y))) * 255);
+  ctx.putImageData(image, 0, 0);
+  return cell;
 }
 
 // A block of 16-bit samples at 8 kHz as floats at 48 kHz, each step drawn as a line from the previous sample (`last`, the end of

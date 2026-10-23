@@ -16,7 +16,8 @@ main { position: relative; min-height: 0; display: grid; place-content: center; 
 canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; outline: none; }
 /* Screen finish (CONTEXT.md). Soft smooths the engine's pixels at every size. Where each game pixel is wide enough in device pixels to
    keep a grid clean (data-grid, set from the screen's size), it also lays a faint pixel grid over them, one cell per game pixel, under
-   the overlay and the dialogs, which are page UI and stay sharp. Sharp is the engine's pixels as drawn. */
+   the overlay and the dialogs, which are page UI and stay sharp. Sharp is the engine's pixels as drawn. Footage draws the same grid
+   (web/ui/footage.js gridCell): keep their numbers together. */
 .screen[data-finish=soft] canvas { image-rendering: auto; }
 .screen[data-finish=soft][data-grid]::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent 55%, rgb(0 0 0 / 22%)) 0 0 / calc(100% / var(--screen-w)) 100%,

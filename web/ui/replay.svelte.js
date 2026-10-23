@@ -175,7 +175,9 @@ export async function exportFootage() {
     if (replay.unplayable) throw new Error("The game couldn't load this replay.");
     const { renderFootage } = await footageModule();
     taken = true;
-    const blob = await renderFootage(game, { signal, progress: p => {
+    // The finish the page shows (stage.css): soft, except where the visitor asks for more contrast
+    const soft = page.finish === 'soft' && !matchMedia('(prefers-contrast: more)').matches;
+    const blob = await renderFootage(game, { soft, signal, progress: p => {
       f.progress = p;
       f.left = p >= 0.05 ? Math.ceil((performance.now() - started) / 1000 / p * (1 - p)) : null;
       screen.paint(game); // the battle races by under the progress bar
