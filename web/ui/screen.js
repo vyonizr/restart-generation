@@ -8,13 +8,13 @@
 // shader, and otherwise converts the frame in a loop onto a 2D canvas ('2d'). A benchmark found no battle frame that left the
 // picture as it was, so WebGL draws every frame; the 2D loop compares every pixel anyway, so it still skips an unchanged frame,
 // as on a static menu.
-// With WebGL the curtain fades in and out over 16 paints, as the engine fades its own: in over the last Full board frame, out over
+// With WebGL the curtain fades in and out over 8 paints, as the engine's does here: in over the last Full board frame, out over
 // the new ones. The 2D fallback puts it up and takes it away at once.
 
 // The curtain is the engine's image for its 420 x 378 Full board screen (docs/adr/0017), in the engine's colors, opaque where its
 // fourth byte is set.
 const CURTAIN_WIDTH = 420, CURTAIN_HEIGHT = 378;
-const FADE_STEPS = 16;
+const FADE_STEPS = 8;
 const GL_OPTIONS = { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: false };
 
 // One triangle covers the canvas. Under everything is the last frame that filled the canvas (`under`), else black; a smaller

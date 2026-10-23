@@ -49,7 +49,7 @@ const BOARD_SITES = [
 const APP = 0x101b828c;             // the engine's app object; +0x2c its display, +0x9c the battle view while a battle is on
 const DISPLAY_VTABLE = 0x1017b130;  // the display's surface: width at +0x18, height at +0x1c
 const CURTAIN_FADE_IN = 0x32c; // the battle view's curtain fade-in counter
-const CURTAIN_FADE_STEPS = 16; // frames the engine takes to fade its curtain in or out
+const CURTAIN_FADE_STEPS = 8;  // frames the curtain takes to fade in or out, half the engine's own 16
 
 // The n bytes at the engine's address va, as hex.
 const bytesAt = (m, va, n) => [...m.cpu.m8.subarray(m.addr(va), m.addr(va) + n)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -153,9 +153,10 @@ export class GameHost {
         this.#phoneSeen = true;
         if (this.width !== WIDTH) this.#screen(WIDTH, HEIGHT, REPLAY_WIDTH);
       },
-      // The curtain fades in over 16 frames as the engine's fades out, but by its level alone: the engine's own fade-in holds the
-      // animation back, and with it this player's battle (tick() clears it). A curtain that comes up while the page already shows
-      // its own around a phone-only screen is there at once.
+      // The curtain fades in and out over 8 frames. In, by its level alone: the engine's own fade-in holds the animation back, and
+      // with it this player's battle (tick() clears it). Out, by stepping the level the engine's own fade-out gives (255 down to 0
+      // by 16 a frame) down twice as fast. A curtain that comes up while the page already shows its own around a phone-only
+      // screen is there at once.
       curtain: c => {
         if (!this.battleFull) return;
         if (this.#curtainTick !== this.#ticks) {
@@ -163,8 +164,9 @@ export class GameHost {
             : this.#wasNarrow ? CURTAIN_FADE_STEPS : 1;
           this.#curtainTick = this.#ticks;
         }
-        const at = (c.r[4] >>> 0) + 4; // the level argument, above the return address
-        c.wr32(at, Math.min(c.rd32(at), Math.round(255 * this.#curtainStep / CURTAIN_FADE_STEPS)));
+        const at = (c.r[4] >>> 0) + 4, level = c.rd32(at); // the level argument, above the return address
+        const out = level >= 255 ? 255 : Math.max(0, 2 * level - 255);
+        c.wr32(at, Math.min(out, Math.round(255 * this.#curtainStep / CURTAIN_FADE_STEPS)));
       },
     };
     for (const s of BOARD_SITES) this.watch(s.va, hooks[s.hook]);
