@@ -26,6 +26,10 @@ jobs:
         with:
           node-version: 22
       - run: npm test
+      # The page's engine-free end-to-end tests (docs/adr/0025): a broken page is not released.
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
       - run: node tools/legal-check.mjs --history HEAD
       # Pinned, and outside the project, so neither package.json nor the Docker build carries it.
       - run: npm install --prefix "$RUNNER_TEMP/release-it" --no-audit --no-fund release-it@21.1.1 @release-it/conventional-changelog@12.0.2

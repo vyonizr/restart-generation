@@ -1,0 +1,23 @@
+# The end-to-end tests' engine-free tier on every push and pull request (docs/adr/0025). CI has no copy of the game (ADR 0001),
+# so the engine tests skip here. Only tmp/e2e/page/ is uploaded: tmp/e2e/engine/ would hold the game's screens (docs/LEGAL.md).
+name: end-to-end tests
+on:
+  push:
+  pull_request:
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-page-traces
+          path: tmp/e2e/page/
+          retention-days: 7
