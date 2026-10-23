@@ -111,6 +111,8 @@ async function main(canvas) {
         if (game.time < now - t0) t0 = now - game.time;
         screen.paint(game);
       }
+      // Paused, the music and the battle's sounds stop with it; before the battle is built there is nothing to pause.
+      sound.paused = replay.loaded && !replay.playing;
       sound.pump();
       flow.frame();
       if (replay.unplayable) { unplayable(); return; }

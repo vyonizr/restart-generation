@@ -24,8 +24,11 @@ export class Audio {
 export const SOUND_BLOCK_MS = 64; // 512 samples at 8 kHz
 // A replay's sound. The engine's battle moves on only while its sound is drained (docs/re/re_replay.md), so this pulls a block for
 // every 64 ms of engine time whether or not the browser can play it yet, and plays what it pulls while the context runs, through
-// a volume the replay page sets (0 is muted). Footage drains it by the same rule (footage.js).
+// a volume the replay page sets (0 is muted), and not at all while the replay is paused. Footage drains it by the same rule
+// (footage.js).
 export class ReplaySound {
+  #volume = 1;
+  #paused = false;
   constructor(game) {
     this.game = game;
     this.ctx = soundContext();
@@ -34,7 +37,10 @@ export class ReplaySound {
     this.pulled = 0;
     this.at = 0;
   }
-  set volume(v) { this.gain.gain.value = v; }
+  set volume(v) { this.#volume = v; this.#level(); }
+  set paused(p) { if (p !== this.#paused) { this.#paused = p; this.#level(); } }
+  // A short glide rather than a jump, which clicks.
+  #level() { this.gain.gain.setTargetAtTime(this.#paused ? 0 : this.#volume, this.ctx.currentTime, 0.015); }
   pump() {
     const ctx = this.ctx;
     while (this.pulled * SOUND_BLOCK_MS < this.game.time) {
