@@ -15,7 +15,7 @@
     "selfplay": "node --env-file-if-exists=.env tools/selfplay.mjs",
     "test:battle": "node server/battle.test.js --real && node server/battle.model.test.js --real",
     "test:gameblob": "node --env-file-if-exists=.env server/gameblob.test.js",
-    "browser-test": "node --env-file-if-exists=.env web/tools/browser-test.mjs",
+    "e2e": "node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test",
     "boot": "node --env-file-if-exists=.env web/tools/boot.mjs",
     "delete-user": "node --env-file-if-exists=.env server/delete-user.mjs",
     "backup": "node server/backup.mjs",
@@ -23,6 +23,7 @@
     "hooks": "node tools/legal-check.mjs --install-hook"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "svelte": "^5.57.2",
     "vite": "^8.3.4"

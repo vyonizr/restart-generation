@@ -9,7 +9,7 @@ The model is EKA2L1, the Symbian and N-Gage emulator: it ships no firmware, no R
 Before you commit, ask each of the following questions. If the answer to one is "yes," don't commit it, and ask.
 
 1. **Is it a file from the game or its platform?** The game's `.dll`, `.dylib`, `.jar`, `.pak`, `.gfx`, `.spc`, `.pal`, `.ass`, `.lng`, the standalone `.zip`, anything unpacked from them, and N-Gage packages. No.
-2. **Is it the game's content?** Its art, sound, music, video, text or strings, level and battle data, stat tables, AI weights, and XML. No. That includes **screenshots and recordings of the game**, even to illustrate a bug or a doc. Describe it in words.
+2. **Is it the game's content?** Its art, sound, music, video, text or strings, level and battle data, stat tables, AI weights, and XML. No. That includes **screenshots and recordings of the game**, even to illustrate a bug or a doc, and the traces, screenshots, and videos an end-to-end test takes while the engine runs ([ADR 0025](adr/0025-end-to-end-tests-run-in-playwright-with-the-engine-only-where-the-game-is.md)): they go into no commit, issue, pull request, or CI artifact. Describe it in words.
 3. **Is it decompiled or disassembled output?** Ghidra pseudocode, cfr Java, listings, and function bodies. No. A note may say that `FUN_100f94a0` reads the display description at `+0x18`, in our own words; it may not paste what the decompiler printed.
 4. **Is code translated from the original?** Don't turn decompiled code into JavaScript. First write what the original does into `docs/re/` or [`docs/protocol.md`](protocol.md), in your words, and then implement from that note. Names that the engine's own interface fixes (its Java Native Interface (JNI) function names, message type numbers, and wire formats) are interoperability facts, and you can use them.
 5. **Is it someone else's work?** Fonts, images, code, and text need a license we can ship under (MIT, BSD, Apache-2.0, OFL for fonts, or GPL-3.0-compatible) and an entry in [Third-party notices](../THIRD_PARTY_NOTICES.md). Don't paste from another project without checking its license.
@@ -24,6 +24,7 @@ New images, video, audio, or fonts must be listed in `tools/legal-allow.json` wi
 - `npm run hooks` makes git run it before every commit in your clone, together with the commit message check ([CONTRIBUTING.md](../CONTRIBUTING.md#write-commit-messages)). Run it once.
 - `.github/workflows/legal.yml` runs it on every push and pull request, over the whole history as well.
 - It can't recognize a screenshot or a recording. Rule 2 is on you.
+- `npm run e2e` keeps its traces and screenshots in `tmp/e2e/`, which git ignores, and `.github/workflows/e2e.yml` uploads only `tmp/e2e/page/`, from the tests that run without the engine ([ADR 0025](adr/0025-end-to-end-tests-run-in-playwright-with-the-engine-only-where-the-game-is.md)).
 
 ## Where this repository is weakest
 

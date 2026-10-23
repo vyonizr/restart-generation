@@ -63,7 +63,7 @@ async function main(canvas) {
   if (bots) snap.bots = botQuestion;
   // Every story and hero is open only on a server that isn't public (ADR 0007); elsewhere they are earned.
   const patches = [...(server?.unlockAll ? UNLOCKS : []), ...(bots ? LONE_START : [])];
-  window.rgPatches = patches.map(p => p.what); // exposed for debugging and the headless browser test, like rgStats
+  window.rgPatches = patches.map(p => p.what); // exposed for debugging, like rgStats
   const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches });
   snap.attach(game);
   try {
@@ -142,10 +142,10 @@ async function main(canvas) {
   let lastSave = 0, frames = 0, statT = t0, statI = 0;
   const frame = now => {
     try {
-      if (++frames % 60 === 0) { // exposed for debugging and the headless browser test
+      if (++frames % 60 === 0) { // exposed for debugging and the end-to-end tests, which wait on the engine's own clock (time, ms)
         const ic = game.m.cpu.icount;
         window.rgStats = { fps: +(60000 / (now - statT)).toFixed(1), mips: +((ic - statI) / (now - statT) / 1000).toFixed(1),
-          lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20) };
+          lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20), time: game.time };
         statT = now; statI = ic;
       }
       // At most one tick per frame, when the engine's clock is behind real time; each tick sleeps the
