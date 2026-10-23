@@ -1,7 +1,7 @@
 // Browser host: gets the game files, runs the engine in the emulator, draws frames to the canvas, forwards the keyboard, the
 // touch pad and the gamepad and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page`
 // (page.svelte.js).
-import { GameHost, UNLOCKS, LONE_START } from '../emu/host.js';
+import { GameHost, UNLOCKS, LONE_START, REPLAY_WIDTH, REPLAY_HEIGHT } from '../emu/host.js';
 import { createScreen } from './screen.js';
 import { SnapClient } from '../snap.js';
 import { page, padSession } from './page.svelte.js';
@@ -18,14 +18,23 @@ import { watchGamepad, gamepadSound } from './gamepad.js';
 import { createPresses } from './presses.js';
 import { replaySaved, battleJoined } from './replaynotice.js';
 import { startOnlineCount, serverStatus } from './online.js';
+import { frameView, FRAMES } from './board.js';
+import { loadCurtain } from './curtain.js';
 
 let screen; // the game screen, which paints the engine's frame (screen.js)
+
+// The canvas takes the frame of the view the game screen is in now (board.js); the painter centers the engine's screen in it.
+function fitCanvas(canvas) {
+  const { width, height } = FRAMES[frameView()];
+  if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+}
 
 // A one-line notice under the pad when the device can't run the game at full speed.
 function slowNotice() {
   const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   page.slow = 'This device is running the game slowly.'
     + (ios ? ' If Lockdown Mode is on, exclude this site in Settings > Privacy & Security > Lockdown Mode.' : '');
+  page.slowClassic = page.battle === 'full';
 }
 
 // Whether the server can run bots (GET /bots).
@@ -64,7 +73,7 @@ async function main(canvas) {
   // Every story and hero is open only on a server that isn't public (ADR 0007); elsewhere they are earned.
   const patches = [...(server?.unlockAll ? UNLOCKS : []), ...(bots ? LONE_START : [])];
   window.rgPatches = patches.map(p => p.what); // exposed for debugging, like rgStats
-  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches });
+  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches, board: true });
   snap.attach(game);
   try {
     game.boot(); // its first step allocates the emulator's memory, so game.m is unset if that fails
@@ -72,6 +81,10 @@ async function main(canvas) {
     if (e instanceof RangeError && !game.m) return fail("This device doesn't have enough free memory for the game. Close other apps and tabs, then reload.", e, false);
     throw e;
   }
+  // false if this copy of the engine doesn't have the bytes the Full board's hooks need (docs/adr/0017)
+  page.boardable = game.board;
+  fitCanvas(canvas);
+  if (game.board) loadCurtain(files, REPLAY_WIDTH, REPLAY_HEIGHT).then(c => screen.setCurtain(c), e => console.warn('curtain:', e));
   page.status = 'Ready';
   page.start = true;
   if (!accounts) showOnlineName();
@@ -97,7 +110,7 @@ async function main(canvas) {
   // Keys go to the game wherever focus is on the page, except in a dialog or the overlay's buttons.
   addEventListener('keydown', e => {
     const k = javaKey(e);
-    if (!k || e.target.closest?.('.login, #overlay, .finish')) return;
+    if (!k || e.target.closest?.('.login, #overlay, .finish, .board')) return;
     e.preventDefault();
     if (held.has(e.code)) return;      // the Java listener ignored auto-repeat too
     held.add(e.code);
@@ -106,7 +119,7 @@ async function main(canvas) {
   });
   addEventListener('keyup', e => {
     const k = javaKey(e);
-    if (!k || e.target.closest?.('.login, #overlay, .finish')) return;
+    if (!k || e.target.closest?.('.login, #overlay, .finish, .board')) return;
     e.preventDefault();
     if (!held.delete(e.code)) return; // its press never reached the game
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
@@ -145,17 +158,20 @@ async function main(canvas) {
       if (++frames % 60 === 0) { // exposed for debugging and the end-to-end tests, which wait on the engine's own clock (time, ms)
         const ic = game.m.cpu.icount;
         window.rgStats = { fps: +(60000 / (now - statT)).toFixed(1), mips: +((ic - statI) / (now - statT) / 1000).toFixed(1),
-          lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20), time: game.time };
+          lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20), time: game.time, screen: `${game.width}x${game.height}` };
         statT = now; statI = ic;
       }
       // At most one tick per frame, when the engine's clock is behind real time; each tick sleeps the
       // engine to its next frame. A late frame slows the game instead of bursting catch-up ticks.
       if (game.time < now - t0) {
         while (input.length) input.shift()();
+        game.fullBoard = page.board === 'full'; // taken by the engine as a battle starts
         const running = game.tick(); snap.pump();
         if (!running) { clearInterval(slowTimer); quit(saveNow, snap); return; } // the loop stops here: no more ticks, input or saves
         if (game.unsaved('settings.cfg')) saveNow(); // the player left the settings: show their keys at once
         if (game.time < now - t0) t0 = now - game.time; // drop the backlog
+        page.battle = game.inBattle ? (game.battleFull ? 'full' : 'classic') : null;
+        fitCanvas(canvas);
         screen.paint(game); // the framebuffer only changes inside a tick
       }
       audio.pump();
@@ -199,6 +215,7 @@ export async function retryQuit() {
 // Starts the page: the canvas is the game screen.
 export function startGame(canvas) {
   screen = createScreen(canvas);
+  fitCanvas(canvas);
   watchGamepad(pressStart); // from the start, so the first gamepad press can start the sound while the game loads
   main(canvas).catch(e => fail("The game couldn't start with this copy.", e));
 }

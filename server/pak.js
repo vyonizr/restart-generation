@@ -1,27 +1,6 @@
-// Reads and rewrites one entry of a Reset Generation .pak in memory (layout: tools/re/pakx.js and
-// analysis/unpacked/INVENTORY.md): u32 dirSize, u32 count, count x {u32 hash, u32 packed, u32 size, u8 deflated, u32 offset}.
-// Entries are found by the hash of their path.
+// Reads and rewrites one entry of a Reset Generation .pak in memory, synchronously (the layout and the path hash: web/pak.js).
 const zlib = require('zlib');
-
-// FUN_00197144 in the Mac dylib: uppercase a-z, '\' to '/', h += c * k, k = (k & 0xffff) * 18000 + (k >> 16), k starting at the length.
-function hash(p) {
-  let h = 0, k = p.length >>> 0;
-  for (let c of Buffer.from(p, 'latin1')) {
-    if (c >= 0x61 && c <= 0x7a) c -= 0x20;
-    if (c === 0x5c) c = 0x2f;
-    h = (h + Math.imul(c, k)) >>> 0;
-    k = (Math.imul(k & 0xffff, 18000) + (k >>> 16)) >>> 0;
-  }
-  return h;
-}
-
-// The directory row of `path`, or null.
-function find(buf, path) {
-  const h = hash(path), count = buf.readUInt32LE(4);
-  for (let i = 0, o = 8; i < count; i++, o += 17)
-    if (buf.readUInt32LE(o) === h) return { row: o, packed: buf.readUInt32LE(o + 4), size: buf.readUInt32LE(o + 8), deflated: buf[o + 12] !== 0, offset: buf.readUInt32LE(o + 13) };
-  return null;
-}
+const { pathHash: hash, pakEntry: find } = require('../web/pak.js');
 
 // The bytes of `path` in the pak, or null if it has no such entry.
 function read(pak, path) {

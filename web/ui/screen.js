@@ -1,13 +1,14 @@
 // The game screen, for the game page (game.js) and the replay page (replay.svelte.js). createScreen(canvas) returns
 // { kind, paint(game), setCurtain(curtain) }. paint draws the engine's current screen in the middle of the canvas, whose size the
-// caller sets, with the curtain (CONTEXT.md) around it if one is set and black otherwise. Where the curtain is opaque it covers the
-// screen too: it overlaps the engine's inset by a few pixels, as the engine draws it. kind says how it paints, for debugging.
-// It paints with WebGL 2 where that works ('webgl2'), which uploads the engine's frame as it is and swaps its colours in the
+// caller sets. When the screen is smaller than the canvas, the curtain (CONTEXT.md) is around it if one is set, black otherwise, and
+// where the curtain is opaque it covers the screen too: it overlaps the engine's inset by a few pixels, as the engine draws it. A
+// screen as big as the canvas, a Full board battle, has no curtain from the page. kind says how it paints, for debugging.
+// It paints with WebGL 2 where that works ('webgl2'), which uploads the engine's frame as it is and swaps its colors in the
 // shader, and otherwise converts the frame in a loop onto a 2D canvas ('2d'). A benchmark found no battle frame that left the
 // picture as it was, so WebGL draws every frame; the 2D loop compares every pixel anyway, so it still skips an unchanged frame,
 // as on a static menu.
 
-// The curtain is the engine's image for its 420 x 378 Full board screen (docs/adr/0017), in the engine's colours, opaque where its
+// The curtain is the engine's image for its 420 x 378 Full board screen (docs/adr/0017), in the engine's colors, opaque where its
 // fourth byte is set.
 const CURTAIN_WIDTH = 420, CURTAIN_HEIGHT = 378;
 const GL_OPTIONS = { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: false };
@@ -99,8 +100,8 @@ function glScreen(canvas) {
     kind: 'webgl2',
     paint(game) {
       if (lost) return;
-      const { width, height } = game, pitch = game.pitch ?? width;
-      // WebGL takes the engine's colours only as bytes.
+      const { width, height } = game, pitch = game.pitch;
+      // WebGL takes the engine's colors only as bytes.
       if (game.pixels !== source) { source = game.pixels; bytes = new Uint8Array(source.buffer, source.byteOffset, source.byteLength); }
       if (width !== w || height !== h) {
         w = width; h = height; cw = -1;
@@ -110,7 +111,9 @@ function glScreen(canvas) {
         cw = canvas.width; ch = canvas.height;
         gl.viewport(0, 0, cw, ch);
         gl.uniform2i(at.frame, (cw - w) >> 1, (ch - h) >> 1);
-        gl.uniform2i(at.curtain, (cw - CURTAIN_WIDTH) >> 1, (ch - CURTAIN_HEIGHT) >> 1);
+        // A screen that fills the canvas has no curtain: it is put out of reach.
+        const around = w < cw || h < ch;
+        gl.uniform2i(at.curtain, around ? (cw - CURTAIN_WIDTH) >> 1 : cw, around ? (ch - CURTAIN_HEIGHT) >> 1 : ch);
         gl.uniform1i(at.bottom, ch - 1);
       }
       if (pitch !== row) gl.pixelStorei(gl.UNPACK_ROW_LENGTH, row = pitch);
@@ -137,12 +140,12 @@ function flatScreen(canvas) {
   return Object.freeze({
     kind: '2d',
     paint(game) {
-      const { pixels, width, height } = game, pitch = game.pitch ?? width, cw = canvas.width, ch = canvas.height;
+      const { pixels, width, height } = game, pitch = game.pitch, cw = canvas.width, ch = canvas.height;
       if (image?.width !== cw || image.height !== ch) { image = ctx.createImageData(cw, ch); rgba = new Uint32Array(image.data.buffer); w = -1; }
       if (width !== w || height !== h) {
         w = width; h = height; stale = true;
         rgba.fill(0xff000000);
-        cover = curtain ? new Uint8Array(cw * ch) : null; // where the curtain hides the frame
+        cover = curtain && (w < cw || h < ch) ? new Uint8Array(cw * ch) : null; // where the curtain hides the frame
         const kx = (cw - CURTAIN_WIDTH) >> 1, ky = (ch - CURTAIN_HEIGHT) >> 1;
         if (cover) {
           for (let y = Math.max(0, -ky); y < Math.min(CURTAIN_HEIGHT, ch - ky); y++) {

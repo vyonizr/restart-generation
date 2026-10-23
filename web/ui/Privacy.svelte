@@ -77,7 +77,7 @@
     <p>The page sets no cookies. It keeps these in your browser's storage, where only this page can read them:</p>
     <ul>
       {#if discord}<li>your player name and sign-in token;</li>{:else}<li>your player name;</li>{/if}
-      <li>your saved game and your screen finish;</li>
+      <li>your saved game, your screen finish and your board view;</li>
       {#if discord}<li>when the page last offered you the Discord sign-in;</li>{/if}
       <li>your copy of the game, if you chose your own files. It never leaves your browser.</li>
     </ul>

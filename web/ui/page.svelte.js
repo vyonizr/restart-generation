@@ -12,6 +12,7 @@ export const page = $state({
   playing: false,   // the game is running
   ownCopy: false,   // the player brings their own game files (the footer says so)
   slow: null,       // text of the slow-device notice, once shown
+  slowClassic: false, // it came up during a Full board battle, so it offers Classic
   server: null,     // GET /status, or null on a static host
   online: null,     // players online, or null when there is no server to ask
   who: null,        // { name, member } once the account is open
@@ -27,6 +28,9 @@ export const page = $state({
   finish: 'soft',   // how the game screen is shown, 'soft' or 'sharp' (the Screen finish, finish.js)
   keys: { ...DEFAULT_KEYS }, // the player's custom keys, from the saved game's settings.cfg (keys.js)
   input: 'keys',    // what the key legend shows: 'keys', or 'gamepad' after a press on the pad in use (gamepad.js)
+  board: 'full',    // the Board view the player chose, 'full' or 'classic' (board.js)
+  battle: null,     // the Board view of the battle on now, or null outside a battle
+  boardable: true,  // this copy of the engine can show the Full board (until booting it says otherwise)
 });
 
 // What the touch pad and the gamepad drive once the game runs: { game, input, audio, presses }. Raw, so the emulator and its

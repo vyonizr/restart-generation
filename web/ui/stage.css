@@ -80,5 +80,5 @@ kbd .on { fill: currentColor; }
 @media (prefers-contrast: more) {
   .screen[data-finish=soft] canvas { image-rendering: pixelated; }
   .screen[data-finish=soft]::before { display: none; }
-  .finish { display: none !important; }
+  .finish:not(.board) { display: none !important; }
 }

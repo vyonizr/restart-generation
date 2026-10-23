@@ -110,6 +110,14 @@ _Avoid_: exit, close, shut down
 How the browser client shows the game screen: soft (the default), with the pixels smoothed and a faint pixel grid like a 2008 phone's display, or sharp, as the engine drew them. The player chooses, the choice stays in their browser, and it never changes what the engine draws.
 _Avoid_: filter, shader, CRT mode, retro mode
 
+**Board view**:
+How the browser client frames a battle: **Full board**, the whole battlefield at once, as the original's replay player showed it, or **Classic**, the phone's 240 × 320 screen, where the battlefield scrolls. Full board is the default; the player chooses, the choice stays in their browser, and it never changes the battle itself.
+_Avoid_: zoom, widescreen, HD mode, resolution
+
+**Curtain**:
+The engine's gray stone wall with statues that fills a Full board screen around a phone-sized one, such as a menu or a phase banner, which sits at its 240 × 320 size in the middle.
+_Avoid_: frame, border, letterbox, pillarbox, background
+
 **Touch device**:
 A phone or tablet whose main input is a finger; it plays the browser client with the touch pad.
 _Avoid_: mobile, handheld
