@@ -119,7 +119,8 @@ export async function loadFiles() {
   let files = null;
   try { files = await gameStore('readonly', s => s.get('game')); } catch { /* storage blocked */ }
   source = files ? 'stored' : 'server';
-  files ||= await fetchFiles().catch(() => null);
+  // A server that says it sends no game has none to fetch; a static host, which has no GET /status, is asked anyway.
+  if (!files && page.server?.servesGame !== false) files = await fetchFiles().catch(() => null);
   if (!files) {
     source = 'picked';
     files = await pickFiles();
