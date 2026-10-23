@@ -59,7 +59,7 @@ async function main(canvas) {
   page.ownCopy = !server?.servesGame;
   if (!found.ok) {
     replay.gone = true;
-    page.status = server?.replays === false ? 'This server keeps no replays.' : 'This replay is gone. Replays are kept for 30 days.';
+    page.status = server?.replays === false ? 'This server keeps no replays.' : ''; // the title says the rest
     return;
   }
   const { text, meta } = await found.json();

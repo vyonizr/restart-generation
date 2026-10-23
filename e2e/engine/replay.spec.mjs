@@ -59,5 +59,5 @@ test("a replay the engine can't build says so instead of staying black", async (
   await watch(page, seed.replays[0].id);
   await expect(page.getByRole('heading', { name: "Can't play" })).toBeVisible({ timeout: 60000 });
   await expect(page.getByRole('status').filter({ hasText: "The game couldn't load this replay." })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Play Restart Generation' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Play the game' })).toBeVisible();
 });

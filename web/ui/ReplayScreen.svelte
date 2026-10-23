@@ -32,8 +32,8 @@
 <div class="screen replay-screen" bind:this={screen} data-finish={page.finish} data-grid={pitch >= GRID_MIN_PITCH ? '' : null}>
   <canvas width={REPLAY_WIDTH} height={REPLAY_HEIGHT} aria-label="The battle, played back by the game" bind:this={canvas}></canvas>
   <div id="overlay" hidden={!page.overlay}>
-    <h2 class="bar">{replay.gone ? 'Replay gone' : replay.unplayable ? "Can't play" : 'Replay'}</h2>
-    <p id="status" role="status">{page.status}</p>
+    <h2 class="bar">{replay.gone ? 'Replay not found or expired' : replay.unplayable ? "Can't play" : 'Replay'}</h2>
+    <p id="status" role="status" hidden={!page.status}>{page.status}</p>
     <div id="pick" hidden={!page.pick}>
       <button id="pick-zip" bind:this={zipButton} onclick={() => zipInput.click()}>Choose .zip file</button>
       <button id="pick-folder" class="secondary" onclick={() => folderInput.click()}>Choose folder</button>
@@ -48,7 +48,7 @@
       <button onclick={() => location.reload()}>Reload</button>
       <button class="secondary" hidden={!page.forgettable} onclick={() => forgetCopy().finally(() => location.reload())}>Use a different copy</button>
     </div>
-    {#if replay.gone || replay.unplayable}<a class="button" href="./">Play Restart Generation</a>{/if}
+    {#if replay.gone || replay.unplayable}<a class="button" href="./">Play the game</a>{/if}
   </div>
   {#if replay.ended && result}
     <div class="ending" role="status">

@@ -83,6 +83,10 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
 .footage .hint { max-width: 40ch; margin: 0; }
 .footage button { font-size: 18px; padding: 12px 20px; }
 #overlay .button { font-size: 18px; padding: 12px 18px; }
+/* The game page's title size is for its tall phone screen; on the wide replay view it takes the end screen's, and its bar sits
+   under the middle of a title that wraps */
+#overlay h2 { font-size: 9cqi; }
+#overlay h2.bar::after { margin-inline: auto; }
 
 /* Under the strip: what kind of match it was, and the Soft screen toggle */
 .sub { width: var(--view-w); grid-template-columns: 1fr auto; gap: 16px; }
