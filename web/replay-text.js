@@ -51,9 +51,9 @@ export const ordinal = n => `${n}${(n % 100 >= 11 && n % 100 <= 13) ? 'th' : SUF
 // { headline, places: [{ name, place }], guessed }
 export function resultOf(meta) {
   const r = meta.result, name = seat => meta.players.find(p => p.seat === seat)?.name ?? `Seat ${seat}`;
-  if (!r) return { headline: 'The battle ended without a result: every player left.', places: [], guessed: false };
+  if (!r) return { headline: 'The battle ended without a result: every player left', places: [], guessed: false };
   const winners = r.winners.map(name);
-  const headline = winners.length ? `${andList(winners)} won.` : 'Nobody won.';
+  const headline = winners.length ? `${andList(winners)} won` : 'Nobody won';
   const places = r.ranks ? meta.players.filter(p => r.ranks[p.seat] > 0).map(p => ({ name: p.name, place: r.ranks[p.seat] }))
     .sort((a, b) => a.place - b.place) : [];
   return { headline, places, guessed: r.guessed };
