@@ -4,7 +4,7 @@
 // It always renders the whole replay as the original player first showed it: from the engine's first frame, at 1× with idle time
 // skipped, to one second after the replay ends, in the Screen finish the page shows (CONTEXT.md).
 // The replay page loads this module, and with it Mediabunny, in a chunk of its own after the page (replay.svelte.js).
-import { Output, Mp4OutputFormat, BufferTarget, VideoSampleSource, AudioSampleSource, VideoSample, AudioSample, canEncodeVideo, canEncodeAudio } from 'mediabunny';
+import { Output, Mp4OutputFormat, BufferTarget, VideoSampleSource, AudioSampleSource, VideoSample, AudioSample, Quality, canEncodeVideo, canEncodeAudio } from 'mediabunny';
 import { REPLAY_WIDTH, REPLAY_HEIGHT } from '../emu/host.js';
 import { LOAD_LIMIT_MS, replayEnded } from './replayflow.js';
 import { SOUND_BLOCK_MS } from './audio.js';
@@ -13,17 +13,24 @@ import { rgbaOf } from './screen.js';
 const SCALE = 3; // a whole number, so the pixels stay square in an editor that can only scale smoothly
 const WIDTH = REPLAY_WIDTH * SCALE, HEIGHT = REPLAY_HEIGHT * SCALE;
 const FPS = 30;
-const VIDEO = { codec: 'avc', bitrate: 8e6, keyFrameInterval: 1 };
-// The engine's sound is 8 kHz mono in blocks of 512 samples, which AAC encoders don't take: it goes in at 48 kHz.
+// Constant quality rather than a bitrate, so the file grows with what moves on screen and not with its length: Mediabunny's 'high',
+// a quantizer of 22 out of H.264's 0 to 51 (TASVideos publishes game footage at a CRF of 20). A fixed bitrate spends the same bits
+// on a still board as on a fight; measured on a 74 s battle with a hardware encoder, 8 Mbps came to 73 MB and this to 31 MB, scored
+// 96 against 97.5 in VMAF. An encoder that takes no quantizer (OpenH264, used where a browser has no hardware one) gets the bitrate
+// Mediabunny gives 'high' at this size, 4.3 Mbps, where more bits buy it little. A key frame every 2 seconds, Mediabunny's
+// default, keeps scrubbing in an editor quick.
+const VIDEO = { codec: 'avc', quality: new Quality('high') };
+// The engine's sound is 8 kHz mono in blocks of 512 samples, which AAC encoders don't take: it goes in at 48 kHz, at 96 kbps, the
+// least Windows' AAC encoder takes and more than sound with nothing above 4 kHz needs.
 const SOUND_RATE = 8000, RATE = 48000, UP = RATE / SOUND_RATE;
-const AUDIO = { codec: 'aac', bitrate: 128e3 };
+const AUDIO = { codec: 'aac', quality: new Quality({ bitrate: 96e3 }) };
 const HOLD_MS = 1000; // after the end, so an editor has a clean tail
 const YIELD_MS = 50; // the page gets the main thread back this often, for the progress bar and Cancel
 
 export async function canExportFootage() {
   try {
-    return await canEncodeVideo(VIDEO.codec, { width: WIDTH, height: HEIGHT, bitrate: VIDEO.bitrate, frameRate: FPS })
-      && await canEncodeAudio(AUDIO.codec, { numberOfChannels: 1, sampleRate: RATE, bitrate: AUDIO.bitrate });
+    return await canEncodeVideo(VIDEO.codec, { width: WIDTH, height: HEIGHT, quality: VIDEO.quality, frameRate: FPS })
+      && await canEncodeAudio(AUDIO.codec, { numberOfChannels: 1, sampleRate: RATE, quality: AUDIO.quality });
   } catch { return false; }
 }
 
