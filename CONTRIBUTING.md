@@ -35,7 +35,7 @@ The type is one of `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `
 
 A breaking change (see the entry in [`CONTEXT.md`](CONTEXT.md)) is one that makes the admin act during the update, or that makes going back to the previous release unsafe. Mark it with `!` after the type, such as `feat!:`, and say in a `BREAKING CHANGE:` footer what the admin must do. That footer goes into the release notes. Gameplay and page changes are never breaking.
 
-Below version 1.0, a breaking change raises the minor number (0.1.5 to 0.2.0), and everything else raises the patch number. From 1.0, `feat` raises the minor number and a breaking change the major number.
+Below version 1.0, a `feat` or a breaking change raises the minor number (0.1.5 to 0.2.0), and everything else raises the patch number ([ADR 0032](docs/adr/0032-before-1-0-a-feature-raises-the-minor-version.md)). From 1.0, `feat` raises the minor number and a breaking change the major number.
 
 Merge commits and git's own `Revert "…"` subjects are exempt. `tools/publish.mjs` refuses to publish a commit that the hook would have refused.
 

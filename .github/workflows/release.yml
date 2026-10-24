@@ -1,5 +1,5 @@
 # Every push to the public main is a release once the checks pass (ADR 0019). release-it numbers it from the Conventional
-# Commits since the last tag (.release-it.json), tags the pushed commit vX.Y.Z, and writes the GitHub Release. It commits
+# Commits since the last tag (.release-it.mjs), tags the pushed commit vX.Y.Z, and writes the GitHub Release. It commits
 # nothing: tools/publish.mjs is the only writer of main. A manual run releases the version typed in, such as 1.0.0.
 name: release
 on:

@@ -194,7 +194,7 @@ A server without Discord sign-in keeps `accounts-names.db` instead. Keep `data/b
 
 ## 8. Update the server
 
-Each release on the repository's [Releases page](https://github.com/vyonizr/restart-generation/releases) lists what changed. Read the notes of every release since the one you run (`/status` shows it). While the version is below 1.0, a new minor number, such as 0.2.0 after 0.1.5, means a breaking change: the notes say what you must do during the update, and going back afterward may need the backup.
+Each release on the repository's [Releases page](https://github.com/vyonizr/restart-generation/releases) lists what changed. Read the notes of every release since the one you run (`/status` shows it). A release with a breaking change has a BREAKING CHANGES section in its notes, which says what you must do during the update; going back afterward may need the backup. While the version is below 1.0, a new minor number, such as 0.2.0 after 0.1.5, means a new feature or a breaking change, so read its notes.
 
 The schema has no migrations (`server/store.js`), so a downgrade after a schema change isn't safe. Back up first, every time:
 
