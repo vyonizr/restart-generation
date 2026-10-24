@@ -113,6 +113,13 @@ Seat colors: with `(team-1) % 6`, seats 1 to 6 take the engine's six owner color
 yellow, red, green, blue, pink, and purple. Observed in a replay: seat 1's castle, tiles, and corner panel are yellow, seat 2's
 red, and the battle's messages call seat 1 "Yellow". Seats 3 and 4 follow from the order (static).
 
+Where the seats stand: a map file holds one castle layout per player count. With four seats the castles go clockwise from
+the top left: seat 1 top left, 2 top right, 3 bottom right, 4 bottom left. With three, seats 1 and 2 stand at the top left
+and top right and seat 3 at the bottom centre, between them (map data, static). The four corner panels ignore the player
+count: panel N always sits in corner N, clockwise from the top left, so with three seats seat 3's panel is still at the
+bottom right while its castle is at the bottom centre (static). A four-player replay shows green's castle and panel at the
+bottom right.
+
 ## 2. Index, seat, and start check
 
 - Index `FUN_10023f40` -> `FUN_10023eb0` (Mac `FUN_000be332`/`FUN_000be2e8`): lowest `i >= 1` with no registry entry

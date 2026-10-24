@@ -25,11 +25,17 @@ main { gap: 14px; }
 .lower-third { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; margin: 0; padding: 0; list-style: none; background: var(--ink-2); }
 .lower-third li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 10px; }
 .lower-third li + li { border-left: 1px solid var(--ink-3); }
-/* Four seats in one row leave no room for a name and a hero on a smaller view: two rows of two */
+/* Four seats in one row leave no room for a name and a hero on a smaller view: two rows, each seat where its castle stands on
+   the board (docs/re/re_rules.md). Four go clockwise from the top left, 1 2 over 4 3; the third of three stands under the middle
+   of the other two. The list stays in seat order for screen readers. */
 @container (max-width: 640px) {
   .lower-third:has(li:nth-child(3)) { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lower-third:has(li:nth-child(3)) li:nth-child(odd) { border-left: 0; }
-  .lower-third:has(li:nth-child(3)) li:nth-child(n+3) { border-top: 1px solid var(--ink-3); }
+  .lower-third li:nth-child(n+3) { border-top: 1px solid var(--ink-3); }
+  .lower-third li:nth-child(3):nth-last-child(2) { order: 1; }
+  .lower-third li:nth-child(4) { border-left: 0; }
+  .lower-third:has(li:nth-child(3):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .lower-third:has(li:nth-child(3):last-child) li { grid-column: span 2; }
+  .lower-third:has(li:nth-child(3):last-child) li:last-child { grid-column: 2 / 4; border-right: 1px solid var(--ink-3); }
 }
 .lower-third .seat { display: grid; place-items: center; width: 30px; height: 30px; flex: none; background: var(--ink-3); font: 400 18px/1 var(--display); }
 .who-played > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

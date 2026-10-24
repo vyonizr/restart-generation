@@ -28,6 +28,31 @@ for (const kept of [ranked, friendly]) {
   });
 }
 
+// On a small view the lower third has two rows, each seat where its castle stands on the board (docs/re/re_rules.md): four as
+// 1 2 over 4 3, the third of three centred under the other two.
+for (const count of [3, 4]) {
+  test(`on a small view, ${count} seats stand where their castles do`, async ({ page }) => {
+    const kept = seed.replays.find(r => r.players.length === count);
+    await page.setViewportSize({ width: 400, height: 800 });
+    await page.goto(`/replay/${kept.id}`);
+    const seats = page.getByRole('list', { name: 'Players by seat' }).getByRole('listitem');
+    await expect(seats).toHaveCount(count);
+    const [one, two, three, four] = await Promise.all(Array.from({ length: count }, (_, i) => seats.nth(i).boundingBox()));
+    const centre = b => b.x + b.width / 2;
+    expect(two.y).toBe(one.y);
+    expect(two.x).toBeGreaterThan(one.x);
+    expect(three.y).toBeGreaterThan(one.y);
+    if (count === 4) {
+      expect(four.y).toBe(three.y);
+      expect(centre(four)).toBeCloseTo(centre(one), 0);
+      expect(centre(three)).toBeCloseTo(centre(two), 0);
+    } else {
+      expect(three.width).toBeCloseTo(one.width, 0);
+      expect(centre(three)).toBeCloseTo((centre(one) + centre(two)) / 2, 0);
+    }
+  });
+}
+
 // Footage (CONTEXT.md, docs/adr/0028) needs a browser that encodes H.264 and AAC with WebCodecs, which browsers give only to a
 // secure page. Elsewhere Download replay stays, disabled, and says why.
 test("a browser that can't encode footage says so at Download replay", async ({ page }) => {
