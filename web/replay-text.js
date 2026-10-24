@@ -60,9 +60,9 @@ export function resultOf(meta) {
 }
 
 // What a mark (CONTEXT.md) says on the replay's slider: its time, then its moments in order, as "1:42 · Ada rescues Bo's princess"
-// or "2:10 · Bo's hero is knocked out". A knock-out names only whose hero it was: the witness can't always tell who did it.
+// or "2:10 · Bo is knocked out". A knock-out names only whose hero it was: the witness can't always tell who did it.
 export function markLabel(meta, mark) {
   const name = seat => meta.players.find(p => p.seat === seat)?.name ?? `Seat ${seat}`;
-  const moment = m => m.kind === 'rescue' ? `${name(m.by)} rescues ${name(m.seat)}'s princess` : `${name(m.seat)}'s hero is knocked out`;
+  const moment = m => m.kind === 'rescue' ? `${name(m.by)} rescues ${name(m.seat)}'s princess` : `${name(m.seat)} is knocked out`;
   return [clock(mark.at), ...mark.moments.map(moment)].join(' · ');
 }
