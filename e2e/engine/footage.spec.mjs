@@ -37,7 +37,7 @@ async function tracksOf(file) {
   return { video: await input.getPrimaryVideoTrack(), audio: await input.getPrimaryAudioTrack() };
 }
 
-test('a played replay exports as the battle only: an MP4 of the whole battle at 30 fps, three times the size, with sound', async ({ page, errors }, testInfo) => {
+test('a played replay exports as the battle only: an MP4 of the whole battle at 30 fps, 1080 px tall, with sound', async ({ page, errors }, testInfo) => {
   const { id } = seed.played[0];
   const { text } = await (await page.request.get(`replay/${id}/data`)).json();
   await page.goto(`/replay/${id}`);
@@ -68,7 +68,7 @@ test('a played replay exports as the battle only: an MP4 of the whole battle at 
 
   const { video, audio } = await tracksOf(file);
   expect(video.codec).toBe('avc');
-  expect([await video.getDisplayWidth(), await video.getDisplayHeight()]).toEqual([1260, 1134]);
+  expect([await video.getDisplayWidth(), await video.getDisplayHeight()]).toEqual([1200, 1080]);
   expect((await video.computePacketStats()).averagePacketRate).toBeCloseTo(30, 1);
   expect(audio?.codec).toBe('aac');
   // The whole battle and one second more.
@@ -101,9 +101,9 @@ test('a replay exports as footage with details straight from Watch, and then wai
   await expect(page.getByRole('slider', { name: 'Time' })).toHaveAttribute('aria-valuetext', /^0:00 of /);
 
   // As wide as the battle, with the bands over and under it as big beside it as on the page, where the battle is at most 640 px
-  // tall: 40 px, and one seat's 52.45 px rounded to an even size, at 1134 / 640.
+  // tall: 40 px, and one seat's 52.45 px rounded to an even size, at 1080 / 640.
   const { video, audio } = await tracksOf(file);
-  expect([await video.getDisplayWidth(), await video.getDisplayHeight()]).toEqual([1260, 71 + 1134 + 93]);
+  expect([await video.getDisplayWidth(), await video.getDisplayHeight()]).toEqual([1200, 68 + 1080 + 90]);
   const expected = endOf(text) + 3;
   expect(Math.abs(await video.computeDuration() - expected)).toBeLessThanOrEqual(1);
   expect(Math.abs(await audio.computeDuration() - expected)).toBeLessThanOrEqual(1);

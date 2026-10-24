@@ -12,14 +12,17 @@ import { SOUND_BLOCK_MS } from './audio.js';
 import { rgbaOf } from './screen.js';
 import { heroName, shortDay } from '../replay-text.js';
 
-const SCALE = 3; // a whole number, so the pixels stay square in an editor that can only scale smoothly
-const WIDTH = REPLAY_WIDTH * SCALE, HEIGHT = REPLAY_HEIGHT * SCALE;
+// The battle at most 1080 px tall: 1200 × 1080, 1080 / 378 of the engine's size. Not a whole multiple, so the picture is made at
+// three times the engine's size, where each game pixel is a 3 × 3 square, and shrunk smoothly into it: every game pixel comes out
+// the same size, its edges a little soft, instead of some 2 and some 3 pixels wide.
+const SCALE = 3;
+const HEIGHT = 1080, WIDTH = REPLAY_WIDTH * HEIGHT / REPLAY_HEIGHT;
 const FPS = 30;
 // Constant quality rather than a bitrate, so the file grows with what moves on screen and not with its length: Mediabunny's 'high',
 // a quantizer of 22 out of H.264's 0 to 51 (TASVideos publishes game footage at a CRF of 20). A fixed bitrate spends the same bits
 // on a still board as on a fight; measured on a 74 s battle with a hardware encoder, 8 Mbps came to 73 MB and this to 31 MB, scored
 // 96 against 97.5 in VMAF. An encoder that takes no quantizer (OpenH264, used where a browser has no hardware one) gets the bitrate
-// Mediabunny gives 'high' at this size, 4.3 Mbps, where more bits buy it little. A key frame every 2 seconds, Mediabunny's
+// Mediabunny gives 'high' at this size, 3.9 Mbps, where more bits buy it little. A key frame every 2 seconds, Mediabunny's
 // default, keeps scrubbing in an editor quick.
 const VIDEO = { codec: 'avc', quality: new Quality('high') };
 // The engine's sound is 8 kHz mono in blocks of 512 samples, which AAC encoders don't take: it goes in at 48 kHz, at 96 kbps, the
@@ -116,22 +119,36 @@ export async function renderFootage(game, { soft, details, signal, progress }) {
   }
 }
 
-// Draws the engine's 420 × 378 frame three times its size as the page shows it in the Screen finish (CONTEXT.md, stage.css): sharp,
-// each pixel a 3 × 3 square, or soft, smoothed and under a faint grid of one cell per game pixel, `top` pixels down a picture
-// `height` tall. The picture is drawn over on the next call; only the battle's part of it changes.
+// Draws the engine's 420 × 378 frame as the page shows it in the Screen finish (CONTEXT.md, stage.css) at WIDTH × HEIGHT, `top`
+// pixels down a picture `height` tall. Sharp: each pixel a 3 × 3 square, then the whole shrunk smoothly. Soft: smoothed straight to
+// its size, under a faint grid of one cell per game pixel that is drawn at three times the engine's size and shrunk the same way
+// once, at the start. Each takes two draws a frame, as a whole-number scale did: every draw is a wait for the graphics card when
+// the frame is read, and a third (the soft picture at three times its size, then shrunk) made rendering a fifth slower. Smoothing
+// stays the default bilinear: 'high' made it a third slower again. The picture is drawn over on the next call; only the battle's
+// part of it changes.
 function painter(soft, top, height) {
   const frame = new OffscreenCanvas(REPLAY_WIDTH, REPLAY_HEIGHT), frameCtx = frame.getContext('2d');
   const image = frameCtx.createImageData(REPLAY_WIDTH, REPLAY_HEIGHT), rgba = new Uint32Array(image.data.buffer);
   const picture = new OffscreenCanvas(WIDTH, height), ctx = picture.getContext('2d', { alpha: false });
-  ctx.imageSmoothingEnabled = soft;
-  const grid = soft ? ctx.createPattern(gridCell(), 'repeat') : null;
-  grid?.setTransform(new DOMMatrix().translateSelf(0, top)); // its cells start at the battle's first pixel
+  const big = new OffscreenCanvas(REPLAY_WIDTH * SCALE, REPLAY_HEIGHT * SCALE), bigCtx = big.getContext('2d');
+  let grid = null;
+  if (soft) {
+    bigCtx.fillStyle = bigCtx.createPattern(gridCell(), 'repeat');
+    bigCtx.fillRect(0, 0, big.width, big.height);
+    grid = new OffscreenCanvas(WIDTH, HEIGHT);
+    grid.getContext('2d').drawImage(big, 0, 0, WIDTH, HEIGHT);
+  } else bigCtx.imageSmoothingEnabled = false;
   const paint = game => {
     const src = game.pixels, pitch = game.pitch;
     for (let y = 0, i = 0; y < REPLAY_HEIGHT; y++) for (let x = 0; x < REPLAY_WIDTH; x++, i++) rgba[i] = rgbaOf(src[y * pitch + x]);
     frameCtx.putImageData(image, 0, 0);
-    ctx.drawImage(frame, 0, top, WIDTH, HEIGHT);
-    if (grid) { ctx.fillStyle = grid; ctx.fillRect(0, top, WIDTH, HEIGHT); }
+    if (soft) {
+      ctx.drawImage(frame, 0, top, WIDTH, HEIGHT);
+      ctx.drawImage(grid, 0, top);
+    } else {
+      bigCtx.drawImage(frame, 0, 0, big.width, big.height);
+      ctx.drawImage(big, 0, top, WIDTH, HEIGHT);
+    }
   };
   return { picture, paint };
 }
