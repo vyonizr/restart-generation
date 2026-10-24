@@ -50,15 +50,17 @@ const BOARD_SITES = [
   { hook: 'ease', va: 0x100290e0, bytes: '83ec085355568bf18d9e' },      // FUN_100290e0: the camera glides 1/8 of the way to its target
   { hook: 'eased', va: 0x1002be45, bytes: '8b8eac0200008b49' },         // FUN_1002be10, just after it called FUN_100290e0
 ];
-// A princess's rescue plays over its backdrop, a picture of the whole screen taken as the rescue starts, which FUN_100831a0 draws at
-// (0, 0) of the context it is given. In the battle view's large-screen mode that context is the 240 x 320 offscreen that the curtain's
-// hole shows, so a 420 x 378 picture put the board's top-left corner in the hole (docs/re/re_screen.md "The rescue's backdrop",
-// docs/adr/0029). These are the backdrop's two draws, rescued and not rescued: a call through the context's vtable +0x14 with ECX
-// the context, the picture at [esp] and its position at [[esp+4]]. The hook draws the picture where the hole lies over it, on the
-// Full board and in the replay player; it is installed only if both sites have these bytes.
+// A princess's rescue and a fight play over a backdrop, a picture of the whole screen taken as they start, which FUN_100831a0 and
+// FUN_100828a0 draw at (0, 0) of the context they are given. In the battle view's large-screen mode that context is the 240 x 320
+// offscreen that the curtain's hole shows, so a 420 x 378 picture put the board's top-left corner in the hole (docs/re/re_screen.md
+// "The rescue's backdrop", docs/adr/0029). These are the backdrop's draws: a call through the context's vtable +0x14 with ECX the
+// context, the picture at [esp] and its position at [[esp+4]]. The hook draws the picture where the hole lies over it, on the Full
+// board and in the replay player; it is installed only if every site has these bytes.
 const BACKDROP_SITES = [
   { va: 0x10083211, bytes: 'ff50148b561c8d6e' }, // a princess rescued
   { va: 0x100832bc, bytes: 'ff52148b4e1c518b' }, // a princess not rescued
+  { va: 0x1008294a, bytes: 'ff50148d86940000' }, // a fight, the picture grayed under its two fighters
+  { va: 0x100828f8, bytes: 'ff5014896e345e32' }, // a fight's ending, the picture fading back to its colors alone
 ];
 const LARGE_SCREEN = 0x328, OFFSCREEN_CONTEXT = 0x338; // the battle view's large-screen flag and its offscreen's graphics context
 // Where FUN_10028a70 puts the offscreen on the 420 x 378 screen: (90, 29), the middle.
@@ -232,12 +234,12 @@ export class GameHost {
     for (const s of BOARD_SITES) this.watch(s.va, hooks[s.hook]);
   }
 
-  // Installs the hook of BACKDROP_SITES. It moves only a 420 x 378 backdrop drawn into the large-screen offscreen: a rescue that
-  // starts while a phone-only screen has narrowed the screen takes a 240 x 320 picture, which already fits the hole, and on Classic
-  // there is no offscreen.
+  // Installs the hook of BACKDROP_SITES. It moves only a 420 x 378 backdrop drawn into the large-screen offscreen: a rescue or a fight
+  // that starts while a phone-only screen has narrowed the screen takes a 240 x 320 picture, which already fits the hole, and on
+  // Classic there is no offscreen.
   #hookBackdrop() {
     const m = this.m, cpu = m.cpu, rd = a => cpu.rd32(a) >>> 0, picture = m.addr(DISPLAY_VTABLE);
-    if (!BACKDROP_SITES.every(s => bytesAt(m, s.va, s.bytes.length / 2) === s.bytes)) { this.warn('rescue backdrop left in the corner: unexpected engine bytes'); return; }
+    if (!BACKDROP_SITES.every(s => bytesAt(m, s.va, s.bytes.length / 2) === s.bytes)) { this.warn('rescue and fight backdrops left in the corner: unexpected engine bytes'); return; }
     const shift = c => {
       const app = rd(m.addr(APP)), bv = app && rd(app + 0x9c);
       if (!bv || !cpu.m8[bv + LARGE_SCREEN] || (c.r[1] >>> 0) !== rd(bv + OFFSCREEN_CONTEXT)) return;
