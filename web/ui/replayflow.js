@@ -1,10 +1,10 @@
 // How the replay page drives the engine's replay player, as the original Java player did (docs/re/re_replay.md "The original
 // player's controls"): playback starts as soon as the replay has loaded, play at the end starts again from 0, holding the slider
 // pauses until it is let go, and once the clock reaches the end with nothing left to animate the replay pauses on its end screen.
-// `state` is what the page draws ({ loaded, unplayable, playing, ended, time, length, skipEmpty, doubleSpeed }, and `meta`, whose
-// `marks` Previous and Next go to); `engine` is a GameHost started with a replay (web/emu/host.js). Times are whole seconds from
-// BattleBegin.
-const STEP_S = 5; // what the arrow keys and the D-pad seek by; the slider moves in the same steps
+// `state` is what the page draws ({ loaded, unplayable, playing, ended, time, position, length, skipEmpty, doubleSpeed }, and
+// `meta`, whose `marks` Previous and Next go to); `engine` is a GameHost started with a replay (web/emu/host.js). Times are whole
+// seconds from BattleBegin; `position` is the same clock in fractional seconds, for the slider's thumb.
+const STEP_S = 5; // what the arrow keys, the D-pad, and a drag of the time slider seek by
 // A replay builds its battle within a few frames (about 165 ms of engine time); one that hasn't after this much never will, such as
 // damaged data or a seed replay's placeholder (docs/adr/0023). Engine time, so a slow device isn't given up on sooner.
 export const LOAD_LIMIT_MS = 10000;
@@ -38,6 +38,7 @@ export function createReplayFlow(state, engine) {
       }
       state.time = engine.replayTime;
       state.length = engine.replayLength;
+      state.position = Math.min(state.length, engine.replayClock / 1000);
       if (!state.ended && replayEnded(state.time, state.length, engine)) {
         pause();
         state.ended = true;
@@ -58,7 +59,7 @@ export function createReplayFlow(state, engine) {
       if (!state.loaded) return;
       const to = Math.max(0, Math.min(state.length, Math.round(seconds)));
       engine.seekReplay(to);
-      state.time = to;
+      state.time = state.position = to;
       state.ended = false;
     },
     step: direction => flow.seek(state.time + direction * STEP_S),

@@ -26,6 +26,7 @@ export const replay = $state({
   playing: false,
   ended: false,      // the end screen is up
   time: 0, length: 0, // whole seconds from BattleBegin
+  position: 0,        // the same clock in fractional seconds: where the time slider's thumb sits
   skipEmpty: true, doubleSpeed: false, // the engine's defaults
   volume: VOLUME, muted: false,
   // Download replay: 'checking' whether this browser can encode it, 'insecure' (WebCodecs is for secure pages only, which a LAN

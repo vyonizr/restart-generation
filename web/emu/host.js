@@ -410,6 +410,8 @@ export class GameHost {
   get replayLoaded() { return this.replayLogic !== 0; }
   #replayCall(name, ...args) { return this.call(`_Java_rg_natives_NativeGameEngine_${name}`, this.jni.ref(this.engine), ...args); }
   get replayTime() { return this.#replayCall('getTime@8') | 0; }
+  // The same clock in ms, as the logic keeps it (logic+0xb8), for a slider that moves between whole seconds; past the end it runs on.
+  get replayClock() { return this.m.cpu.rd32(this.replayLogic + 0xb8) >>> 0; }
   get replayLength() { return this.#replayCall('getTotalTime@8') | 0; }
   // Whether the battlefield is still animating; at the end, the replay is over once it stops.
   get replayAnimating() { return (this.#replayCall('isReplayVisualizationInProgress@8') & 0xff) !== 0; }

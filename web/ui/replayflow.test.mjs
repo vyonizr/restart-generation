@@ -4,17 +4,32 @@
 import assert from 'node:assert';
 import { createReplayFlow } from './replayflow.js';
 
+// `clock` is the engine's clock in ms when a test sets it; otherwise it is the whole seconds of replayTime.
 function fakeEngine({ length = 60 } = {}) {
   const e = {
     replayLoaded: false, replayTime: 0, replayLength: length, replayAnimating: false, playing: true, mode: null, calls: [], time: 0,
+    clock: null,
+    get replayClock() { return e.clock ?? e.replayTime * 1000; },
     playReplay() { e.playing = true; e.calls.push('play'); },
     pauseReplay() { e.playing = false; e.calls.push('pause'); },
-    seekReplay(s) { e.replayTime = s; e.calls.push(`seek ${s}`); },
+    seekReplay(s) { e.replayTime = s; e.clock = null; e.calls.push(`seek ${s}`); },
     setReplayMode(m) { e.mode = { skipEmpty: m.skipEmpty, doubleSpeed: m.doubleSpeed }; },
   };
   return e;
 }
-const state = () => ({ loaded: false, unplayable: false, playing: false, ended: false, time: 0, length: 0, skipEmpty: true, doubleSpeed: false });
+const state = () => ({ loaded: false, unplayable: false, playing: false, ended: false, time: 0, position: 0, length: 0, skipEmpty: true, doubleSpeed: false });
+
+// The thumb follows the engine's clock between whole seconds, and stops at the slider's end, though the clock runs on past it.
+{
+  const s = state(), e = fakeEngine({ length: 30 }), flow = createReplayFlow(s, e);
+  e.replayLoaded = true;
+  e.replayTime = 12; e.clock = 12480; flow.frame();
+  assert.deepStrictEqual([s.time, s.position], [12, 12.48]);
+  e.replayTime = 30; e.clock = 31250; e.replayAnimating = true; flow.frame();
+  assert.strictEqual(s.position, 30);
+  flow.seek(7);
+  assert.deepStrictEqual([s.time, s.position], [7, 7]);
+}
 
 // Nothing works until the engine has built the replay's battle; then it plays at once, with skip-empty on, as the original did.
 {

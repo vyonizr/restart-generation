@@ -32,7 +32,7 @@ The logic starts as any `ServerBattleLogic` does: it builds the battlefield from
 
 - Each frame the playback clock moves on by the frame's time, twice as fast with double speed, unless paused. When the battlefield isn't busy, the next message is processed once the clock passes its time after BattleBegin; messages before BattleBegin go at once. With skip-empty, a gap longer than 0.5 s first jumps the clock to 0.5 s before the message.
 - `setReplayMode(skip, double)` sets skip-empty (on by default) and double speed (off by default). `playReplay` and `pauseReplay` start and stop the clock.
-- `getTime` is the playback clock in whole seconds; `getTotalTime` is the span from the first to the last message time, plus 2 seconds.
+- `getTime` is the playback clock in whole seconds, rounded down and capped at `getTotalTime`; the clock itself is an unsigned count of ms after BattleBegin at `logic+0xb8`. `getTotalTime` is the span from the first to the last message time, plus 2 seconds.
 - `setTime(s)` reloads the BattleBegin snapshot and processes, without visuals, every message up to `s` seconds after BattleBegin. A seek took 0.2 to 0.5 s. Seeking straight to the end once left the rank table reversed, so results must not be read from a replay.
 - The engine never stops on its own. After the last message the logic finishes the battle and stays there. `isReplayVisualizationInProgress` tells whether the battlefield is still animating.
 - The clock can run ahead of the picture when moves come faster than their animations, as with bots.
