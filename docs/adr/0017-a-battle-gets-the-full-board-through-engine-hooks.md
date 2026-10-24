@@ -24,6 +24,7 @@ The hooks run JavaScript at chosen engine instructions and change engine memory,
 - Battles cost about a third more CPU per tick on the page. On a device that is too slow, the slowness notice offers Classic.
 - Nothing found ties the view to what a client sends or to the battle logic. Players on different views in one battle must still end it with the same result, and the witness must agree; that is checked by hand before release.
 - Behind a narrowed battle menu or story dialog, and behind the results after a Full board battle, the board is the full board's top-left corner, not the phone camera's view. `npm run test:wide` compares the results with stock only up to that backdrop: it skips them until the next menu.
+- During a princess's rescue, the curtain's hole showed the full board's top-left corner as well; ADR 0029 draws the board under the hole there instead.
 - Online, the battle view is set up while the lobby's "Game starting" screen still shows, so the screen is narrowed after that tick until the battlefield is first drawn; anything the lobby draws later in that one tick is drawn at the Full board's size.
 - Taller story boards still scroll vertically at 378 rows.
 - `npm run test:wide` (needs `RG_GAME`) runs a Classic, a Full board, and a switched engine side by side: their phases and turns must change on the same frames, their menus must match a stock engine, and the switched one must draw each frame as the engine on its current view does. Run it after any change to the hooks.

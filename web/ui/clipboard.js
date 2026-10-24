@@ -9,14 +9,14 @@ export async function copyText(text) {
   try { if (!document.execCommand('copy')) throw new Error('copy refused'); } finally { field.remove(); }
 }
 
-// A Copy link button's label: `show` gets "Link copied" or "Couldn't copy", then "Copy link" again 2.5 s after the last press.
-export function copyLinkFeedback(show) {
+// A Copy link or Share button's label: `show` gets "Link copied" or "Couldn't copy", then `idle` again 2.5 s after the last press.
+export function copyLinkFeedback(show, idle = 'Copy link') {
   let timer;
   return async url => {
     let label = 'Link copied';
     try { await copyText(url); } catch { label = "Couldn't copy"; }
     show(label);
     clearTimeout(timer);
-    timer = setTimeout(() => show('Copy link'), 2500);
+    timer = setTimeout(() => show(idle), 2500);
   };
 }

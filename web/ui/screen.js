@@ -155,7 +155,7 @@ function glScreen(canvas) {
   });
 }
 
-const rgbaOf = v => (0xff000000 | ((v & 0xff) << 16) | (v & 0xff00) | ((v >> 16) & 0xff)) >>> 0; // the engine's BGRX as canvas RGBA
+export const rgbaOf = v => (0xff000000 | ((v & 0xff) << 16) | (v & 0xff00) | ((v >> 16) & 0xff)) >>> 0; // the engine's BGRX as canvas RGBA (also footage.js)
 
 // The 2D canvas keeps the whole picture in one image: black with the opaque curtain over it, laid down again whenever the canvas,
 // the engine's screen size or the curtain changes, and the engine's frame converted into the rest of its area on every paint.

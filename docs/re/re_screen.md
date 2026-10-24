@@ -80,11 +80,23 @@ Three animation players of the battle view draw into the offscreen and then call
 | --- | --- | --- |
 | The fight cut-in, `bv+0x29c` | A fight, which needs a hero against a hero (`FUN_10030e20`). Its state at `+0x14` is 1 while running and 2 when done. | The offscreen is cleared to opaque black and the fight is drawn into it (`FUN_100828a0`). Static: no fight happened in our runs. |
 | The rescue, `bv+0x2a0` | A princess rescued, or not. Its state at `+0x8` is 1 while running, 2 while ending, and 0 when idle. | `FUN_100831a0` draws it into the context `FUN_10027d80` returns. |
-| The animation chain, `bv+0x2a4` | The battle's intro, the phase banners, item messages (`FUN_10076ed0`), special skills, a hero's game over (`FUN_10074d00`), and a story rescue. Its byte `+0x50` is 1 while one plays; `FUN_100282f0` reads it too. | `FUN_1002b5a0` draws it the same way. Each of these starts through `FUN_10075ef0` and then `FUN_100758d0` or `FUN_1002a550`, which play on `bv+0x2a4`. |
+| The animation chain, `bv+0x2a4` | The battle's intro, the phase banners, item messages (`FUN_10076ed0`), special skills, the local player's own defeat screen (`FUN_10074d00`, a per-hero game over on CommanderDestroyEvent, not a knock-out), and a story rescue. Its byte `+0x50` is 1 while one plays; `FUN_100282f0` reads it too. | `FUN_1002b5a0` draws it the same way. Each of these starts through `FUN_10075ef0` and then `FUN_100758d0` or `FUN_1002a550`, which play on `bv+0x2a4`. |
 
-The intro, the phase banners and a rescue were observed inside the curtain. The inset's opaque pixels matched a stock 240 × 320 engine: the intro's at the same tick, and the banners' and the rescue art's 16 frames late (see below). The battle's message list (`FUN_10083a00` on `bv+0x1b8`), which shows texts such as a castle being captured, draws on the main screen at full-size positions, not in the curtain (static, and seen in replay frames). A player knocked out goes to the observer state with the full board and no curtain.
+The intro, the phase banners and a rescue were observed inside the curtain. The inset's opaque pixels matched a stock 240 × 320 engine: the intro's at the same tick, and the banners' and the rescue art's 16 frames late (see below). The board behind a rescue's art doesn't match: see "The rescue's backdrop". The battle's message list (`FUN_10083a00` on `bv+0x1b8`), which shows texts such as a princess stolen from a castle, draws on the main screen at full-size positions, not in the curtain (static, and seen in replay frames). A defeated player goes to the observer state with the full board and no curtain.
 
 A phase banner looks cut off at the inset's right edge. That is not a layout fault: the chain animation draws the banner as stock does, its text slides in from beyond the right edge of a 240-wide area, and a long banner is cut at both edges on a stock phone screen too. At 420 × 378 the phone screen's edge happens to be visible next to the curtain.
+
+### The rescue's backdrop
+
+A rescue plays its art over a backdrop: when it starts (`FUN_10083300`), it replaces `[rescue+4]` with a picture of the whole screen, made through the display's method at vtable +0x20 (observed: `FUN_10009b20`, which copies the screen at its size then). The picture is an image of the display's class (vtable `0x1017b130`), its width at `+0x18` and its height at `+0x1c`.
+
+Every frame, `FUN_100831a0` draws that picture first, at (0, 0) of the context it is given, through the context's method at vtable +0x14. The call is at `0x10083211` for a princess rescued and at `0x100832bc` for one not rescued. Both pass the picture as the first stack argument and a pointer to the position, two dwords set to 0 just before, as the second (static; the position read at run time at `0x10083211`).
+
+On a 240 × 320 screen the picture is as large as the screen, so the art plays over what was on screen. In the large-screen mode the context is the offscreen's (`bv+0x338`), which `FUN_10028a70` copies to (90, 29), and the picture is 420 × 378. The hole therefore shows the screen's top-left 240 × 320, 90 pixels right and 29 down from where that part of the board lies. Observed in the replay player (no host hooks) on two seed replays and on a stock engine booted at 420 × 378: on the first frame the rescue drew, 99.97 % of the hole's pixels equaled that top-left crop of the frame before the rescue, and under 0.2 % the board under the hole. While the stock curtain fades in, and again after the rescue, the hole shows the board in place, so the board jumps to the corner and back. The camera plays no part: on these maps the 420 × 378 camera doesn't move, and on 240 × 320 it follows the local player, not the rescue.
+
+Drawing the picture at (−90, −29) instead makes the hole a window onto the board under it: 99.97 % of its pixels then equaled the board under the hole on the frame before, in both replays and in a Full board Arcade battle, and the rescues ended on the same ticks. A rescue that starts while a phone-only screen has narrowed the screen gets a 240 × 320 picture, which already fits the hole ([INFERENCE], from the picture being taken at the screen's size). The host moves only a 420 × 378 picture drawn into the offscreen's context (ADR 0029).
+
+Static and never triggered: the fight cut-in (`FUN_100828a0`) draws its own `[+4]` image at (0, 0) the same way, at `0x100828f8` and `0x1008294a`, with the same arguments. [INFERENCE] It is a picture of the screen too, and the hole shows the same corner during a fight. A Full board Arcade battle played to its end (12,531 ticks, with rescues) had no fight, so the host leaves fights alone until one is seen.
 
 ### The fades
 
@@ -105,7 +117,7 @@ A battle's screens are UI states, run by a UI state manager `M`. `M` is `[[[app+
 | PlaceTile | `0x10186860` | Placing a tile. |
 | `InfoUIState` | `0x101880d4` | Not the player's turn, and the battle's intro. |
 | `MoveUnitUIState`, `FireCannonUIState` | | The hero's turn and the cannon phase. |
-| `ObserverUIState` | | After the local player is knocked out. |
+| `ObserverUIState` | | After the local player is defeated. |
 | `TextMessageUIState` | | Chat entry; its draw is `FUN_100c2a00`. |
 
 While the battle menu is up, `FUN_100d5d90` runs every frame: it grays the width × height of the screen through `FUN_1008d4a0`, and its `FUN_10045c50` draws the menu. `FUN_100f94a0` runs once, when the menu opens, and it was the only menu screen build during a battle. While a story message is up, its draw `FUN_100b8570` runs every frame.

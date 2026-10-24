@@ -15,7 +15,7 @@
   ]);
 </script>
 
-<DocPage title="Privacy policy" ghost="Privacy" changed="23 October 2026" {toc} {server}>
+<DocPage title="Privacy policy" ghost="Privacy" changed="24 October 2026" {toc} {server}>
   <p class="lede">This page says what this Restart Generation server keeps about you when you play online, why, for how long, and how to have it removed. It keeps only what online play needs. It sells nothing, shows no ads, and runs no analytics.</p>
 
   <section id="who">
@@ -49,6 +49,7 @@
       <p>The server keeps every online battle that began as a replay, so its players and anyone they share its link with can watch it again. A replay holds the players' names as they were in that battle, their heroes and seats, every move, and the chat sent during the battle, with when each arrived. It is kept for 30 days and then deleted. Anyone who has a replay's link can watch it.</p>
       <p>Each replay is also listed under every player's name for its 30 days, so anyone who knows your name can watch your battles.{#if discord} A wiped guest's replays leave its list but stay watchable by link. A guest who signs in to an existing member moves its replays to the member.{/if}</p>
       <p>A replay is kept for its 30 days even after a guest account in it is deleted. {#if discord}When a member deletes their account{:else}When {admin} deletes an account{/if}, the replays of every battle it played are deleted with it.</p>
+      <p>Anyone who can watch a replay can also save it from its page as footage: an MP4 file, made in their own browser, of the battle as the replay plays it, players' names included. The server sends nothing more for it and never sees the file. Once saved, footage is out of the server's reach: the 30 days, deleting an account, and turning replays off don't remove it.</p>
     </section>
   {/if}
 

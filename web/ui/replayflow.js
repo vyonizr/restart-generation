@@ -6,7 +6,9 @@
 const STEP_S = 5; // what the arrow keys and the D-pad seek by; the slider moves in the same steps
 // A replay builds its battle within a few frames (about 165 ms of engine time); one that hasn't after this much never will, such as
 // damaged data or a seed replay's placeholder (docs/adr/0023). Engine time, so a slow device isn't given up on sooner.
-const LOAD_LIMIT_MS = 10000;
+export const LOAD_LIMIT_MS = 10000;
+// Over, as the original player decided it: the clock at the end and nothing left to animate (also footage.js).
+export const replayEnded = (time, length, engine) => length > 0 && time >= length && !engine.replayAnimating;
 
 export function createReplayFlow(state, engine) {
   let holding = false, resumeAfterHold = false;
@@ -25,7 +27,7 @@ export function createReplayFlow(state, engine) {
       }
       state.time = engine.replayTime;
       state.length = engine.replayLength;
-      if (!state.ended && state.length > 0 && state.time >= state.length && !engine.replayAnimating) {
+      if (!state.ended && replayEnded(state.time, state.length, engine)) {
         pause();
         state.ended = true;
       }
@@ -62,6 +64,12 @@ export function createReplayFlow(state, engine) {
     },
     setSkipEmpty(on) { state.skipEmpty = on; if (state.loaded) engine.setReplayMode(state); },
     setDoubleSpeed(on) { state.doubleSpeed = on; if (state.loaded) engine.setReplayMode(state); },
+    // The engine started the replay over on its own (footage.js): give it the page's settings, and wait at 0 for Play.
+    restart() {
+      engine.setReplayMode(state);
+      flow.seek(0);
+      pause();
+    },
   };
   return flow;
 }
