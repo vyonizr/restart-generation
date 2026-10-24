@@ -317,6 +317,10 @@ Besides SNAP at `POST /snap`, the HTTP server answers the following requests, wh
 | `GET /replay/ID` | The replay page ([CONTEXT.md](../CONTEXT.md) "Replay"), with the battle's players, heroes, kind of match, environment and day in its head for link previews; HTTP `404 Not Found` with the same page, which says the replay is gone, when no replay `ID` is kept. |
 | `GET /replay/ID/data` | `{ text, meta }`: the engine's replay text ([re_replay.md](re/re_replay.md)) and what the page shows around it, or HTTP `404 Not Found` with `{ error: "gone" }`. `meta` holds `ranked`, `environment`, `players` (`{ name, hero, seat, bot }`), `result` (`{ winners, ranks, guessed }`, or null), `created`, and, when the witness saw any, `marks` ([ADR 0030](adr/0030-replay-marks-are-worked-out-by-the-witness-when-the-replay-is-saved.md)): `[{ at, moments: [{ kind, seat, by }] }]` sorted by `at`, the whole second to seek to; `kind` is `rescue` (`seat`'s princess, rescued by `by`) or `knockout` (`seat`'s hero, with no `by`). |
 | `GET /replays?name=NAME` | `{ replays }`: the replays listed under the player named `NAME`, whatever its case ([ADR 0024](adr/0024-a-players-replays-are-listed-under-their-name.md)), newest first, each `{ id, created, expires, ranked, environment, players, result }`. A name nobody holds has none. HTTP `404 Not Found` with `{ error: "off" }` when the server keeps no replays. |
+| `GET /game/bundle` | On a server that isn't `--public` and has a server copy: the game bundle (`web/bundle.js`), `Content-Encoding: gzip`, with `X-Game-Size`, the bundle's size before compression. Otherwise HTTP `404 Not Found` ([ADR 0031](adr/0031-the-server-sends-its-copy-only-to-a-download-code.md)). |
+| `POST /game/bundle` | On a `--public` server, the body is the download code: the game bundle as for `GET`, with `Content-Encoding: br` when the request accepts it and the server has made it. Anything else, including a wrong or ended code, a server without a code or over its limits, and a server that isn't public: HTTP `404 Not Found` with the same body. |
+
+The game bundle is a little-endian `u32` header length, a UTF-8 JSON header `[{ name, size, zlib, raw }]`, and each file's bytes in header order. Each `.pak` comes with its deflated entries stored, and `zlib` and `raw` list the directory rows that the page deflates again, in each format, before the engine reads the file.
 
 The `GET /status` reply has the following fields:
 
@@ -324,7 +328,7 @@ The `GET /status` reply has the following fields:
 | --- | --- |
 | `version` | The release the server runs, such as `v0.1.2`: `RG_VERSION`, else `git describe --tags --always` of its clone, else `dev` ([ADR 0019](adr/0019-releases-are-tagged-in-ci-on-the-public-main.md)). |
 | `accounts` | Whether Discord sign-in is on. |
-| `servesGame` | Whether the server sends the game files itself: `RG_SEND_GAME=1` with a loaded server copy (`RG_GAME`). |
+| `servesGame` | Whether the server sends the game files to every visitor: a server that isn't `--public` whose game bundle is ready. Always false on a `--public` server, which sends them only for its download code. |
 | `unlockAll` | Whether the page opens every story and hero from the start: true unless the server runs with `--public` ([ADR 0007](adr/0007-patch-the-engine-in-memory.md)). |
 | `invite` | The admin's Discord invite link, or empty. |
 | `contact` | Where a rights holder can ask for the game's removal, or empty ([legal notes](LEGAL.md)). |

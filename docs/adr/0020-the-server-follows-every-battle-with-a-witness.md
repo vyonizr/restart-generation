@@ -13,7 +13,7 @@ The relay stays as it is: it acknowledges, orders and forwards messages, and it 
 
 A server without a server copy, or one whose witness fails, records a **guessed result** (CONTEXT.md). The admin sees why in the log. Players aren't told, because their own result screens are correct either way.
 
-To give a server a copy without sending it to every visitor, the two become separate settings. `RG_GAME` is the server copy, which the witness and the bots run. `RG_SEND_GAME=1` sends that copy to visitors (ADR 0001). The `RG_CONTACT` rule in `docs/LEGAL.md` moves from `RG_GAME` to `RG_SEND_GAME`. This ADR is the record that `docs/LEGAL.md` requires for that change.
+To give a server a copy without sending it to every visitor, the two become separate settings. `RG_GAME` is the server copy, which the witness and the bots run. `RG_SEND_GAME=1` sends that copy to visitors (ADR 0001). The `RG_CONTACT` rule in `docs/LEGAL.md` moves from `RG_GAME` to `RG_SEND_GAME`. This ADR is the record that `docs/LEGAL.md` requires for that change. [ADR 0031](0031-the-server-sends-its-copy-only-to-a-download-code.md) later removes `RG_SEND_GAME`: a public server sends the copy only for its download code.
 
 ## Considered options
 

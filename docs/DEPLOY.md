@@ -4,7 +4,7 @@ This guide is the whole procedure for a public server on one virtual private ser
 
 > **Caution:** This procedure was tested only on a PC with Docker Desktop, at `RG_DOMAIN=localhost`. Steps 1 and 2, a real certificate, the Discord sign-in round trip, the cron job, and the `chown` command haven't been tested on a VPS.
 
-The steps leave out `RG_GAME_PATH` and `RG_SEND_GAME`, so each player chooses their own copy of the game (see the architecture decision record [ADR 0001](adr/0001-players-bring-their-own-game-files.md)), and the server guesses battle results. Giving the server its own copy, and sending that copy to visitors, are separate decisions: see [Optional: send the game from your server](#optional-send-the-game-from-your-server).
+The steps leave out `RG_GAME_PATH`, so each player chooses their own copy of the game (see the architecture decision record [ADR 0001](adr/0001-players-bring-their-own-game-files.md)), and the server guesses battle results. Giving the server its own copy, and sending that copy with a download code, are separate decisions: see [Optional: send the game with a download code](#optional-send-the-game-with-a-download-code).
 
 You need a VPS running Ubuntu 24.04 or Debian 12 that you can reach with SSH, a domain name, and a Discord application (see [Guests and members](HOSTING.md#guests-and-members)). The commands in this guide that run on your PC are PowerShell; the others run on the VPS.
 
@@ -227,27 +227,30 @@ If the schema changed between the two versions, also restore the backup from bef
 - Watch the outbound transfer your plan includes, in your host's dashboard. Without the game, each online player costs about 0.6 MB an hour, so 100 players online on average use about 45 GB a month. Some hosts shut the VPS down when the allowance runs out, until the next month; if usage passes half the allowance before mid-month, move to a bigger plan.
 - Delete an account: see [Delete an account](HOSTING.md#delete-an-account).
 
-## Optional: send the game from your server
+## Optional: send the game with a download code
 
-This makes your server send RedLynx's game files to every visitor. That is distribution of their work, and it's your decision and your risk. Before you continue, read [Rules for a server that sends the game](LEGAL.md#rules-for-a-server-that-sends-the-game).
+This makes your server send RedLynx's game files to the people you give its download code, in a link ([ADR 0031](adr/0031-the-server-sends-its-copy-only-to-a-download-code.md)). That is distribution of their work, and it's your decision and your risk. Before you continue, read [Rules for a server that sends the game](LEGAL.md#rules-for-a-server-that-sends-the-game).
 
-It also costs bandwidth. Each visitor downloads about 33 MB of game files, and the page doesn't keep them, so every page load, Quit, and sign-out downloads them again. A plan with 512 GB of outbound transfer covers only about 15,000 loads a month, and some hosts shut the VPS down when the allowance runs out. Check what yours does first.
+It also costs bandwidth: each download is about 23 MiB, and a browser keeps the game, so it downloads it once. A code allows 20 downloads, one network 2 a day, and the server sends at most `RG_GAME_MB_PER_DAY` MiB a day (700 by default). Check what your host does when the monthly allowance runs out first: some shut the VPS down.
 
-You need the game's `.zip` on the VPS, and `RG_CONTACT`, where a rights holder can reach you, which every public server already sets.
+You need the game's `.zip` on the VPS, `RG_ADMIN_TOKEN` (see [Delete an account](HOSTING.md#delete-an-account)), and `RG_CONTACT`, where a rights holder can reach you, which every public server already sets.
 
 1. Copy the game to the VPS:
 
    ```powershell
    scp ResetGeneration-Standalone.zip VPS_USER@VPS_HOST:restart-generation/
    ```
-2. Add the following lines to `.env`:
+2. Add the following line to `.env`, and then run `docker compose up -d`:
 
    ```sh
    RG_GAME_PATH=./ResetGeneration-Standalone.zip
-   RG_SEND_GAME=1
    ```
-3. Run `docker compose up -d`.
 
-`/status` then says `"servesGame":true`, and the Notices dialog shows your contact. To stop sending the game at once, empty `RG_SEND_GAME` and run `docker compose up -d` again.
+   This alone sends nothing: it gives the server its own copy, whose witness decides battle results instead of guessing them ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). It costs about 270 MB of memory once booted, plus about 4 MB for every battle it follows. The first time, the server also spends a few minutes compressing the game for the download code, and keeps the result in `data/`.
+3. Make a code, and give the link it prints to your friends, and nobody else:
 
-`RG_GAME_PATH` alone, without `RG_SEND_GAME=1`, sends nothing: it gives the server its own copy, whose witness decides battle results instead of guessing them ([ADR 0020](adr/0020-the-server-follows-every-battle-with-a-witness.md)). It costs about 270 MB of memory once booted, plus about 4 MB for every battle it follows, and no bandwidth.
+   ```sh
+   docker compose exec rg npm run download-code -- --new
+   ```
+
+`docker compose exec rg npm run download-code` shows the code and what it has sent. To stop sending the game at once, run `docker compose exec rg npm run download-code -- --end`. `/status` says `"servesGame":false` either way: nothing on the page tells anyone without the code that the server sends the game. For the limits, see [Send the game with a download code](HOSTING.md#send-the-game-with-a-download-code).

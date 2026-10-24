@@ -58,7 +58,7 @@
     <ul>
       <li>{#if replays}Chat in a battle goes to the other players, and stays in the battle's replay for 30 days. {:else}Chat in a battle goes to the players it's for. The server doesn't store it. {/if}The message with a friend request goes to the player it's for, and the server doesn't store it.</li>
       <li>Room names are shown to everyone in the lobby while the room is open.</li>
-      {#if discord}<li>Your IP address limits how many guest accounts one network can make. The server keeps it in memory for at most an hour, and never writes it down.</li>{/if}
+      <li>Your IP address limits how often one network can make some requests{#if discord}, such as creating guest accounts{/if}. The server keeps it in memory for at most a day, and never writes it down.</li>
     </ul>
   </section>
 
@@ -80,14 +80,14 @@
       {#if discord}<li>your player name and sign-in token;</li>{:else}<li>your player name;</li>{/if}
       <li>your saved game, your screen finish and your board view;</li>
       {#if discord}<li>when the page last offered you the Discord sign-in;</li>{/if}
-      <li>your copy of the game, if you chose your own files. It never leaves your browser.</li>
+      <li>your copy of the game. It never leaves your browser.</li>
     </ul>
     <p>The page talks only to this server{#if discord}, and sends you to Discord when you sign in{/if}.</p>
   </section>
 
   <section id="why">
     <h2>Why</h2>
-    <p>The server keeps your account, stats and friends{#if discord}, and a member's saved game,{/if} because you play online and they're what online play is.{#if replays} It keeps replays so that players can watch their battles again and share them.{/if} It keeps logs and backups to run the server and to recover it{#if discord}, and limits guest accounts to protect it from abuse{/if}.</p>
+    <p>The server keeps your account, stats and friends{#if discord}, and a member's saved game,{/if} because you play online and they're what online play is.{#if replays} It keeps replays so that players can watch their battles again and share them.{/if} It keeps logs and backups to run the server and to recover it, and limits some requests from each network to protect it from abuse.</p>
   </section>
 
   <section id="rights">

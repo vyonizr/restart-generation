@@ -19,6 +19,7 @@
     "e2e": "node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test",
     "boot": "node --env-file-if-exists=.env web/tools/boot.mjs",
     "delete-user": "node --env-file-if-exists=.env server/delete-user.mjs",
+    "download-code": "node --env-file-if-exists=.env server/download-code.mjs",
     "backup": "node server/backup.mjs",
     "legal-check": "node tools/legal-check.mjs",
     "hooks": "node tools/legal-check.mjs --install-hook"

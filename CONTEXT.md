@@ -37,7 +37,7 @@ A player signed in to Arena, whether in a lobby, a room, or a battle; bots don't
 _Avoid_: user, connected player, active player
 
 **Visitor**:
-Anyone who opens the browser client's page, online or not. A server that sends the game sends it to every visitor, so visitors, not online players, set what that costs.
+Anyone who opens the browser client's page, online or not. A server that isn't public sends the game to every visitor, and a public server only to visitors who come with its download code, so visitors, not online players, set what sending it costs.
 _Avoid_: user, page view, session
 
 **Seed account**:
@@ -55,8 +55,12 @@ A server started with `--public`, where progress is earned and the admin can off
 _Avoid_: online server, production server, hosted server
 
 **Server copy**:
-The copy of the game an admin gives the server. The server runs it for its witness and, if it isn't public, for bots, and sends it to visitors only if the admin chooses to.
+The copy of the game an admin gives the server. The server runs it for its witness and, if it isn't public, for bots. A server that isn't public sends it to every visitor; a public one only to visitors who come with its download code.
 _Avoid_: RG_GAME, the game files (for this copy)
+
+**Download code**:
+The six-character code that lets a visitor's browser receive a public server's server copy, given only in a link. A public server has at most one, shared by everyone the admin gives it to; it ends when the admin ends it, after a set number of downloads, or after 30 days if they don't. Nothing on the page shows it or asks for it, and a visitor whose code doesn't work brings their own copy like anyone else. A server that isn't public has none: it sends its copy to everyone.
+_Avoid_: invite (that is the Discord link), key, licence, activation code, voucher
 
 **Privacy policy**:
 The page of a public server that tells players what it keeps about them, why, for how long, who else handles it, and how to have it removed. It names the server's admin, who answers for it.

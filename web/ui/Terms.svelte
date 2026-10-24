@@ -22,7 +22,7 @@
   <section id="unofficial">
     <h2>An unofficial revival</h2>
     <p>Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It isn't affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners.</p>
-    <p>Nothing on this server makes a copy of the game licensed or official{#if server?.servesGame}, including the copy it sends you{/if}.</p>
+    <p>Nothing on this server makes a copy of the game licensed or official.</p>
   </section>
 
   <section id="behave">

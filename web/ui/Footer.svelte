@@ -1,5 +1,6 @@
 <!-- The footer: the short non-affiliation line, the credit, and the Notices button that opens the rest (NoticesDialog, docs/LEGAL.md).
-     "Bring your own copy of the game" appears only where the player brings the files, never on a server that sends them (RG_SEND_GAME=1).
+     "Bring your own copy of the game" appears only where the player brings the files: never on a server that sends them to every
+     visitor, nor in a browser that received them for the download code (gamefiles.js, docs/adr/0031).
      A public server, which names its admin (RG_ADMIN_NAME), links its Terms and Privacy policy (docs/adr/0021). -->
 <script>
   import { page } from './page.svelte.js';

@@ -1,13 +1,14 @@
-// The admin's way to delete an account (ADR 0016), used by `npm run delete-user`. It works on every server, Discord or name-only,
-// and it is off unless RG_ADMIN_TOKEN is set: then every /admin/ path answers 404 as if it did not exist.
+// The admin's way to delete an account (ADR 0016), used by `npm run delete-user`, and to make or end the download code (ADR 0031),
+// used by `npm run download-code`. It works on every server, and it is off unless RG_ADMIN_TOKEN is set: then every /admin/ path
+// answers 404 as if it did not exist.
 const crypto = require('crypto');
 
 const digest = s => crypto.createHash('sha256').update(String(s)).digest();
 
 // opts: store, token (RG_ADMIN_TOKEN, or empty to switch the endpoint off), discord (whether accounts have Discord IDs),
 // busy(id) -> whether that account has a live session, remove(acc) to end its sessions, dropReplays(acc) to delete the replays of
-// the battles it played, log.
-function createAdmin({ store, token, discord, busy, remove, dropReplays = () => {}, log = () => {} }) {
+// the battles it played, sender (server/sendgame.js), log.
+function createAdmin({ store, token, discord, busy, remove, dropReplays = () => {}, sender = null, log = () => {} }) {
   const json = (res, code, body) => {
     res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
@@ -48,6 +49,16 @@ function createAdmin({ store, token, discord, busy, remove, dropReplays = () => 
       log(`admin deleted ${acc.name}`);
       res.writeHead(204); res.end();
     },
+    // The download code: what it is and what it has sent, a new one (which ends the old one), or the code ended. Only a public
+    // server has one: any other sends the game to every visitor.
+    'GET /admin/download-code': (req, res) => json(res, 200, sender.status()),
+    'POST /admin/download-code': (req, res, url) => {
+      if (!sender.status().public) return json(res, 422, { error: 'not_public' });
+      const days = url.searchParams.has('days') ? Number(url.searchParams.get('days')) : undefined;
+      if (days !== undefined && !(Number.isInteger(days) && days >= 1 && days <= 365)) return json(res, 400, { error: 'days' });
+      json(res, 200, sender.make(days));
+    },
+    'DELETE /admin/download-code': (req, res) => json(res, 200, sender.end()),
   };
 
   return {

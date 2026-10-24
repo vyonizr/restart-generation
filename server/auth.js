@@ -136,15 +136,7 @@ function createAuth({ store, config, busy, remove, dropReplays = () => {}, repla
     return '';
   };
 
-  // The client address, for the guest limit. Behind a proxy the admin turns trustProxy on, and the address the proxy
-  // appended (the last one) is used: earlier ones are written by the client.
-  const ipOf = req => {
-    if (config.trustProxy) {
-      const last = String(req.headers['x-forwarded-for'] || '').split(',').pop().trim();
-      if (last) return network(last);
-    }
-    return network(req.socket.remoteAddress || '');
-  };
+  const ipOf = req => clientNetwork(req, config.trustProxy);
   const guestAllowed = ip => {
     const t = now(), recent = (created.get(ip) || []).filter(x => x > t - HOUR);
     if (recent.length >= config.guestsPerIpHour) { created.set(ip, recent); return false; }
@@ -358,4 +350,14 @@ function createAuth({ store, config, busy, remove, dropReplays = () => {}, repla
   };
 }
 
-module.exports = { configFrom, modeFrom, dataFiles, createAuth, GUEST_IDLE_MS, MEMBER_TOKEN_MS };
+// The network a request comes from, as `network` counts it, for the limits on guests and on sending the game. Behind a proxy the
+// admin sets RG_TRUST_PROXY, and the address the proxy appended (the last one) is used: earlier ones are written by the client.
+function clientNetwork(req, trustProxy) {
+  if (trustProxy) {
+    const last = String(req.headers['x-forwarded-for'] || '').split(',').pop().trim();
+    if (last) return network(last);
+  }
+  return network(req.socket.remoteAddress || '');
+}
+
+module.exports = { configFrom, modeFrom, dataFiles, createAuth, clientNetwork, GUEST_IDLE_MS, MEMBER_TOKEN_MS };

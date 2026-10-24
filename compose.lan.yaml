@@ -14,11 +14,9 @@ services:
       - "${BIND:-127.0.0.1}:8080:8080"
       - "${BIND:-127.0.0.1}:8976:8976"
     environment:
-      # The server copy, set only if RG_GAME_PATH is set: the witness runs it to decide battle results (docs/adr/0020), and the
-      # bots run it.
+      # The server copy, set only if RG_GAME_PATH is set: the witness runs it to decide battle results (docs/adr/0020), the bots run
+      # it, and every visitor gets it, so other devices don't ask for the game files.
       RG_GAME: ${RG_GAME_PATH:+/game}
-      # 1 sends the server copy to every visitor, so other devices don't ask for the game files.
-      RG_SEND_GAME: ${RG_SEND_GAME:-}
       # The admin's account delete (npm run delete-user, ADR 0016). Unset, the endpoint is off.
       RG_ADMIN_TOKEN: ${RG_ADMIN_TOKEN:-}
       # 0 keeps no replays and serves none of those kept (docs/HOSTING.md "Replays"). Empty keeps them.

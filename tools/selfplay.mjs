@@ -71,7 +71,7 @@ async function startLane(id) {
   const [PORT, HTTP_PORT] = [await freePort(), await freePort()];
   const lines = []; // the gateway's log
   const gateway = spawn(process.execPath, [path.join(root, 'server', 'gateway.js')], {
-    cwd: root, env: { ...process.env, PORT, HTTP_PORT, RG_DB: path.join(dir, 'accounts.db'), RG_REPLAYS_DB: path.join(dir, 'replays.db'), RG_SEND_GAME: '', RG_GATHER_MS: PLAYERS === 2 ? '500' : '30000',
+    cwd: root, env: { ...process.env, PORT, HTTP_PORT, RG_DB: path.join(dir, 'accounts.db'), RG_REPLAYS_DB: path.join(dir, 'replays.db'), RG_GATHER_MS: PLAYERS === 2 ? '500' : '30000',
       // Name-only login: the harness's Bots have no tokens, so a Discord setting from .env must not reach this gateway.
       RG_DISCORD_CLIENT_ID: '', RG_DISCORD_CLIENT_SECRET: '', RG_PUBLIC_URL: '' } });
   const feed = chunk => { for (const l of String(chunk).split('\n')) if (l.trim()) { lines.push(l.trim()); if (process.env.SELFPLAY_LOG) console.log(`[${id}] ${l.trim()}`); } };

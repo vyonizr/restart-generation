@@ -22,8 +22,8 @@ The game itself, not a remake or a port: the original engine runs unmodified, an
 
 The page is a single static page, built from `web/` into `web/dist` ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)), that is served in one of these ways:
 
-- **By a game server that sends the game (`RG_SEND_GAME=1`, with its server copy in `RG_GAME`):** the server sends its copy of the files, and the player goes straight to **Start**.
-- **By a static host, or a game server that doesn't send the game:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
+- **By a game server that sends the game:** a server that isn't `--public`, with its server copy in `RG_GAME`, sends it to every visitor; a `--public` one only to a visitor whose link carries its download code ([ADR 0031](docs/adr/0031-the-server-sends-its-copy-only-to-a-download-code.md)). The page keeps the files in the browser's IndexedDB, and the player goes straight to **Start**. Nothing on the page shows or asks for the code.
+- **By a static host, or a game server that doesn't send the game to this visitor:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.
 
 The page moves through these states: loading the files, choosing the files, **Start**, starting the engine, playing, the dialogs described in the following paragraphs, and errors (missing files, unreadable files, not enough memory, the emulator stopping).
 
@@ -63,11 +63,11 @@ A replay the server's witness followed has [marks](CONTEXT.md) on its time slide
 - Name: Restart Generation. The page is an unofficial fan revival of Reset Generation (RedLynx, 2008); the game keeps its own name.
 - Required notices: the page shows each of the following, word for word where quoted:
   - **Footer line, always:** "Unofficial fan revival of Reset Generation © 2008 RedLynx; not affiliated with RedLynx, Ubisoft or Nokia." and a credit to vyonizr.
-  - **Footer line, where the player brings the files:** "Bring your own copy of the game." It doesn't appear on a server that sends the game files itself (`RG_SEND_GAME=1`).
+  - **Footer line, where the player brings the files:** "Bring your own copy of the game." It doesn't appear on a server that sends the game files to every visitor, nor in a browser that received them for a download code.
   - **Notices dialog:** the footer's **Notices** button opens a dialog over the page. The dialog never opens by itself.
   - **Notices dialog, always:** "Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It is not affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners."
   - **Notices dialog, where the player brings the files:** the note "Windows standalone build only. Your files stay in this browser."
-  - **Notices dialog, where a server sends the game files itself:** a statement that it does, with the admin's `RG_CONTACT` for a rights holder who wants them removed ([ADR 0018](docs/adr/0018-publishing-with-legal-guardrails.md)).
+  - **Notices dialog, where a server sends the game files itself:** a statement that it does, with the admin's `RG_CONTACT` for a rights holder who wants them removed ([ADR 0018](docs/adr/0018-publishing-with-legal-guardrails.md)). On a public server only a browser that received them for the download code sees it, as "This server sent you a copy" ([ADR 0031](docs/adr/0031-the-server-sends-its-copy-only-to-a-download-code.md)).
   - **Footer line, on a public server:** links to its **Terms** and **Privacy policy**.
   - **Under Start, on a public server:** "By playing online you accept the Terms and the Privacy policy.", with both linked. The name dialog for a new member says the same of saving the name.
   - **Notices dialog, on a public server:** links to its Terms and Privacy policy, which say what it keeps ([ADR 0021](docs/adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)).

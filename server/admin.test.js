@@ -92,4 +92,21 @@ assert.strictEqual(call(admin, 'GET', '/admin/account?name=Named').body.kind, 'n
 assert.strictEqual(call(admin, 'DELETE', '/admin/account?name=Named').code, 204);
 assert.strictEqual(store.byName('Named'), null);
 
+// The download code (ADR 0031): only a public server makes one, for 1 to 365 days, and the admin can end it.
+const codes = pub => {
+  const made = [];
+  const sender = { status: () => ({ public: pub, made }), make: days => (made.push(days), { public: pub, made }), end: () => ({ public: pub, ended: true }) };
+  return { admin: createAdmin({ store: open(':memory:'), token: TOKEN, discord: false, busy: () => false, remove: () => {}, sender }), made };
+};
+let c = codes(false);
+assert.deepStrictEqual([call(c.admin, 'POST', '/admin/download-code').code, call(c.admin, 'POST', '/admin/download-code').body.error], [422, 'not_public']);
+assert.deepStrictEqual(c.made, []);
+c = codes(true);
+for (const q of ['?days=0', '?days=366', '?days=1.5', '?days=x']) assert.strictEqual(call(c.admin, 'POST', `/admin/download-code${q}`).code, 400, q);
+assert.strictEqual(call(c.admin, 'POST', '/admin/download-code?days=7').code, 200);
+assert.strictEqual(call(c.admin, 'POST', '/admin/download-code').code, 200);
+assert.deepStrictEqual(c.made, [7, undefined]); // no days: the sender's own 30
+assert.strictEqual(call(c.admin, 'DELETE', '/admin/download-code').body.ended, true);
+assert.strictEqual(call(c.admin, 'DELETE', '/admin/download-code', { token: 'wrong' }).code, 401);
+
 console.log('admin ok');

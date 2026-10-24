@@ -1,4 +1,5 @@
-// A server that sends the game (RG_SEND_GAME=1): the page fetches it, boots the engine, and Start hands the game screen the keys.
+// A server that sends the game to every visitor (one that isn't public, ADR 0031): the page fetches it, boots the engine, and Start
+// hands the game screen the keys.
 import { test, expect, asPublicServer } from '../fixtures.mjs';
 import { engineTime } from './engine.mjs';
 
