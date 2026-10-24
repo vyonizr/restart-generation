@@ -258,6 +258,10 @@ _Avoid_: recording, video, clip, replay file
 A hero whose health ran out: it drops any princess it carries, is thrown away or sent back to its castle, and plays on with part of its health. It can happen any number of times, and its player is not defeated by it.
 _Avoid_: dead hero, killed hero, knocked-out player (that is a defeated player)
 
+**Fight**:
+One player's hero meeting another player's hero on the battlefield, which the game plays out with its fight animation; a fight can leave a hero knocked out. A knock-out from cannons or monsters is not a fight.
+_Avoid_: hero cut-in, duel, clash
+
 **Moment**:
 Something in a replay that changes who can win and is worth jumping to: a princess rescued or a hero knocked out. Things every turn has, such as special skills and phase banners, are not moments, and neither are a stolen princess or a player leaving or dropping out.
 _Avoid_: highlight, key moment, event, chapter
