@@ -12,10 +12,10 @@ services:
       - "8080"
     environment:
       # The server copy, set only if RG_GAME_PATH is set: the witness runs it to decide battle results (docs/adr/0020). A public
-      # server never runs bots.
+      # server never runs bots, and sends it only for its download code (npm run download-code, docs/adr/0031).
       RG_GAME: ${RG_GAME_PATH:+/game}
-      # 1 sends the server copy to every visitor. Empty it to stop sending at once (docs/LEGAL.md).
-      RG_SEND_GAME: ${RG_SEND_GAME:-}
+      # What the download code may send in a day, in MiB. Empty is 700.
+      RG_GAME_MB_PER_DAY: ${RG_GAME_MB_PER_DAY:-}
       # Guests and members: all three are needed (see docs/HOSTING.md). The address defaults to the domain Caddy serves.
       RG_DISCORD_CLIENT_ID: ${RG_DISCORD_CLIENT_ID:-}
       RG_DISCORD_CLIENT_SECRET: ${RG_DISCORD_CLIENT_SECRET:-}
@@ -28,7 +28,8 @@ services:
       RG_CONTACT: ${RG_CONTACT:-}
       # One proxy (Caddy) sits in front, and nothing else can reach the gateway, so its X-Forwarded-For can be trusted.
       RG_TRUST_PROXY: ${RG_TRUST_PROXY:-1}
-      # The admin's account delete (npm run delete-user, ADR 0016). Unset, the endpoint is off; Caddy never forwards /admin/ anyway.
+      # The admin's account delete and download code (npm run delete-user, npm run download-code). Unset, the endpoint is off;
+      # Caddy never forwards /admin/ anyway.
       RG_ADMIN_TOKEN: ${RG_ADMIN_TOKEN:-}
       # 0 keeps no replays and serves none of those kept (docs/HOSTING.md "Replays"). Empty keeps them.
       RG_REPLAYS: ${RG_REPLAYS:-}

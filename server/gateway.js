@@ -12,8 +12,9 @@ const { PORT, HTTP_PORT } = require('./ports');
 const gameServer = require('./casino');
 const bots = require('./bots');
 const store = require('./store');
-const { modeFrom, dataFiles, createAuth } = require('./auth');
+const { modeFrom, dataFiles, createAuth, clientNetwork } = require('./auth');
 const { createAdmin } = require('./admin');
+const { createSender } = require('./sendgame');
 const replays = require('./replays');
 const { replayPage } = require('./replaypage');
 const { versionOf } = require('./version');
@@ -63,7 +64,11 @@ const busy = id => [...sessions.values()].some(s => s.userId === id);
 const remove = acc => { for (const s of [...sessions.values()]) if (s.userId === acc.id) dropSession(s); };
 const dropReplays = acc => replayStore.removeAccount(acc.id);
 const auth = createAuth({ store: db, config: authConfig, log, busy, remove, dropReplays, replaysOf: acc => (REPLAYS ? replayStore.ofAccount(acc.id, Date.now()) : []), moveReplays: (from, to) => replayStore.moveAccount(from.id, to.id) });
-const admin = createAdmin({ store: db, token: process.env.RG_ADMIN_TOKEN || '', discord: auth.enabled, busy, remove, dropReplays, log });
+// The server copy for visitors (docs/adr/0031): every visitor of a server that isn't public, only the download code on a public one.
+// RG_GAME_MB_PER_DAY caps what a public server sends a day; the compressed bundle is kept in data/ between starts.
+const sender = createSender({ public: MODE.public, file: path.join(FILES.dir, 'download-code.json'), cacheDir: DATA_DIR, log,
+  ipOf: req => clientNetwork(req, authConfig.trustProxy), budget: Number(process.env.RG_GAME_MB_PER_DAY || 700) * 2 ** 20 });
+const admin = createAdmin({ store: db, token: process.env.RG_ADMIN_TOKEN || '', discord: auth.enabled, busy, remove, dropReplays, sender, log });
 
 // Without Discord a name is the whole identity: no password. Anyone can log in as any name, and that drops the name's other
 // session (ADR 0009). With Discord, the password slot carries the guest's or member's token (ADR 0011).
@@ -307,7 +312,6 @@ if (require.main !== module) return; // tests import the module without starting
 
 // A public server publishes Terms and a Privacy policy that name who runs it, who stores its data for them, and where players and
 // rights holders write (docs/adr/0021, docs/LEGAL.md), so it won't start without all three. Any other server doesn't need them.
-const SEND_GAME = process.env.RG_SEND_GAME === '1';
 const missing = MODE.public ? [['RG_ADMIN_NAME', authConfig.adminName], ['RG_HOSTING', authConfig.hosting], ['RG_CONTACT', authConfig.contact]].filter(([, v]) => !v).map(([k]) => k) : [];
 if (missing.length) {
   console.error(`Refusing to start a --public server without ${missing.join(', ')}: its Terms and Privacy policy name the admin (RG_ADMIN_NAME), the hosting provider that stores its data (RG_HOSTING), and an email address or an https address where players and rights holders can write (RG_CONTACT). See docs/HOSTING.md`);
@@ -328,7 +332,6 @@ if (!seatCounts.size) {
 // The server copy runs the witness, which decides every battle's result (docs/adr/0020), on a public server too.
 if (process.env.RG_GAME) require('./witness').start(log);
 else log('Warning: no server copy (RG_GAME), so battle results will be guessed: the last player standing, or else the one who made the last move');
-if (SEND_GAME && !process.env.RG_GAME) log('Warning: RG_SEND_GAME=1 without RG_GAME: there is no server copy, so visitors choose their own files');
 
 // The Java client's TCP connections. The log names each by a number, never by its address: the Privacy policy says the server
 // writes no IP address to its logs (docs/adr/0021). The address only keys the reply cache, in memory.
@@ -355,24 +358,23 @@ setInterval(() => {
   for (const s of staleSessions(sessions, Date.now(), IDLE_MS)) { log(`idle timeout ${s.name}`); dropSession(s); }
 }, 5000);
 if (auth.enabled) { auth.sweep(); setInterval(auth.sweep, 60000); }
+setInterval(sender.sweep, 3600000); // the networks counted for the download code, forgotten within a day
 // Replays older than 30 days are never served (server/replays.js); this deletes them from the file too.
 const sweepReplays = () => { const n = replayStore.sweep(Date.now()); if (n) log(`deleted ${n} replay${n > 1 ? 's' : ''} older than 30 days`); };
 sweepReplays(); setInterval(sweepReplays, 3600000);
 
-// ---- browser client: serves the built page (web/dist) and, if the admin chose to, the server copy of the game ----
+// ---- browser client: serves the built page (web/dist) and the server copy of the game (server/sendgame.js) ----
 const http = require('http');
 const WEB_DIR = path.join(__dirname, '..', 'web');
 // The built page (npm run build, ADR 0013): index.html, assets/ with hashed names, and the files Vite copies as they are.
 const DIST_DIR = path.join(WEB_DIR, 'dist');
-// RG_GAME, the server copy: the ResetGeneration folder or the standalone .zip. It's sent to visitors only with RG_SEND_GAME=1
-// (servesGame); otherwise the page asks players for their own files.
-let gameFiles = null;
+// RG_GAME, the server copy: the ResetGeneration folder or the standalone .zip. A server that isn't public sends it to every visitor;
+// a public one only for its download code (docs/adr/0031). Without it, the page asks players for their own files.
 if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => {
   require('./aiprofiles').apply(f); // a bot-ai.json key the game's XML doesn't have stops the server here
-  if (SEND_GAME) gameFiles = f;
-  log(`server copy from ${process.env.RG_GAME}${SEND_GAME ? ', sent to visitors (RG_SEND_GAME=1)' : ''}`);
+  log(`server copy from ${process.env.RG_GAME}, sent ${MODE.public ? 'only for the download code (npm run download-code)' : 'to every visitor'}`);
+  return sender.setGame(f);
 }).catch(e => { log(`RG_GAME: ${e.message}`); if (/bot-ai\.json/.test(e.message)) process.exit(1); });
-const servesGame = () => gameFiles !== null;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
 
 const httpServer = http.createServer((req, res) => {
@@ -394,7 +396,7 @@ const httpServer = http.createServer((req, res) => {
     // The admin's name and hosting provider fill in the Terms and the Privacy policy, which only a public server publishes: the page
     // links them when `adminName` is set (docs/adr/0021).
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: servesGame(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, adminName: MODE.public ? authConfig.adminName : '', hosting: MODE.public ? authConfig.hosting : '', online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting(), replays: REPLAYS }));
+    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: sender.servesAll(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, adminName: MODE.public ? authConfig.adminName : '', hosting: MODE.public ? authConfig.hosting : '', online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting(), replays: REPLAYS }));
   }
   if (parsed.pathname.startsWith('/admin/')) {
     admin.http(req, res, parsed);
@@ -404,13 +406,7 @@ const httpServer = http.createServer((req, res) => {
     auth.http(req, res, parsed).catch(e => { log(`${url}: ${e.message}`); res.destroy(); });
     return;
   }
-  if (url.startsWith('/game/')) {
-    const data = servesGame() && Object.hasOwn(gameFiles, url.slice(6)) && gameFiles[url.slice(6)];
-    if (!data) { res.writeHead(404); return res.end('not found'); }
-    // The size lets the page show its download as a percentage (web/ui/gamefiles.js).
-    res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': data.length, 'Cache-Control': 'no-cache' });
-    return res.end(data);
-  }
+  if (sender.http(req, res, parsed)) return;
   // The replays listed under a player's name, for anyone (docs/adr/0024): the name's account now, newest first. A name nobody holds
   // has none; a server that turned replays off answers 404.
   if (url === '/replays') {

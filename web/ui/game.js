@@ -56,7 +56,7 @@ async function main(canvas) {
   const server = await serverStatus();
   page.server = server;
   if (server) startOnlineCount(server.online);
-  page.ownCopy = !server?.servesGame; // set once and kept: a copy this browser stored earlier doesn't bring the notice back
+  page.ownCopy = !server?.servesGame; // kept whatever this browser stored earlier; loadFiles clears it for a copy sent for the download code
   const accounts = server?.accounts ? createAccounts() : null;
   const accountReady = accounts?.start();
   const files = await loadFiles();

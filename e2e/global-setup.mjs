@@ -1,8 +1,8 @@
 // Before the end-to-end tests (docs/adr/0025): builds the page if web/ changed since the last build, then starts throwaway gateways
 // on free ports, each with its own account and replay files seeded from server/seed.json (docs/adr/0023).
 //   E2E_PAGE_URL    Discord mode, no game: what every visitor sees before they bring their files. CI runs only against this one.
-//   E2E_ENGINE_URL  Discord mode, sending its server copy (RG_GAME) to visitors, with the seed's played battles as replays the
-//                   engine can play.
+//   E2E_ENGINE_URL  Discord mode, sending its server copy (RG_GAME) to visitors, as a server that isn't public does, with the seed's
+//                   played battles as replays the engine can play.
 //   E2E_NAMES_URL   name-only (ADR 0009), sending its server copy: where the engine asks for a name to go online.
 // The last two only when RG_GAME is set; without it the engine tests skip. Nothing here touches data/dev or a running
 // `npm run dev`. The played replays are cached in data/e2e/ (ignored by git: they are made from battle templates, docs/LEGAL.md)
@@ -65,12 +65,12 @@ function playedReplays(env) {
 }
 
 // A gateway on free ports with seeded files in `dir`, in Discord mode unless `names`. Resolves with its address and a way to stop it
-// once it listens and has loaded its server copy, if it has one; kills it if it doesn't get there.
+// once it listens and, if it has a server copy, its game bundle is ready to send; kills it if it doesn't get there.
 async function gateway(dir, { game = null, names = false, replays = null } = {}) {
   fs.mkdirSync(dir);
   const [PORT, HTTP_PORT] = [await freePort(), await freePort()];
   const url = `http://127.0.0.1:${HTTP_PORT}`;
-  const env = { ...clean, ...(names ? {} : discord(url)), ...(game ? { RG_GAME: game, RG_SEND_GAME: '1' } : {}),
+  const env = { ...clean, ...(names ? {} : discord(url)), ...(game ? { RG_GAME: game } : {}),
     PORT: String(PORT), HTTP_PORT: String(HTTP_PORT), RG_DB: path.join(dir, 'accounts.db'), RG_REPLAYS_DB: path.join(dir, 'replays.db') };
   if (replays) fs.copyFileSync(replays, env.RG_REPLAYS_DB);
   runSeed(env, ['--db', env.RG_DB, '--replays-db', env.RG_REPLAYS_DB]);
@@ -83,7 +83,7 @@ async function gateway(dir, { game = null, names = false, replays = null } = {})
       const t0 = Date.now();
       const check = () => {
         if (/RG_GAME: /.test(out)) return reject(new Error(`the gateway in ${dir} couldn't load its server copy:\n${out.slice(-2000)}`));
-        if (out.includes('browser client on') && (!game || out.includes('server copy from'))) return resolve();
+        if (out.includes('browser client on') && (!game || out.includes('game bundle ready'))) return resolve();
         if (child.exitCode !== null || Date.now() - t0 > 60000) return reject(new Error(`the gateway in ${dir} did not start:\n${out.slice(-2000)}`));
         setTimeout(check, 100);
       };

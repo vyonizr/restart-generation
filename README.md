@@ -37,7 +37,7 @@ On your own server, every story and every hero, including the Aggressor, is unlo
 
 ### Optional: set the game location
 
-Do this to get CPU players in the rooms that you make with **Online > Create Room**:
+Do this to get CPU players in the rooms that you make with **Online > Create Room**, and so that players' devices don't ask for the game files:
 
 1. Copy `.env.example` to `.env`.
 2. Put the path to your game on the `RG_GAME` line:
@@ -47,13 +47,9 @@ Do this to get CPU players in the rooms that you make with **Online > Create Roo
    ```
 
    Replace the path with the location of your `.zip` file or game folder.
-3. Optional: to stop players' devices from asking for the game files, add this line:
+3. Stop the server (press <kbd>Ctrl</kbd>+<kbd>C</kbd>) and run `npm start` again.
 
-   ```sh
-   RG_SEND_GAME=1
-   ```
-
-4. Stop the server (press <kbd>Ctrl</kbd>+<kbd>C</kbd>) and run `npm start` again.
+Your server then sends the game to every device that opens its page. A server on the internet (`--public`) sends it only to the people you give its download code (see [Run a server](docs/HOSTING.md#send-the-game-with-a-download-code)).
 
 ## Controls
 

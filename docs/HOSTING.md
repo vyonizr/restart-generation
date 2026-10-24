@@ -15,9 +15,10 @@ To set up the server, do the following:
 1. Run `npm install`.
 2. Copy `.env.example` to `.env` in the repository root.
 3. In `.env`, set `RG_GAME` to the path of your game copy, the server copy.
-4. Optional: to send that copy to every visitor, so that nobody chooses their own files, also set `RG_SEND_GAME=1`. Read [Rules for a server that sends the game](LEGAL.md#rules-for-a-server-that-sends-the-game) first.
 
-`RG_GAME` is the server copy of the game: either `ResetGeneration-Standalone.zip` or the extracted `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files). The server runs it for its witness and, unless it's `--public`, for bots. It sends these files to the browser only with `RG_SEND_GAME=1`, so send only a copy you own. `RG_SEND_GAME=1` without `RG_GAME` sends nothing, and the server log says so. The dev tools in `web/tools` read the game from `RG_GAME` too.
+`RG_GAME` is the server copy of the game: either `ResetGeneration-Standalone.zip` or the extracted `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files). The server runs it for its witness and, unless it's `--public`, for bots. A server that isn't `--public` also sends it to every visitor, so that nobody chooses their own files; a `--public` server sends it only to visitors who come with its download code (see [Send the game with a download code](#send-the-game-with-a-download-code)). Send only a copy you own. The dev tools in `web/tools` read the game from `RG_GAME` too.
+
+The server sends the game as one download, the game bundle, a few seconds after it starts: the files the engine runs from, compressed with gzip, about 28 MiB. The page keeps them in the browser's IndexedDB, so a browser downloads them once.
 
 Use the following npm scripts:
 
@@ -59,7 +60,7 @@ Without `RG_GAME`, or when the witness fails, the server guesses the result: the
 
 ### Replays
 
-Every online battle that began, ranked or friendly, becomes a replay ([CONTEXT.md](../CONTEXT.md) "Replay"): after the battle, each player in the browser client is offered **Watch replay** and **Copy link**, and the replay page at `/replay/ID` plays the battle again in the game's own replay player ([ADR 0022](adr/0022-replays-send-a-battles-game-blob-to-anyone-with-the-link.md)). Anyone with the link can watch it. Each replay is also listed under the name of every player in it, for anyone to see: players open their list with **Replays**, in the Account menu or beside **Sign in with Discord** on a Discord server, and on the "Online as" line on a name-only one ([ADR 0024](adr/0024-a-players-replays-are-listed-under-their-name.md)). Watching needs the game, like playing: the visitor's own copy, or the server copy with `RG_SEND_GAME=1`. The server needs no server copy to keep them.
+Every online battle that began, ranked or friendly, becomes a replay ([CONTEXT.md](../CONTEXT.md) "Replay"): after the battle, each player in the browser client is offered **Watch replay** and **Copy link**, and the replay page at `/replay/ID` plays the battle again in the game's own replay player ([ADR 0022](adr/0022-replays-send-a-battles-game-blob-to-anyone-with-the-link.md)). Anyone with the link can watch it. Each replay is also listed under the name of every player in it, for anyone to see: players open their list with **Replays**, in the Account menu or beside **Sign in with Discord** on a Discord server, and on the "Online as" line on a name-only one ([ADR 0024](adr/0024-a-players-replays-are-listed-under-their-name.md)). Watching needs the game, like playing: the visitor's own copy, or the server copy, which a server that isn't `--public` sends to every visitor and a `--public` one only for its download code (a replay link takes `?code=` too). The server needs no server copy to keep them.
 
 Replays are kept apart from the accounts, beside the accounts they name: in `data/replays.db` on a Discord server and in `data/replays-names.db` on a name-only one. Each is kept for 30 days, and the server deletes older ones every hour. Each is a few kilobytes. When a member deletes their account, or you delete one with `delete-user`, the replays of its battles go with it; a guest's stay for their 30 days. `npm run backup` doesn't back them up.
 
@@ -87,7 +88,7 @@ Two checks need local data: `npm run test:battle` needs a battle template, and `
 
 ## Host the page without the game files
 
-If the page's host has no game files at `game/` (for example, `web/dist/` from `npm run build` deployed to a static host, or a server without `RG_SEND_GAME=1`), the page asks each player to choose their own copy of the game: `ResetGeneration-Standalone.zip`, the extracted `ResetGeneration` folder, or the folder that contains it. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser. The files never leave the player's computer.
+If the page's host sends no game (for example, `web/dist/` from `npm run build` deployed to a static host, a server without `RG_GAME`, or a `--public` server to a visitor without its download code), the page asks each player to choose their own copy of the game: `ResetGeneration-Standalone.zip`, the extracted `ResetGeneration` folder, or the folder that contains it. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser. The files never leave the player's computer.
 
 Players need the files of the Windows standalone build. The emulator runs `ResetGeneration-Win32-Web.dll` and can't run the Mac library `libResetGenerationMacApplet.dylib`, but it runs in any desktop browser on any operating system.
 
@@ -167,6 +168,33 @@ docker compose exec rg npm run delete-user -- --name Alice
 
 With `compose.lan.yaml`, the server's port is open to whatever `BIND` allows, and the token is then the only protection: use a long one. The server logs `admin deleted` and the player's name, with no Discord ID.
 
+## Send the game with a download code
+
+A `--public` server with a server copy sends it only to visitors who come with its **download code**, six letters and digits in a link such as `https://play.example.com/?code=AB3K9Q` ([ADR 0031](adr/0031-the-server-sends-its-copy-only-to-a-download-code.md)). Use it to let a few friends try the game without finding the standalone build themselves. Read [Rules for a server that sends the game](LEGAL.md#rules-for-a-server-that-sends-the-game) first: it is your decision and your risk.
+
+Nothing on the page shows the code or asks for it, and `/status` doesn't say that the server sends the game. A visitor whose code doesn't work, for whatever reason, sees the page of a server that sends nothing and brings their own copy. Only a browser that received the game is told, in its Notices dialog, that the server sent it, with your `RG_CONTACT` for removal requests.
+
+1. Set `RG_ADMIN_TOKEN` as in [Delete an account](#delete-an-account), and `RG_GAME` (or `RG_GAME_PATH` with Docker).
+2. Make a code:
+
+   ```sh
+   npm run download-code -- --new
+   ```
+
+   The command prints the link to give your friends. A server has one code at a time: a new code ends the old one at once. `--days N` makes it end after `N` days instead of 30.
+3. To see the code and what it has sent, run `npm run download-code`. To end it at once, so that the server sends the game to nobody, run `npm run download-code -- --end`.
+
+With Docker, run the command inside the container: `docker compose exec rg npm run download-code -- --new`.
+
+The limits that keep a leaked code from costing you much:
+
+- A code ends after 20 downloads, after its days, or when you end it.
+- One network (one IPv4 address, or one IPv6 /64) gets 2 downloads a day.
+- The server sends at most `RG_GAME_MB_PER_DAY` MiB a day for the code (700 by default, about 30 downloads), and none more until the next day (UTC).
+- After 10 wrong codes from one network, or 100 from everywhere, within an hour, the server takes no code, the right one included, until that hour has passed.
+
+A browser that supports brotli gets about 23 MiB; the server makes that download in two or three minutes the first time it starts with a copy, keeps it in `data/` (`game-bundle-*.br`), and sends gzip, about 28 MiB, until it is ready. The code and its count of downloads are kept in `data/download-code.json`; the counts per network and the day's total are kept in memory, so a restart starts them over. The server logs each download as a count, with no address.
+
 ## Run in Docker
 
 The image doesn't contain the game files ([ADR 0001](adr/0001-players-bring-their-own-game-files.md)), and it builds the page in a first build stage, so it holds no `node_modules`. Two compose files run it: `compose.yaml` for the internet and `compose.lan.yaml` for a private network or this PC.
@@ -189,11 +217,9 @@ For the whole procedure on a virtual private server (VPS), from a bare host to u
    # Optional: your community link, shown as "Join the Discord" in the footer.
    # RG_DISCORD_INVITE=https://discord.gg/...
    # Optional: the server copy. The witness runs it, so the engine decides battle results; without it they're guessed.
+   # It is also what the download code sends (see "Send the game with a download code"): without a code, nobody gets it.
    # The .zip or the extracted folder; start a relative path with ./
    # RG_GAME_PATH=./ResetGeneration-Standalone.zip
-   # Optional, and your decision and risk: 1 sends the server copy to every visitor. Leave it out and each player chooses
-   # their own copy (ADR 0001).
-   # RG_SEND_GAME=1
    # Required on a public server: they fill in its Terms and Privacy policy, and it won't start without them (see "Terms and
    # Privacy policy"). RG_CONTACT is an email address or an https address, also shown to rights holders in the Notices dialog.
    RG_ADMIN_NAME=Jane Doe
@@ -220,11 +246,10 @@ Caddy keeps its certificates in a Docker volume (`caddy_data`). If you lose that
 
 ### On a private network or this PC
 
-`compose.lan.yaml` runs the server with `--lan`: name-only login, every story and hero open, and the witness and bots when `RG_GAME_PATH` is set. It publishes the page on 8080 and the Java client's port on 8976, to this PC only, unless you set `BIND=0.0.0.0` in `.env`. The following `.env` lines are an example for this PC only; `RG_SEND_GAME=1` sends the server copy, so that other devices don't ask for the game files:
+`compose.lan.yaml` runs the server with `--lan`: name-only login, every story and hero open, and the witness and bots when `RG_GAME_PATH` is set. With `RG_GAME_PATH`, it also sends the server copy to every visitor, so that other devices don't ask for the game files. It publishes the page on 8080 and the Java client's port on 8976, to this PC only, unless you set `BIND=0.0.0.0` in `.env`. The following `.env` lines are an example for this PC only:
 
 ```sh
 RG_GAME_PATH=./ResetGeneration-Standalone.zip
-RG_SEND_GAME=1
 BIND=127.0.0.1
 ```
 
