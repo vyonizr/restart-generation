@@ -520,21 +520,36 @@ export class CPU {
       const hi = signed ? res !== ((res << 16) >> 16) : (res >>> 16) !== 0;
       this.lop = F_MUL; this.lres = res & 0xffff; this.lsz = 16; this.lcf = this.lof = hi ? 1 : 0; return;
     }
-    const a = signed ? BigInt(r[EAX]) : BigInt(r[EAX] >>> 0), b = signed ? BigInt(v | 0) : BigInt(v >>> 0);
-    const res = a * b, lo = Number(BigInt.asIntN(32, res)), hi = Number(BigInt.asIntN(32, res >> 32n));
+    // The low word is the same for mul and imul. The unsigned high word is summed from 16-bit halves, each partial sum exact in a
+    // double; imul's then subtracts the other operand once for each negative one (the two's-complement correction, mod 2^32).
+    const a = r[EAX] >>> 0, b = v >>> 0, lo = Math.imul(a, b), al = a & 0xffff, ah = a >>> 16, bl = b & 0xffff, bh = b >>> 16;
+    const mid = ah * bl + al * bh + ((al * bl) >>> 16);
+    let hi = (ah * bh + mid / 0x10000) | 0;
+    if (signed) { if (r[EAX] < 0) hi = (hi - b) | 0; if ((v | 0) < 0) hi = (hi - a) | 0; }
     r[EAX] = lo; r[EDX] = hi;
-    const of = signed ? BigInt(lo) !== res : hi !== 0;
+    const of = signed ? hi !== lo >> 31 : hi !== 0;
     this.lop = F_MUL; this.lres = lo >>> 0; this.lsz = 32; this.lcf = this.lof = of ? 1 : 0;
   }
   div1(v, sz, signed) {
     const r = this.r;
     if (sz === 32) {
-      const n = (BigInt(r[EDX]) << 32n) | BigInt(r[EAX] >>> 0);
-      const num = signed ? n : BigInt.asUintN(64, n), den = signed ? BigInt(v | 0) : BigInt(v >>> 0);
-      if (den === 0n) throw new CpuFault('divide by zero', this.eip);
-      const q = num / den, rem = num % den;
-      if (signed ? (q > 0x7fffffffn || q < -0x80000000n) : q > 0xffffffffn) throw new CpuFault('divide overflow', this.eip);
-      r[EAX] = Number(BigInt.asIntN(32, q)); r[EDX] = Number(BigInt.asIntN(32, rem)); return;
+      // idiv divides the magnitudes and signs the results after: the quotient negative when the signs differ, the remainder with the
+      // dividend's sign. A high word not below the divisor means a quotient of 2^32 or more. Otherwise two 16-bit long-division steps;
+      // each partial dividend stays below the divisor times 2^16 (< 2^48), so the doubles and the floored quotients are exact.
+      let hi = r[EDX] >>> 0, lo = r[EAX] >>> 0, d = v >>> 0;
+      const nneg = signed && r[EDX] < 0, dneg = signed && (v | 0) < 0;
+      if (nneg) { hi = (~hi + (lo === 0 ? 1 : 0)) >>> 0; lo = -lo >>> 0; }
+      if (dneg) d = -d >>> 0;
+      if (d === 0) throw new CpuFault('divide by zero', this.eip);
+      if (hi >= d) throw new CpuFault('divide overflow', this.eip);
+      const x = hi * 0x10000 + (lo >>> 16), q1 = Math.floor(x / d), y = (x - q1 * d) * 0x10000 + (lo & 0xffff), q2 = Math.floor(y / d);
+      let q = q1 * 0x10000 + q2, rem = y - q2 * d;
+      if (signed) {
+        if (q > (nneg !== dneg ? 0x80000000 : 0x7fffffff)) throw new CpuFault('divide overflow', this.eip);
+        if (nneg !== dneg) q = -q;
+        if (nneg) rem = -rem;
+      }
+      r[EAX] = q; r[EDX] = rem; return;
     }
     const bits = sz, m = MASK[sz];
     let num = bits === 8 ? r[EAX] & 0xffff : ((r[EDX] & 0xffff) << 16) | (r[EAX] & 0xffff);
