@@ -1,5 +1,5 @@
-<!-- The notices (docs/LEGAL.md), opened from the footer's Notices button. "Bring your own copy" and the note about the files appear only
-     where the player brings them. A server that isn't public sends its copy to every visitor and says so; a public server sends it
+<!-- The notices (docs/LEGAL.md), opened from the footer's Notices button. The note about the files appears only where the player
+     brings them. A server that isn't public sends its copy to every visitor and says so; a public server sends it
      only for its download code (docs/adr/0031), so only a browser that received it that way is told, and nobody else learns that the
      server ever sends it. Both say where a rights holder can ask for its removal (RG_CONTACT). A public server links its Terms and
      Privacy policy (docs/adr/0021), which say what it keeps. -->

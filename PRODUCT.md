@@ -63,7 +63,6 @@ A replay the server's witness followed has [marks](CONTEXT.md) on its time slide
 - Name: Restart Generation. The page is an unofficial fan revival of Reset Generation (RedLynx, 2008); the game keeps its own name.
 - Required notices: the page shows each of the following, word for word where quoted:
   - **Footer line, always:** "Unofficial fan revival of Reset Generation © 2008 RedLynx; not affiliated with RedLynx, Ubisoft or Nokia." and a credit to vyonizr.
-  - **Footer line, where the player brings the files:** "Bring your own copy of the game." It doesn't appear on a server that sends the game files to every visitor, nor in a browser that received them for a download code.
   - **Notices dialog:** the footer's **Notices** button opens a dialog over the page. The dialog never opens by itself.
   - **Notices dialog, always:** "Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It is not affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners."
   - **Notices dialog, where the player brings the files:** the note "Windows standalone build only. Your files stay in this browser."

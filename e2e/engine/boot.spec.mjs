@@ -7,8 +7,6 @@ test('the page boots the game the server sends, and Start gives the game screen 
   await page.goto('/');
   await expect(page.getByRole('status').filter({ hasText: 'Ready' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Choose .zip file' })).toBeHidden();
-  // This server sends the game, so nothing says to bring one.
-  await expect(page.getByRole('contentinfo')).not.toContainText('Bring your own copy of the game.');
   await page.getByRole('button', { name: 'Start' }).click();
   await expect(page.locator('#overlay')).toBeHidden();
   await expect(page.getByLabel('Game screen')).toBeFocused();

@@ -10,7 +10,7 @@ export const page = $state({
   forgettable: false, // and, if the stored copy may be at fault, a different copy
   unsent: false,    // Quit couldn't upload a member's latest saved game: offer Try again or Quit anyway
   playing: false,   // the game is running
-  ownCopy: false,   // the player brings their own game files (the footer says so)
+  ownCopy: false,   // the player brings their own game files (the Notices dialog says so)
   sentByCode: false, // this browser's copy came for the server's download code (the Notices dialog says so, docs/adr/0031)
   slow: null,       // text of the slow-device notice, once shown
   slowClassic: false, // it came up during a Full board battle, so it offers Classic
