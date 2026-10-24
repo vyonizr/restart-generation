@@ -134,8 +134,9 @@ async function play(players) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'seed-play-'));
   const [PORT, HTTP_PORT] = [await freePort(), await freePort()];
   const lines = [];
+  // Bots join 3 s apart: a table of more than two waits for all of them (casino.js), as in tools/selfplay.mjs.
   const gateway = spawn(process.execPath, [path.join(__dirname, 'gateway.js')], {
-    env: { ...process.env, PORT, HTTP_PORT, RG_DB: path.join(dir, 'accounts.db'), RG_REPLAYS_DB: path.join(dir, 'replays.db'), RG_GATHER_MS: '500',
+    env: { ...process.env, PORT, HTTP_PORT, RG_DB: path.join(dir, 'accounts.db'), RG_REPLAYS_DB: path.join(dir, 'replays.db'), RG_GATHER_MS: players.length === 2 ? '500' : '30000',
       RG_DISCORD_CLIENT_ID: '', RG_DISCORD_CLIENT_SECRET: '', RG_PUBLIC_URL: '' } });
   const feed = chunk => { for (const l of String(chunk).split('\n')) if (l.trim()) lines.push(l.trim()); };
   gateway.stdout.on('data', feed); gateway.stderr.on('data', feed);

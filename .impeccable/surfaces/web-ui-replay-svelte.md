@@ -21,7 +21,7 @@ THESIS: A finished battle shown the way television shows a replay: the engine's 
 
 OWN-WORLD: The game page's Stage, unchanged: ink ground, one crimson, Anton uppercase, Raleway, Roboto Mono for the clock only, square corners, the outlined ghost name behind. Crimson marks the REPLAY tag and the play button only; white marks each player's place when the replay ends. Each seat's square takes its color in the battle.
 
-STORY: The visitor sees who played and on what before the game loads (the lower third and the facts line), presses Watch, watches the battle with the seats under it, and at the end the view dims to the result while each seat gets its place.
+STORY: The visitor sees who played and on what before the game loads (the lower third and the facts line), presses Watch, watches the battle with the seats under it, each defeated seat turning hollow as the game shows its defeat, and at the end the view dims to the result while each winner's seat gets its crown.
 
 FIRST VIEWPORT: A `72px` header with the name (a link home) alone. Centered: the battle view at the largest size that fits with the strip under it, a title band flush over it (the crimson REPLAY tag, the day and the kind of match, Share and Download replay at its right end); under it, flush, the lower third with one cell per seat (a square in the seat's color with the seat number, the name in Anton over the hero), then the ink control strip (crimson play, the time slider, `m:ss / m:ss`, Skip idle, 2×, mute and volume). Under that, Soft screen on the right, then the key legend. Footer strip as on every page.
 

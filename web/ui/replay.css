@@ -4,6 +4,12 @@
 :root { --screen-w: 420; --screen-h-px: 378;
   --screen-h: min(clamp(260px, 100vh - 400px, 640px), (100vw - 96px) * 378 / 420); --view-w: calc(var(--screen-h) * 420 / 378); }
 @supports (height: 100dvh) { :root { --screen-h: min(clamp(260px, 100dvh - 400px, 640px), (100vw - 96px) * 378 / 420); } }
+/* Each seat's color in the battle (docs/re/re_rules.md), and a darker shade of it for the seat's number on it; our own shades.
+   Footage with details reads them too (footage.js). */
+:root { --seat-1: #f0c42e; --seat-1-ink: #4d3900; --seat-2: #e2403f; --seat-2-ink: #4f0b0d;
+  --seat-3: #4fb84a; --seat-3-ink: #103a0e; --seat-4: #3f8be0; --seat-4-ink: #0b2547;
+  /* A seat's name (17px at 1.15) over its hero (13px at 1.3): the seat's square is as tall, and a seat 8px taller each way */
+  --seat-lines: calc(17px * 1.15 + 13px * 1.3); }
 
 header .name { color: #fff; text-decoration: none; }
 main { gap: 14px; }
@@ -19,6 +25,17 @@ main { gap: 14px; }
 .share svg, .export-footage svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; }
 .export-footage:disabled { opacity: .45; cursor: default; }
 .export-footage:disabled:hover { color: var(--light-2); border-color: var(--light-3); }
+.export-footage .chev { width: 12px; height: 12px; margin-left: -2px; }
+/* Download replay's menu: With Details over Battle Only, each as tall as a seat of the lower third and divided from the next as the
+   seats are, the label beside a sketch of the file's shape */
+.download { position: relative; display: flex; }
+.download-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 5; display: grid; width: min(240px, 90vw); background: var(--ink-2);
+  border: 1px solid var(--ink-3); box-shadow: 0 10px 30px rgb(0 0 0 / 45%); }
+.download-menu button { display: flex; align-items: center; gap: 10px; height: calc(16px + var(--seat-lines)); padding: 8px 10px; border: 0;
+  background: transparent; color: #fff; font: 400 17px/1.15 var(--display); letter-spacing: normal; text-align: left; }
+.download-menu button + button { border-top: 1px solid var(--ink-3); }
+.download-menu button:hover, .download-menu button:focus-visible { background: var(--ink-3); color: #fff; outline-offset: -2px; }
+.download-menu svg { width: 32px; flex: none; outline: 1px solid var(--ink-3); }
 
 /* The lower third: a band one ink step up from the ground, one cell per seat, the seat number in an ink square, the name in Anton
    over the hero */
@@ -37,17 +54,27 @@ main { gap: 14px; }
   .lower-third:has(li:nth-child(3):last-child) li { grid-column: span 2; }
   .lower-third:has(li:nth-child(3):last-child) li:last-child { grid-column: 2 / 4; border-right: 1px solid var(--ink-3); }
 }
-.lower-third .seat { display: grid; place-items: center; width: 30px; height: 30px; flex: none; background: var(--ink-3); font: 400 18px/1 var(--display); }
+.lower-third .seat { position: relative; display: grid; place-items: center; width: var(--seat-lines); height: var(--seat-lines); flex: none; background: var(--ink-3); font: 400 18px/1 var(--display); }
 .who-played > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .who-played { display: grid; min-width: 0; font: 13px/1.3 var(--body); color: var(--light-3); }
 .who-played b { font: 400 17px/1.15 var(--display); color: #fff; text-transform: uppercase; }
-.lower-third .place { flex: none; margin-left: auto; padding: 4px 8px; background: #fff; color: var(--red); font: 400 15px/1 var(--display); text-transform: uppercase;
-  animation: arrive .4s cubic-bezier(.16, 1, .3, 1); }
-/* Each seat's square in its color in the battle (docs/re/re_rules.md), the number in a darker shade of it; our own shades */
-.lower-third .seat-1 { background: #f0c42e; color: #4d3900; }
-.lower-third .seat-2 { background: #e2403f; color: #4f0b0d; }
-.lower-third .seat-3 { background: #4fb84a; color: #103a0e; }
-.lower-third .seat-4 { background: #3f8be0; color: #0b2547; }
+/* Each seat's square in its color in the battle, the number in its darker shade */
+.lower-third .seat-1 { --seat: var(--seat-1); background: var(--seat-1); color: var(--seat-1-ink); }
+.lower-third .seat-2 { --seat: var(--seat-2); background: var(--seat-2); color: var(--seat-2-ink); }
+.lower-third .seat-3 { --seat: var(--seat-3); background: var(--seat-3); color: var(--seat-3-ink); }
+.lower-third .seat-4 { --seat: var(--seat-4); background: var(--seat-4); color: var(--seat-4-ink); }
+/* A defeated seat (CONTEXT.md "Defeated player"): its square keeps its color only as an outline, the number in it, and the seat
+   goes one ink step down with its name in grey, over the end screen's 0.4s */
+.lower-third li, .lower-third .seat, .who-played b { transition: background-color .4s cubic-bezier(.16, 1, .3, 1), color .4s cubic-bezier(.16, 1, .3, 1),
+  box-shadow .4s cubic-bezier(.16, 1, .3, 1); }
+.lower-third li[data-defeated] { background: var(--ink-1); }
+.lower-third li[data-defeated] .seat { background: transparent; color: var(--seat); box-shadow: inset 0 0 0 2px var(--seat); }
+.lower-third li[data-defeated] .who-played b { color: var(--light-3); }
+/* A winner's crown, once the replay ends: our own drawing, three points in white with a thin ink edge, sitting on the middle of the
+   square's top edge and reaching the seat's top, dropping in with the end screen */
+.lower-third .crown { position: absolute; left: 50%; bottom: calc(100% - 6px); width: 22px; height: 14px; fill: #fff; stroke: var(--ink-2);
+  stroke-width: 1.5; paint-order: stroke; transform: translateX(-50%); animation: crown .4s cubic-bezier(.16, 1, .3, 1); }
+@keyframes crown { from { opacity: 0; transform: translate(-50%, -6px); } }
 
 /* A click on the battle plays or pauses it */
 canvas.clickable { cursor: pointer; }

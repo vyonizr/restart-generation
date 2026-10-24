@@ -24,7 +24,8 @@ export const replay = $state({
   loaded: false,     // the engine has built the replay's battle: the controls work
   unplayable: false, // the engine never built it (replayflow.js): the overlay says so and the engine stops
   playing: false,
-  ended: false,      // the end screen is up
+  ended: false,      // the end screen is up, and every winner's seat has its crown
+  defeated: [],      // the seats the lower third shows as defeated (replayflow.js createDefeats)
   time: 0, length: 0, // whole seconds from BattleBegin
   position: 0,        // the same clock in fractional seconds: where the time slider's thumb sits
   skipEmpty: true, doubleSpeed: false, // the engine's defaults
@@ -159,10 +160,10 @@ export function toggleMute() {
 
 const confirmLeave = e => { e.preventDefault(); e.returnValue = ''; };
 
-// Renders the footage and saves it; resolves true once it is saved, false if it was canceled or failed. Pressed before Watch, it
-// starts the replay as Watch does (this press lets its sound play later) and waits for the battle to be built, as the page's
-// controls need it afterwards.
-export async function exportFootage() {
+// Renders the footage and saves it, as broadcast footage if `details` (CONTEXT.md), plain otherwise; resolves true once it is saved,
+// false if it was canceled or failed. Pressed before Watch, it starts the replay as Watch does (this press lets its sound play
+// later) and waits for the battle to be built, as the page's controls need it afterwards.
+export async function exportFootage(details) {
   const f = replay.footage;
   if (exporting || !replay.booted || replay.unplayable || f.status !== 'ready') return false;
   exporting = new AbortController();
@@ -183,12 +184,12 @@ export async function exportFootage() {
     taken = true;
     // The finish the page shows (stage.css): soft, except where the visitor asks for more contrast
     const soft = page.finish === 'soft' && !matchMedia('(prefers-contrast: more)').matches;
-    const blob = await renderFootage(game, { soft, signal, progress: p => {
+    const blob = await renderFootage(game, { soft, details: details ? replay.meta : null, signal, progress: p => {
       f.progress = p;
       f.left = p >= 0.05 ? Math.ceil((performance.now() - started) / 1000 / p * (1 - p)) : null;
       screen.paint(game); // the battle races by under the progress bar
     } });
-    save(blob, footageName(replay.meta));
+    save(blob, footageName(replay.meta, details));
     f.status = 'ready';
     return true;
   } catch (e) {
@@ -227,9 +228,10 @@ function save(blob, name) {
 
 // Space plays or pauses, the arrows seek by 5 seconds, Shift and an arrow go to the previous or next mark, F switches double speed,
 // M mutes, wherever focus is, except for the keys the focused element uses itself: every key in a text field, Space and Enter on a
-// button or link, the arrows on the volume slider (the time slider steps by 1 s only to show a mark's second, ReplayControls.svelte).
+// button or link, the arrows on the volume slider (the time slider steps by 1 s only to show a mark's second, ReplayControls.svelte),
+// and every key in Download replay's menu (ExportFootage.svelte).
 function onKey(e) {
-  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('dialog, .login')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('dialog, .login, [role=menu]')) return;
   const t = e.target;
   const own = t.matches?.('textarea, input:not([type=range])') || (t.matches?.('button, a') && (e.key === ' ' || e.key === 'Enter'))
     || (t.matches?.('input[type=range]:not(.time)') && e.key.startsWith('Arrow'));

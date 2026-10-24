@@ -56,6 +56,32 @@ test('a played replay runs to its end at double speed, and offers to watch it ag
   await expect(again).toBeFocused();
 });
 
+// Defeated seats and the winner's crown (.scratch/defeated-seats/): in the seed's battle with the most players, every seat starts in
+// play; a seek to the end shows at once each seat the engine defeated by then, and the end gives each winner the crown.
+test('a seek to the end shows the defeated seats, and the end crowns the winner', async ({ page, errors }) => {
+  const metas = await Promise.all(seed.played.map(async ({ id }) => ({ id, ...(await (await page.request.get(`replay/${id}/data`)).json()).meta })));
+  const meta = metas.reduce((a, b) => b.players.length > a.players.length ? b : a);
+  expect(meta.players.length).toBeGreaterThan(2);
+  await watch(page, meta.id);
+  await expect(playButton(page)).toHaveAccessibleName('Pause', { timeout: 30000 });
+  const seat = n => page.getByRole('list', { name: 'Players by seat' }).getByRole('listitem').filter({ has: page.getByLabel(`Seat ${n}`, { exact: true }) });
+  for (const p of meta.players) await expect(seat(p.seat)).not.toHaveAttribute('data-defeated');
+
+  await page.getByRole('slider', { name: 'Time' }).press('End');
+  await expect(page.getByRole('status').getByRole('button', { name: 'Watch again' })).toBeVisible({ timeout: 30000 });
+  for (const p of meta.players) {
+    const won = meta.result.winners.includes(p.seat);
+    if (won) {
+      await expect(seat(p.seat)).not.toHaveAttribute('data-defeated');
+      await expect(seat(p.seat)).toContainText(', won');
+    } else {
+      await expect(seat(p.seat)).toHaveAttribute('data-defeated', '');
+      await expect(seat(p.seat)).toContainText(', defeated');
+    }
+  }
+  expect(errors).toEqual([]);
+});
+
 // The witness's moments (docs/adr/0030): Bots' battles end with a rescue, so a played seed replay has marks. Each is a tick on the
 // slider named by its moments; Next and a click on a tick seek to it, and the slider's thumb sits on the tick, not on the nearest
 // 5 s step, which a mark's second seldom is.

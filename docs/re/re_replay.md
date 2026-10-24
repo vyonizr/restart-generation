@@ -37,6 +37,14 @@ The logic starts as any `ServerBattleLogic` does: it builds the battlefield from
 - The engine never stops on its own. After the last message the logic finishes the battle and stays there. `isReplayVisualizationInProgress` tells whether the battlefield is still animating.
 - The clock can run ahead of the picture when moves come faster than their animations, as with bots.
 
+### Defeats
+
+The replay logic keeps each seat's state as the witness's logic does ([re_witness.md](re_witness.md) "Defeats"): the battlefield at `logic+0x14`, its Commander slots at `+0x2c` (seat-indexed, the count at `+0x28`), the phase at `+0x94`. A seat is defeated once its Commander's defeated flag `+0x1c` is set or its slot is cleared; both happen while the defeating message is processed. The Commander's `+0x24` is the princesses it holds, which rise by one for the seat whose hero rescued another seat's princess, in the same message. The page reads these through `GameHost.replaySeats` once the phase is 1 or more, after BattleBegin.
+
+The battle view's rescue (`bv+0x2a0`, [re_screen.md](re_screen.md)) is nonzero at its `+8` while a rescue animation runs and ends (`GameHost.rescuePlaying`).
+
+Observed in a 4-player bot battle played back in the player (no host hooks), sampled every frame: each of the three rescues defeated its seat and raised the rescuer's princesses in the same frame; the rescue animation started 17, 21 and 444 frames later (0.6 s, 0.7 s and 14.7 s, the last behind other animations) and ran 3.8 to 4.4 s. The clock had reached the total time while the battle still had 165 s of messages to show: these defeats were processed at engine times after the clock stopped, as the picture caught up.
+
 ## The original player's controls
 
 The Java client drew a 32-pixel strip under the frame (static):
@@ -45,7 +53,7 @@ The Java client drew a 32-pixel strip under the frame (static):
 - **Skip-empty and double speed,** two toggles; skip-empty shows as on from the start, matching the engine's default.
 - **A time slider** from 0 to the total time, with the time as minutes and seconds under it. Pressing the slider pauses; dragging seeks whenever the time crosses a 5-second step; letting go seeks to the 5-second step below the release point and resumes if the replay was playing.
 - **Volume,** and **Stop,** which closed the player.
-- **The end.** Once the time reaches the total and nothing is animating, the player pauses, dims the battle view and shows one large play button, which seeks to 0 and plays.
+- **The end.** Once the time reaches the total and nothing is animating, the player pauses, dims the battle view and shows one large play button, which seeks to 0 and plays. With bots' battles that is too early: the picture still has moves to show, with a few frames of nothing animating between two of them (see "Defeats"), so the replay page also waits for the logic's finished flag (`logic+0x28`).
 
 ## Who made the replays
 

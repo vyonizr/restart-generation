@@ -415,12 +415,33 @@ export class GameHost {
   // The same clock in ms, as the logic keeps it (logic+0xb8), for a slider that moves between whole seconds; past the end it runs on.
   get replayClock() { return this.m.cpu.rd32(this.replayLogic + 0xb8) >>> 0; }
   get replayLength() { return this.#replayCall('getTotalTime@8') | 0; }
-  // Whether the battlefield is still animating; at the end, the replay is over once it stops.
+  // Whether the battlefield is still animating; at the end, the replay is over once it stops and the logic has finished.
   get replayAnimating() { return (this.#replayCall('isReplayVisualizationInProgress@8') & 0xff) !== 0; }
+  // Whether the replay's battle logic has finished the battle (its byte at +0x28, docs/re/re_witness.md "Ranks").
+  get replayFinished() { return this.m.cpu.m8[this.replayLogic + 0x28] !== 0; }
   playReplay() { this.#replayCall('playReplay@8'); }
   pauseReplay() { this.#replayCall('pauseReplay@8'); }
   seekReplay(seconds) { this.#replayCall('setTime@12', seconds | 0); }
   setReplayMode({ skipEmpty, doubleSpeed }) { this.#replayCall('setReplayMode@16', skipEmpty ? 1 : 0, doubleSpeed ? 1 : 0); }
+  // Each seat of the replay's battle, once BattleBegin has been processed, as { seat, defeated, princesses }: a seat is defeated once
+  // its Commander's defeated flag is set or its slot cleared, both in the defeating message, and `princesses` are the ones it holds
+  // (docs/re/re_replay.md "Defeats"). Seats nobody took read as defeated: the caller keeps the replay's own.
+  get replaySeats() {
+    const cpu = this.m.cpu, rd = a => cpu.rd32(a) >>> 0, ri = a => cpu.rd32(a) | 0, logic = this.replayLogic;
+    const bf = logic && rd(logic + 0x14);
+    if (!bf || ri(bf + 0x94) < 1) return [];
+    const slots = rd(bf + 0x2c), seats = [];
+    for (let seat = 1; seat < ri(bf + 0x28); seat++) {
+      const c = rd(slots + 4 * seat);
+      seats.push({ seat, defeated: !c || cpu.m8[c + 0x1c] !== 0, princesses: c ? ri(c + 0x24) : 0 });
+    }
+    return seats;
+  }
+  // Whether the battle view is playing a princess's rescue (docs/re/re_screen.md: its state is nonzero while it runs and ends).
+  get rescuePlaying() {
+    const rd = a => this.m.cpu.rd32(a) >>> 0, app = rd(this.m.addr(APP)), bv = app && rd(app + 0x9c), rescue = bv && rd(bv + 0x2a0);
+    return Boolean(rescue) && rd(rescue + 8) !== 0;
+  }
 
   // Calls fn(cpu) each time the guest reaches the original address `va`, then whatever was there before: an earlier watch, or
   // the instruction itself. A watch for debugging only reads; the Full board's hooks (ADR 0017) also change engine memory, which

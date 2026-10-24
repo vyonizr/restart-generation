@@ -255,8 +255,12 @@ An online battle, ranked or friendly, that the server keeps for 30 days after it
 _Avoid_: recording (that word means a video of the game, which `docs/LEGAL.md` forbids committing), video, demo
 
 **Footage**:
-An MP4 file a visitor makes from a replay on its page: the engine's picture and sound, for cutting in a video editor and sharing. Once saved it leaves the site, so replay expiry, account deletion, and turning replays off don't reach it.
+An MP4 file a visitor makes from a replay on its page: the engine's picture and sound, for cutting in a video editor and sharing. It is either broadcast footage or plain footage, the engine's picture alone. Once saved it leaves the site, so replay expiry, account deletion, and turning replays off don't reach it.
 _Avoid_: recording, video, clip, replay file
+
+**Broadcast footage**:
+Footage that shows the replay page's title band above the battle (the REPLAY tag, the day and the kind of match) and its lower third below it (each seat's number in its color, name, and hero; a defeated player's seat hollow, and each winner's crowned once the battle ends). **Download replay** offers it as **With Details**, first, and plain footage as **Battle Only**, every time. The page's own buttons never appear in it.
+_Avoid_: framed footage, header and footer (those are the page's), overlay
 
 **Knocked-out hero**:
 A hero whose health ran out: it drops any princess it carries, is thrown away or sent back to its castle, and plays on with part of its health. It can happen any number of times, and its player is not defeated by it.

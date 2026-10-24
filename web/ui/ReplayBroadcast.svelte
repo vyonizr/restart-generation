@@ -1,16 +1,16 @@
 <!-- The replay as a sports broadcast's replay: a title band over the battle view (the crimson REPLAY tag, the day and the kind of
-     match, Share and Download replay), the seats as a lower third under it (seat in its color, name, hero, and each player's place
-     once the replay ends), then the control strip. -->
+     match, Share and Download replay), the seats as a lower third under it (seat in its color, name, hero; a defeated seat's square
+     hollow, and once the replay ends a crown on each winner's), then the control strip. -->
 <script>
   import ReplayScreen from './ReplayScreen.svelte';
   import ReplayControls from './ReplayControls.svelte';
   import Share from './Share.svelte';
   import ExportFootage from './ExportFootage.svelte';
   import { replay } from './replay.svelte.js';
-  import { heroName, resultOf, ordinal, shortDay } from '../replay-text.js';
+  import { heroName, shortDay } from '../replay-text.js';
 
   const meta = $derived(replay.meta);
-  const places = $derived(replay.ended && meta ? new Map(resultOf(meta).places.map(p => [p.name, p.place])) : new Map());
+  const crowned = $derived(replay.ended ? meta?.result?.winners ?? [] : []);
 </script>
 
 <div class="broadcast">
@@ -23,10 +23,12 @@
   {#if meta}
     <ol class="lower-third" aria-label="Players by seat">
       {#each meta.players as p (p.seat)}
-        <li>
-          <span class="seat seat-{p.seat}" aria-label="Seat {p.seat}">{p.seat}</span>
+        <li data-defeated={replay.defeated.includes(p.seat) ? '' : null}>
+          <span class="seat seat-{p.seat}" aria-label="Seat {p.seat}">{p.seat}
+            {#if crowned.includes(p.seat)}<svg class="crown" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 13V3l5.5 4.5L11 1l4.5 6.5L21 3v10z"/></svg>{/if}
+          </span>
           <span class="who-played"><b>{p.name}{p.bot ? ' (CPU)' : ''}</b><span>{heroName(p.hero)}</span></span>
-          {#if places.has(p.name)}<span class="place">{ordinal(places.get(p.name))}</span>{/if}
+          {#if crowned.includes(p.seat)}<span class="vh">, won</span>{:else if replay.defeated.includes(p.seat)}<span class="vh">, defeated</span>{/if}
         </li>
       {/each}
     </ol>
