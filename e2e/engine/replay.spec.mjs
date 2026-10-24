@@ -1,6 +1,8 @@
 // Replays (CONTEXT.md) played back by the engine on their page: the seed's played battles, which Bots really played
 // (global-setup.mjs keeps them in data/e2e/), and a seed placeholder, which the engine can't build.
-import { test, expect, seed, factsLine } from '../fixtures.mjs';
+import { test, expect, seed, factsLine, playButton } from '../fixtures.mjs';
+import { markLabel } from '../../web/replay-text.js';
+import { markTarget } from '../../web/ui/replayflow.js';
 
 const seconds = text => { const [m, s] = text.split(' of ')[0].split(':'); return +m * 60 + +s; };
 
@@ -13,7 +15,7 @@ for (const { id } of seed.played) {
   test(`the played replay ${id} plays, and its buttons and keys control it`, async ({ page, errors }) => {
     await watch(page, id);
     await expect(page.getByText(await factsLine(page, id), { exact: true })).toBeVisible();
-    const play = page.getByRole('group', { name: 'Replay controls' }).getByRole('button').first();
+    const play = playButton(page);
     const time = page.getByRole('slider', { name: 'Time' });
     // It plays at once once the engine has built the battle, with idle time skipped, as the original player did.
     await expect(play).toHaveAccessibleName('Pause', { timeout: 30000 });
@@ -45,13 +47,44 @@ for (const { id } of seed.played) {
 
 test('a played replay runs to its end at double speed, and offers to watch it again', async ({ page }) => {
   await watch(page, seed.played[0].id);
-  const play = page.getByRole('group', { name: 'Replay controls' }).getByRole('button').first();
+  const play = playButton(page);
   await expect(play).toHaveAccessibleName('Pause', { timeout: 30000 });
   await page.getByRole('button', { name: 'Double speed' }).click();
   // The end screen, whose Watch again is also what the play button turns into.
   const again = page.getByRole('status').getByRole('button', { name: 'Watch again' });
   await expect(again).toBeVisible({ timeout: 150000 });
   await expect(again).toBeFocused();
+});
+
+// The witness's moments (docs/adr/0030): Bots' battles end with a rescue, so a played seed replay has marks. Each is a tick on the
+// slider named by its moments; Next and a click on a tick seek to it.
+test('a played replay shows its marks, and Next and its ticks go to them', async ({ page, errors }) => {
+  let found = null;
+  for (const { id } of seed.played) {
+    const { meta } = await (await page.request.get(`replay/${id}/data`)).json();
+    if (meta.marks?.length) { found = { id, meta }; break; }
+  }
+  expect(found, 'a played seed replay with a mark').not.toBeNull();
+  const { id, meta } = found;
+  await watch(page, id);
+  const play = playButton(page), controls = page.getByRole('group', { name: 'Replay controls' });
+  await expect(play).toHaveAccessibleName('Pause', { timeout: 30000 });
+  await play.click();
+  const time = page.getByRole('slider', { name: 'Time' });
+  const at = async () => seconds(await time.getAttribute('aria-valuetext'));
+  const ticks = meta.marks.map(mark => controls.getByRole('button', { name: markLabel(meta, mark), exact: true }));
+  for (const tick of ticks) await expect(tick).toBeVisible();
+
+  const next = markTarget(meta.marks, await at(), 1);
+  if (next !== null) {
+    await controls.getByRole('button', { name: 'Next moment' }).click();
+    await expect.poll(at).toBe(next);
+  }
+  const last = meta.marks.at(-1);
+  await ticks.at(-1).click();
+  await expect.poll(at).toBe(last.at);
+  await expect(controls.getByRole('button', { name: 'Next moment' })).toBeDisabled();
+  expect(errors).toEqual([]);
 });
 
 // A seed replay's placeholder (server/seed.js) isn't one the engine can build: after its 10 s of engine time the page says so.

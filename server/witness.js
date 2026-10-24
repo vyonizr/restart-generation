@@ -1,6 +1,7 @@
 // The witness (CONTEXT.md "Witness", docs/adr/0020): one engine from the server copy, in a worker thread (server/witness.mjs),
-// that follows every battle from the relay's own messages (table.history) and tells the server each defeat and the ranks.
-// It starts with the server, only when RG_GAME is set, whether or not the server is public. Without it every result is guessed.
+// that follows every battle from the relay's own messages (table.history) and tells the server each defeat, each moment, and the
+// ranks. It starts with the server, only when RG_GAME is set, whether or not the server is public. Without it every result is
+// guessed.
 const path = require('path');
 const { Worker } = require('worker_threads');
 
@@ -12,7 +13,7 @@ const BOOT_RETRIES = 5;                  // a replacement worker that fails to b
 const RETRY_MS = 10000;                  // this long apart
 let log = null, file = null, retryMs = RETRY_MS, worker = null, ready = false, everReady = false, failedBoots = 0;
 let broken = null, ended = 0, nextId = 1;
-const followed = new Map(); // table -> { id, onDefeat, result: Promise, outcome, settle }
+const followed = new Map(); // table -> { id, onDefeat, onMoment, result: Promise, outcome, settle }
 const tables = new Map();   // id -> table
 
 const available = () => log !== null;
@@ -41,11 +42,12 @@ function spawn() {
       return;
     }
     // Anything else isn't the witness's: under `node --watch` (npm run dev) Node posts { 'watch:import': [...] } from the worker.
-    const body = m.defeat ?? m.ranks ?? m.failed;
+    const body = m.defeat ?? m.moment ?? m.ranks ?? m.failed;
     if (!body) return;
     const table = tables.get(body.table), f = followed.get(table);
     if (!f || f.outcome) return;
     if (m.defeat) f.onDefeat(m.defeat.seat);
+    else if (m.moment) { const { table: _, ...moment } = m.moment; f.onMoment?.(moment); }
     else if (m.ranks) {
       log(`battle ${table.seed}: the witness ranks ${Object.entries(m.ranks.ranks).map(([seat, rank]) => `seat ${seat} ${rank}`).join(', ')}`);
       f.settle({ ranks: m.ranks.ranks });
@@ -90,10 +92,12 @@ function start(logFn, options = {}) {
   spawn();
 }
 
-// Follows a new table; onDefeat(seat) runs for each seat the witness sees defeated, possibly again after a restart.
-function follow(table, onDefeat) {
+// Follows a new table; onDefeat(seat) runs for each seat the witness sees defeated, and onMoment({ index, opener, kind, seat,
+// by? }) for each moment (CONTEXT.md), the history indexes of the message that brought it about and of the one that began its
+// turn. Both may run again for the same message after a restart.
+function follow(table, onDefeat, onMoment) {
   if (!available()) return;
-  const f = { id: nextId++, onDefeat };
+  const f = { id: nextId++, onDefeat, onMoment };
   f.result = new Promise(resolve => { f.settle = outcome => { if (!f.outcome) { f.outcome = outcome; resolve(outcome); } }; });
   followed.set(table, f); tables.set(f.id, table);
   if (broken) f.settle({ failed: broken });

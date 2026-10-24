@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { Input, BlobSource, ALL_FORMATS } from 'mediabunny';
-import { test, expect, seed } from '../fixtures.mjs';
+import { test, expect, seed, playButton } from '../fixtures.mjs';
 
 // When the replay is over by the page's rule (replayflow.js), at the engine's own 1× with idle time skipped, in seconds of engine
 // time: played with the engine itself, apart from the page and its encoders. In a Node of its own, because the engine's modules
@@ -34,7 +34,7 @@ test('a played replay exports as footage: an MP4 of the whole battle at 30 fps, 
   const { text } = await (await page.request.get(`replay/${id}/data`)).json();
   await page.goto(`/replay/${id}`);
   await page.getByRole('button', { name: 'Watch' }).click();
-  const play = page.getByRole('group', { name: 'Replay controls' }).getByRole('button').first();
+  const play = playButton(page);
   await expect(play).toHaveAccessibleName('Pause', { timeout: 30000 });
   await page.getByRole('button', { name: 'Double speed' }).click(); // the page's own speed doesn't reach the footage
 
@@ -79,7 +79,7 @@ test('a replay exports as footage straight from Watch, and then waits at the sta
   await expect(page.getByRole('progressbar', { name: 'Download' })).toBeVisible();
   expect((await saving).suggestedFilename()).toMatch(/\.mp4$/);
   await expect(page.getByRole('button', { name: 'Watch' })).toBeHidden();
-  const play = page.getByRole('group', { name: 'Replay controls' }).getByRole('button').first();
+  const play = playButton(page);
   await expect(play).toHaveAccessibleName('Play');
   await expect(page.getByRole('slider', { name: 'Time' })).toHaveAttribute('aria-valuetext', /^0:00 of /);
   expect(errors).toEqual([]);

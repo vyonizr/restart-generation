@@ -2,8 +2,11 @@
 // (replay.svelte.js).
 
 // The buttons the pages read, by their position in the standard mapping: bottom, right, Start, and the D-pad. No other button
-// does anything.
+// does anything on the game page.
 export const BUTTONS = { select: 0, back: 1, menu: 9, up: 12, down: 13, left: 14, right: 15 };
+// The replay page also reads the shoulder buttons (LB and RB on Xbox, L1 and R1 on PlayStation, L and R on Nintendo): the previous
+// and the next mark.
+export const SHOULDERS = { previous: 4, next: 5 };
 
 // Android Chrome puts the buttons of a pad it has no mapping for in the standard order anyway, but reports its mapping as ''.
 // Elsewhere such a pad's buttons are in an order of its own, so it is ignored.

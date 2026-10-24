@@ -1,9 +1,11 @@
 // The witness (server/witness.js, docs/adr/0020): the original engine, headless in a worker thread, following every battle on
 // the server from the relay's own messages. Each table gets the engine's own battle logic, built, patched and fed as
-// docs/re/re_witness.md describes. It reports each defeat the moment the engine sees it, and the ranks once the battle is
-// over. It never plays, has no seat, and nobody sees it.
+// docs/re/re_witness.md describes. It reports each defeat the moment the engine sees it, each moment (CONTEXT.md) with the
+// history index of the message that brought it about, and the ranks once the battle is over. It never plays, has no seat, and
+// nobody sees it.
 // In:  { start: { table, game, snap } }, { feed: { table, raw } }, { end: { table } }
-// Out: { ready }, { defeat: { table, seat } }, { ranks: { table, ranks: { seat: rank } } }, { failed: { table, cause } },
+// Out: { ready }, { defeat: { table, seat } }, { moment: { table, index, opener, kind, seat, by? } },
+//      { ranks: { table, ranks: { seat: rank } } }, { failed: { table, cause } },
 //      and { grown } after each end: how many bytes this worker grew since its boot.
 import { parentPort } from 'worker_threads';
 import { loadGame } from '../web/tools/game.mjs';
@@ -37,6 +39,11 @@ const AT = {
   BATTLEFIELD: 0x14,     // logic
   COMMANDER_COUNT: 0x28, // battlefield: slots in the Commander array, seat-indexed
   COMMANDERS: 0x2c,      // battlefield: the Commander array; a defeated seat's slot is cleared
+  UNITS: 0x6c,           // battlefield: the unit list's first node; a node is +4 next, +8 unit
+  PHASE: 0x94, SEAT: 0x98, TURN: 0x9c, // battlefield: the phase, the seat whose turn it is (0 outside phase 4), the battle turn
+  KNOCKOUTS: 0x20,       // Commander: its hero's knock-outs so far
+  PRINCESSES: 0x24,      // Commander: its own princess while she is home, plus every princess it rescued
+  OWNER: 0x30, REMOVED: 0x34, KIND: 0xe4, CARRIES: 0xec, // unit: owner seat, removed flag, kind (0 a hero), carried princess
   STATS: 0x1c,           // logic: the per-player stats list (as server/bot.mjs reads it)
   STATS_COUNT: 0xc, STATS_ENTRIES: 0x10, RANK: 0x134,
 };
@@ -101,7 +108,7 @@ function start(id, game, snap) {
   call(FN.LOGIC_START, logic);
   cpu.wr32(logic + AT.START_CHECK, 0); // only the relay's BattleBegin starts the battle
   call(FN.SNAP_LOAD, logic, [stream(snap)]);
-  tables.set(id, { logic, seated: new Set(), out: new Set() });
+  tables.set(id, { logic, seated: new Set(), out: new Set(), index: -1, opener: 0, turn: null, seats: null });
 }
 
 // One relayed message, then two ticks of the logic. A finished battle takes no more, as in the clients.
@@ -115,9 +122,48 @@ function feed(t, raw) {
   for (let i = 0; i < 2 && !finished(t); i++) call(FN.TICK, t.logic);
 }
 
+// Each seat's Commander state, read through its slot after every message: a defeated seat's Commander is freed later and its
+// memory reused, so no pointer is kept from one message to the next.
+function seats(bf) {
+  const slots = rd(bf + AT.COMMANDERS), out = {};
+  for (let seat = 1; seat < rs(bf + AT.COMMANDER_COUNT); seat++) {
+    const c = rd(slots + 4 * seat);
+    if (c) out[seat] = { knockouts: rs(c + AT.KNOCKOUTS), princesses: rs(c + AT.PRINCESSES), carried: 0 };
+  }
+  for (let node = rd(bf + AT.UNITS); node; node = rd(node + 4)) {
+    const u = rd(node + 8), princess = u && cpu.m8[u + AT.REMOVED] === 0 && rs(u + AT.KIND) === 0 && rd(u + AT.CARRIES);
+    if (princess && out[rs(u + AT.OWNER)]) out[rs(u + AT.OWNER)].carried = rs(princess + AT.OWNER);
+  }
+  return out;
+}
+
+// The moments (CONTEXT.md) the last message brought about, compared with the state after the one before
+// (.scratch/replay-marks/research/moment-detection.md). A rescue raises the rescuer's princess count while its hero carried
+// another seat's princess, or while a seat fell in the same message (a knock-out handed the princess over and the hero stood
+// in its castle); bringing its own princess home raises the count too, and is no moment. Each moment names the message after
+// which the battle's turn, phase and seat took the values they had before it: the start of the turn it happened in.
+function moments(id, t, bf) {
+  const now = seats(bf), before = t.seats, turn = `${rs(bf + AT.TURN)} ${rs(bf + AT.PHASE)} ${rs(bf + AT.SEAT)}`;
+  const post = (kind, seat, by) => parentPort.postMessage({ moment: { table: id, index: t.index, opener: t.opener, kind, seat, ...(by && { by }) } });
+  if (before) {
+    const fallen = Object.keys(before).map(Number).filter(seat => !now[seat]);
+    for (const [seat, s] of Object.entries(now).map(([k, v]) => [Number(k), v])) {
+      const was = before[seat];
+      if (!was) continue;
+      if (s.knockouts > was.knockouts) post('knockout', seat);
+      if (s.princesses <= was.princesses || was.carried === seat) continue;
+      const owner = was.carried || fallen.find(f => f !== seat);
+      if (owner) { post('rescue', owner, seat); fallen.splice(fallen.indexOf(owner), 1); }
+    }
+  }
+  t.seats = now;
+  if (turn !== t.turn) { t.turn = turn; t.opener = t.index; }
+}
+
 // A seat whose Commander is gone is defeated; the ranks are final once the logic is finished.
 function report(id, t) {
   const bf = rd(t.logic + AT.BATTLEFIELD), slots = rd(bf + AT.COMMANDERS);
+  moments(id, t, bf);
   for (let seat = 1; seat < rs(bf + AT.COMMANDER_COUNT); seat++) {
     if (rd(slots + 4 * seat)) t.seated.add(seat);
     else if (t.seated.has(seat) && !t.out.has(seat)) { t.out.add(seat); parentPort.postMessage({ defeat: { table: id, seat } }); }
@@ -142,7 +188,11 @@ parentPort.on('message', ({ start: s, feed: f, end: e }) => {
   const id = (s ?? f).table, t = tables.get(id);
   try {
     if (s) start(id, s.game, s.snap);
-    else if (t && !t.failed) { feed(t, f.raw); report(id, t); }
+    else if (t && !t.failed) {
+      t.index++; // the history index: a finished battle takes no more messages, but they still count
+      if (finished(t)) return;
+      feed(t, f.raw); report(id, t);
+    }
   } catch (err) {
     // One table's failure stops only that table; the others go on in the same engine.
     if (t) t.failed = true; else tables.set(id, { failed: true });

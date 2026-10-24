@@ -100,4 +100,37 @@ const state = () => ({ loaded: false, unplayable: false, playing: false, ended: 
   flow.setSkipEmpty(false);
   assert.deepStrictEqual(e.mode, { skipEmpty: false, doubleSpeed: true });
 }
+
+// Previous and Next go to the marks (.scratch/replay-marks/spec.md 18): Next to the first one after the playhead, Previous to the
+// last one more than 2 s behind it, so pressed again right after a jump it goes on back. Past either end they do nothing.
+{
+  const s = { ...state(), meta: { marks: [{ at: 10 }, { at: 30 }, { at: 50 }] } }, e = fakeEngine(), flow = createReplayFlow(s, e);
+  e.replayLoaded = true; flow.frame();
+  e.replayTime = 10; flow.frame();
+  flow.jump(1);
+  assert.strictEqual(e.replayTime, 30, 'not the mark under the playhead');
+  e.replayTime = 31; flow.frame();
+  flow.jump(-1);
+  assert.strictEqual(e.replayTime, 10, 'a mark only just passed is skipped');
+  e.replayTime = 33; flow.frame();
+  flow.jump(-1);
+  assert.strictEqual(e.replayTime, 30);
+  e.calls.length = 0;
+  e.replayTime = 8; flow.frame(); flow.jump(-1);
+  e.replayTime = 50; flow.frame(); flow.jump(1);
+  assert.deepStrictEqual(e.calls, [], 'nothing before the first mark or after the last');
+}
+
+// A jump from the end screen plays from the mark, which the end screen would otherwise cover; elsewhere a paused replay stays paused.
+{
+  const s = { ...state(), meta: { marks: [{ at: 12 }] } }, e = fakeEngine({ length: 30 }), flow = createReplayFlow(s, e);
+  e.replayLoaded = true; flow.frame();
+  e.replayTime = 30; flow.frame();
+  assert.strictEqual(s.ended, true);
+  flow.jump(-1);
+  assert.deepStrictEqual([s.ended, s.playing, e.replayTime], [false, true, 12]);
+  flow.togglePlay();
+  flow.toMark(12);
+  assert.deepStrictEqual([s.playing, e.replayTime], [false, 12]);
+}
 console.log('replay flow ok');

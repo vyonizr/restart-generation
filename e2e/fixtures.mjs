@@ -51,3 +51,7 @@ export async function factsLine(page, id) {
   const { meta } = await (await page.request.get(`replay/${id}/data`)).json();
   return `${shortDay(meta.created)} - ${meta.ranked ? 'Ranked' : 'Friendly'} match`;
 }
+
+// The replay's play button (web/ui/ReplayControls.svelte), named for what a press does; Previous moment comes before it when the
+// replay has marks.
+export const playButton = page => page.getByRole('group', { name: 'Replay controls' }).getByRole('button', { name: /^(Play|Pause|Watch again)$/ });

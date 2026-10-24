@@ -12,7 +12,7 @@ const gm = require('./gamemsg');
 const g = require('./gameblob');
 const { zipEntries } = require('../web/zip.js');
 const defaultWitness = require('./witness');
-const { encode: replayText } = require('./replay');
+const { encode: replayText, marks: replayMarks } = require('./replay');
 
 const DATA = path.join(__dirname, '..', 'data');
 const ZIP = 'battle-templates.zip';
@@ -165,7 +165,11 @@ function createTable(seats, api, relaxed = false) {
     losers: [], lastOrderTeam: 0, finished: false,
   };
   const witness = api.witness ?? defaultWitness;
-  if (witness.available()) { table.witness = witness; witness.follow(table, seat => defeated(table, seat, api)); }
+  if (witness.available()) {
+    table.witness = witness;
+    table.moments = new Map(); // `${index} ${kind} ${seat}` -> the witness's moment; a restarted witness reports some again
+    witness.follow(table, seat => defeated(table, seat, api), m => table.moments.set(`${m.index} ${m.kind} ${m.seat}`, m));
+  }
   return table;
 }
 
@@ -379,9 +383,12 @@ async function result(table, waitMs) {
 }
 
 // The battle's replay (CONTEXT.md), for server/replays.js: the engine's replay text, the accounts that played, and what the replay
-// page shows around it. `outcome` is result()'s, or null for a battle everyone left before it ended.
+// page shows around it. `outcome` is result()'s, or null for a battle everyone left before it ended. Its marks come from the
+// witness's moments (docs/adr/0030), unless the witness failed.
 function replay(table, outcome) {
   const players = [...table.players].sort((x, y) => x.team - y.team);
+  const begin = table.history.findIndex(raw => gm.parse(raw).type === gm.TYPE.BATTLE_BEGIN);
+  const marks = table.moments?.size && begin >= 0 && !outcome?.guessed ? replayMarks(table.times, begin, [...table.moments.values()]) : [];
   return {
     created: table.now(),
     text: replayText(table.game, table.history.map((raw, i) => ({ t: table.times[i], raw }))),
@@ -391,6 +398,7 @@ function replay(table, outcome) {
       environment: g.parseGame(table.game).environment,
       players: players.map(p => ({ name: p.s.name, hero: p.hero, seat: p.team, bot: p.bot })),
       result: outcome && { winners: outcome.winners.map(p => p.team).sort((x, y) => x - y), ranks: outcome.ranks, guessed: Boolean(outcome.guessed) },
+      ...(marks.length && { marks }),
     },
   };
 }
