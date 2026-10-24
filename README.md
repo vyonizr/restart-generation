@@ -15,25 +15,25 @@ Restart Generation is an unofficial fan project that revives the Reset Generatio
 | CPU players in friendly matches | 🚫 | ✅ |
 | Friendly matches without phase time limits | 🚫 | ✅ Optional config |
 | Full board view in matches | 🚫 | ✅ |
-| Replays | ✅ | ✅ |
+| Replays | ✅ | ✅ Downloadable and with highlight timestamps |
 
 ## Prerequisites
 
-- **Your copy of the game**, as the Windows standalone build `ResetGeneration-Standalone.zip` or as the extracted `ResetGeneration` folder.
+- **Your Windows copy of the game**, as its `.zip` file or the extracted folder.
 - **[Node.js](https://nodejs.org) 22.13 or later** to run the server.
 - **A browser** on Windows, macOS, or Linux. A phone or tablet can play too: see [Play on other devices](#play-on-other-devices).
 
 ## Start playing
 
-1. Download this project (**Code > Download ZIP**, and then extract it) and open a terminal in its folder.
-2. Run `npm install`. Do this one time only.
-3. Run `npm start`.
-4. Open <http://localhost:8080/> and select **Start**.
-5. When the page asks for your game files, choose the `.zip` or the game folder.
+1. Download this project (**Code > Download ZIP**), and then extract it.
+2. Open a terminal in the project folder.
+3. Run `npm install`. Do this one time only.
+4. Run `npm start`.
+5. Open <http://localhost:8080/> and select **Start**.
+6. When the page asks for your game files, choose the `.zip` or the game folder.
+7. To stop the server, press <kbd>Ctrl</kbd>+<kbd>C</kbd> in the terminal.
 
-To start again later, do steps 3 and 4.
-
-Every story and hero is open from the start on your own server.
+On your own server, every story and every hero, including the Aggressor, is unlocked from the start.
 
 ### Optional: set the game location
 
@@ -68,11 +68,7 @@ The following table lists the default controls:
 | Chat | <kbd>E</kbd> | **Keyboard**, and then the chat key | None |
 | Type text | Your keyboard | **Keyboard** | None |
 
-To use other keys, open **Settings > Custom Keys** in the game. You can change the keys for moving, Select, Back, and Chat; <kbd>Enter</kbd> always selects and <kbd>Esc</kbd> always goes back. The list under the game screen shows the keys you chose, and the touch pad's D-pad follows them. Your keys are part of your saved game.
-
-The game screen is soft by default, like the display of a 2008 phone. For sharp pixels, turn off **Soft screen** under the game screen. On the touch pad, tap **Soft screen**, the grid icon beside **Keyboard**.
-
-On a computer, a battle shows the whole board at once by default, as the original website's replays did (the **Full board**); on a phone or tablet it starts in the phone's own view, where the board scrolls (**Classic**). Switch with **Full board** under the game screen, or the board icon on the touch pad, even in the middle of a battle.
+To change the keys, open **Settings > Custom Keys** in the game.
 
 ## Play online
 
@@ -82,7 +78,7 @@ The first time you go online, the game asks for a name and suggests a random one
 
 ### CPU players
 
-In a friendly match, CPU players can fill the empty seats. You should provide the game path when setting up the environment (see [Optional: set the game location](#optional-set-the-game-location)).
+In a friendly match, CPU players can fill the empty seats. They need the game location on your server: see [Optional: set the game location](#optional-set-the-game-location).
 
 1. Select **Start** in your room.
 2. Choose the CPU level:
@@ -94,7 +90,7 @@ In a friendly match, CPU players can fill the empty seats. You should provide th
 
 **CPU** is the AI of the game, with a random hero. **Expert** chooses its hero from a list of strong heroes and otherwise plays like **CPU**.
 
-CPU players doesn't work on ranked matches.
+Ranked matches don't have CPU players.
 
 ### Online battles need battle templates
 
