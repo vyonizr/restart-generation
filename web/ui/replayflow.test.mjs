@@ -31,6 +31,27 @@ const state = () => ({ loaded: false, unplayable: false, playing: false, ended: 
   assert.deepStrictEqual([s.time, s.position], [7, 7]);
 }
 
+// A click or a drag on the time slider lands on the exact second under the pointer. Each seek runs the battle again, so a drag
+// seeks only where the pointer rests for 150 ms, and letting go seeks to where it stopped before the replay resumes.
+{
+  let ms = 0;
+  const s = state(), e = fakeEngine(), flow = createReplayFlow(s, e, () => ms);
+  e.replayLoaded = true; flow.frame();
+  e.calls.length = 0;
+  flow.hold();
+  flow.scrub(21.4); ms += 16; flow.frame();
+  flow.scrub(22.6); ms += 16; flow.frame();
+  flow.scrub(23.2); ms += 100; flow.frame();
+  assert.deepStrictEqual(e.calls, ['pause'], 'nothing sought while the pointer moves');
+  ms += 60; flow.frame();
+  assert.deepStrictEqual([e.calls, s.time], [['pause', 'seek 23'], 23], 'rested 160 ms: sought');
+  ms += 500; flow.frame();
+  assert.strictEqual(e.calls.length, 2, 'not sought again');
+  flow.scrub(37.8); ms += 16;
+  flow.release();
+  assert.deepStrictEqual(e.calls.slice(2), ['seek 38', 'play'], 'let go: the last second first, then playing on');
+}
+
 // Nothing works until the engine has built the replay's battle; then it plays at once, with skip-empty on, as the original did.
 {
   const s = state(), e = fakeEngine(), flow = createReplayFlow(s, e);

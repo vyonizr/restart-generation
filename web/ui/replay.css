@@ -90,6 +90,10 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
 .mark.end .tip { left: auto; right: -1px; transform: none; }
 .mark:hover .tip, .mark:focus-visible .tip { opacity: 1; }
 .mark:disabled .tip { display: none; }
+/* With a mouse, the second under the pointer, above the track where a click would put the thumb */
+.scrub-tip { position: absolute; bottom: calc(100% + 8px); left: clamp(24px, var(--x), calc(100% - 24px)); z-index: 3; padding: 6px 8px;
+  background: var(--ink-2); font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; color: #fff; white-space: nowrap;
+  pointer-events: none; transform: translateX(-50%); }
 /* With marks, Previous and Next take room from the slider, whose ticks need it most: on a smaller view it gets a row of its own */
 @container (max-width: 640px) {
   .controls:has(.jump) { flex-wrap: wrap; }

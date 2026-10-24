@@ -2,21 +2,23 @@
      double speed, and the volume. With marks (CONTEXT.md), Previous and Next sit on each side of play. It works once the engine has
      built the battle, except while footage is rendered on it. -->
 <script>
-  import { replay, togglePlay, seek, step, holdSlider, releaseSlider, setSkipEmpty, setDoubleSpeed, setVolume, toggleMute, jumpMark, toMark } from './replay.svelte.js';
+  import { replay, togglePlay, scrub, step, holdSlider, releaseSlider, setSkipEmpty, setDoubleSpeed, setVolume, toggleMute, jumpMark, toMark } from './replay.svelte.js';
   import { clock, markLabel } from '../replay-text.js';
-  import { STEP_S, markTarget } from './replayflow.js';
+  import { markTarget } from './replayflow.js';
 
   const off = $derived(!replay.loaded || replay.footage.status === 'rendering');
   const marks = $derived(replay.meta?.marks ?? []);
   const SEEK_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
   // Where a mark's tick sits on the track: the slider's thumb is 14px wide, so its centre runs from 7px to the width less 7px.
   const share = at => Math.min(1, at / replay.length);
-  // The thumb follows the engine's clock between whole seconds, so it glides and lands on a mark's tick. Dragging still seeks in 5 s
-  // steps, as the original player did, and only when the step changes, since each seek runs the battle again up to it; its end is a
-  // step too.
-  function drag(value) {
-    const to = value >= replay.length ? replay.length : Math.round(value / STEP_S) * STEP_S;
-    if (to !== replay.time) seek(to);
+  // The thumb follows the engine's clock between whole seconds, so it glides and lands on a mark's tick. A click or a drag goes to
+  // the exact second under the pointer (replayflow.js `scrub`, which seeks at most once a frame).
+  // With a mouse, the second under the pointer shows above the track before a click, as video players show it.
+  let hover = $state(null); // { left: px from the track's left, seconds }
+  function point(e) {
+    if (e.pointerType !== 'mouse' || off) { hover = null; return; }
+    const r = e.currentTarget.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left - 7) / (r.width - 14)));
+    hover = { left: 7 + f * (r.width - 14), seconds: Math.round(f * replay.length) };
   }
   // The arrows step 5 s on the slider too (Left and Right through the page's keys, replay.svelte.js), not the browser's 1 s.
   function key(e) {
@@ -42,10 +44,11 @@
   <div class="timeline">
     <input class="time" type="range" min="0" max={replay.length} step="any" value={replay.position} disabled={off} aria-label="Time"
       aria-valuetext="{clock(replay.time)} of {clock(replay.length)}"
-      onpointerdown={holdSlider} onpointerup={e => { e.currentTarget.value = String(replay.position); releaseSlider(); }}
-      onpointercancel={releaseSlider} onblur={releaseSlider}
+      onpointerdown={holdSlider} onpointerup={releaseSlider} onpointercancel={releaseSlider} onblur={releaseSlider}
+      onpointermove={point} onpointerleave={() => { hover = null; }}
       onkeydown={key} onkeyup={e => { if (SEEK_KEYS.has(e.key)) releaseSlider(); }}
-      oninput={e => drag(+e.currentTarget.value)}>
+      oninput={e => scrub(+e.currentTarget.value)}>
+    {#if hover}<span class="scrub-tip" style:--x="{hover.left}px" aria-hidden="true">{clock(hover.seconds)}</span>{/if}
     {#if replay.length > 0}
       {#each marks as mark (mark.at)}
         {@const label = markLabel(replay.meta, mark)}

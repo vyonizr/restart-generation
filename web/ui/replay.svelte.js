@@ -136,6 +136,7 @@ const idle = () => exporting ? null : flow;
 export const togglePlay = () => idle()?.togglePlay();
 export const watchAgain = () => idle()?.watchAgain();
 export const seek = seconds => idle()?.seek(seconds);
+export const scrub = seconds => idle()?.scrub(seconds);
 export const holdSlider = () => idle()?.hold();
 export const releaseSlider = () => idle()?.release();
 export const step = direction => idle()?.step(direction);

@@ -4,7 +4,7 @@
 // `state` is what the page draws ({ loaded, unplayable, playing, ended, time, position, length, skipEmpty, doubleSpeed }, and
 // `meta`, whose `marks` Previous and Next go to); `engine` is a GameHost started with a replay (web/emu/host.js). Times are whole
 // seconds from BattleBegin; `position` is the same clock in fractional seconds, for the slider's thumb.
-const STEP_S = 5; // what the arrow keys, the D-pad, and a drag of the time slider seek by
+const STEP_S = 5; // what the arrow keys and the D-pad seek by
 // A replay builds its battle within a few frames (about 165 ms of engine time); one that hasn't after this much never will, such as
 // damaged data or a seed replay's placeholder (docs/adr/0023). Engine time, so a slow device isn't given up on sooner.
 export const LOAD_LIMIT_MS = 10000;
@@ -21,7 +21,22 @@ export function markTarget(marks, time, direction) {
   return (direction < 0 ? ats.findLast(at => at < time - BACK_GRACE_S) : ats.find(at => at > time)) ?? null;
 }
 
-export function createReplayFlow(state, engine) {
+// How long a drag must rest on a second before it is sought, as a seek blocks the page.
+const SETTLE_MS = 150;
+
+// `now` is the page's clock in ms; tests pass their own.
+export function createReplayFlow(state, engine, now = () => performance.now()) {
+  // The second the time slider was last moved to, not sought yet. A seek runs the battle again up to it, which blocks the page for
+  // 0.2 to 0.5 s, so a drag doesn't seek on every move, nor once a frame (Apple's QA1820 on chasing AVPlayer seeks): while the
+  // pointer moves, only the thumb follows it; the second is sought once the pointer rests on it for SETTLE_MS, and when the slider
+  // is let go. A click is a press and a release, so it seeks at once.
+  let scrubTo = null, scrubbedAt = 0;
+  const flush = force => {
+    if (scrubTo === null || (!force && holding && now() - scrubbedAt < SETTLE_MS)) return;
+    const to = scrubTo;
+    scrubTo = null;
+    if (to !== state.time) flow.seek(to);
+  };
   let holding = false, resumeAfterHold = false;
   const play = () => { engine.playReplay(); state.playing = true; };
   const pause = () => { engine.pauseReplay(); state.playing = false; };
@@ -29,6 +44,7 @@ export function createReplayFlow(state, engine) {
   const flow = {
     // After each engine frame: notice the replay load, follow its clock, and stop at its end.
     frame() {
+      flush(false);
       if (!state.loaded) {
         if (state.unplayable) return;
         if (!engine.replayLoaded) { if (engine.time >= LOAD_LIMIT_MS) state.unplayable = true; return; }
@@ -77,7 +93,14 @@ export function createReplayFlow(state, engine) {
       resumeAfterHold = state.playing;
       if (state.playing) pause();
     },
+    // The time slider moved to `seconds`, by a click, a drag going on, or Home, End, Page Up or Page Down: see `scrubTo`.
+    scrub(seconds) {
+      if (!state.loaded) return;
+      scrubTo = Math.max(0, Math.min(state.length, Math.round(seconds)));
+      scrubbedAt = now();
+    },
     release() {
+      flush(true);
       if (!holding) return;
       holding = false;
       if (resumeAfterHold) play();
