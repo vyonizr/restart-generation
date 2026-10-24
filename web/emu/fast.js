@@ -2,7 +2,7 @@
 // addresses (0x10xxxxxx). Each one leaves memory, registers and flags as the guest code would, except the dead
 // stack below ESP that the guest's own calls (and the frames of routines done whole) would have scribbled on.
 export function installFastPaths(cpu, addr) {
-  const { r, dv, m8 } = cpu;
+  const { r, dv, m8, m32 } = cpu;
   const rd = a => dv.getInt32(a >>> 0, true);
   const wr = (a, v) => dv.setInt32(a >>> 0, v, true);
 
@@ -133,6 +133,50 @@ export function installFastPaths(cpu, addr) {
     if (clipRead) { wr(esp + 0x48, clipNext); wr(esp + 0x4c, clipLen); }
     r[0] = rowStep; r[1] = clipY; r[2] = off; r[3] = clipLen; r[5] = rows; r[7] = clipX;
     c.eip = exitClipped;
+  });
+
+  // FUN_1009e0d0 draws a mirrored frame against the clip (docs/re/re_render.md "Draw a mirrored run-length frame"): the
+  // runs of FUN_1009de90's loop, laid out leftward from the frame's right edge, the cut counted from that edge. The trap
+  // at its row loop (0x1009e1b0-0x1009e2f7) does every row. EDI ends as the last run left it: the end of a fill, the start
+  // of another draw, or the run's count << shift when it drew nothing.
+  const exitMirrored = addr(0x1009e2f7);
+  cpu.traps.set(addr(0x1009e1b0), c => {
+    const esp = r[4] >>> 0, S = o => rd(esp + o), self = r[3], width = S(0x10), pal = S(0x14), rows = S(0x18), data = S(0x1c);
+    const cut = S(0x20), stop = S(0x24), top = S(0x28), rowStep = S(0x30), dst = S(0x38), shift = S(0x3c) & 31;
+    const mode = rd(self + 0x20) >>> 0, level = m8[(self + 0x64) >>> 0];
+    let row = S(0x40), next = S(0x44), off = r[5], x = 0, len = 0, count = r[6], edi = 0, read = false;
+    do {
+      x = 0; edi = 0;
+      if (width > 0) {
+        do {
+          const code = dv.getUint16((data + next * 2) >>> 0, true); next = (next + 1) | 0;
+          let index;
+          if (code & 0xf000) { len = code >>> 12; index = code & 0xfff; }
+          else { len = code; index = dv.getUint16((data + next * 2) >>> 0, true); next = (next + 1) | 0; }
+          read = true;
+          const skip = x < cut ? (cut - x) | 0 : 0;
+          count = (len - skip) | 0;
+          if (((len + x) | 0) > stop) count = (stop - skip - x) | 0;
+          edi = count << shift; off = (off - edi) | 0;
+          if ((index & 0x8000) && row >= top && count > 0) {
+            const p = (dst + off - skip * 4) | 0, color = rd(pal + (index & 0x7fff) * 4);
+            edi = p;
+            if (mode === 0) { for (let i = 0; i < count; i++) wr(p + i * 4, color); edi = (p + count * 4) | 0; }
+            else if (mode === 1) blend(p, color, level, count);
+            else if (mode === 2) blend(p, color, color >>> 24, count);
+            else if (mode === 3) add(self, p, color, level, count);
+          }
+          off = (off - ((len - count) << shift)) | 0; x = (x + len) | 0;
+        } while (x < width);
+      }
+      off = (off + rowStep) | 0;
+      row = (row + 1) | 0;
+    } while (row < rows);
+    c.alu(7, row, rows, 32);
+    wr(esp + 0x40, row); wr(esp + 0x48, x);
+    if (read) { wr(esp + 0x44, next); wr(esp + 0x2c, len); wr(esp + 0x4c, len); }
+    r[0] = rowStep; r[1] = row; r[2] = rows; r[5] = off; r[6] = count; r[7] = edi;
+    c.eip = exitMirrored;
   });
 
   // The run-length image's draw routines as plain functions of their arguments (self the image). Each leaves the
@@ -709,5 +753,94 @@ export function installFastPaths(cpu, addr) {
     if (last) wr(esp + 0x24, last);
     r[2] = rows; r[5] = row; r[6] = 0; r[7] = cols > 0 ? cols : 0;
     c.eip = exitEdges;
+  });
+
+  // FUN_10052bb0 sets the top byte of each pixel of a rectangle of a drawable to an alpha's low byte, keeping the colors
+  // (docs/re/re_render.md "Set the alpha byte of a rectangle"); the battle view's large-screen mode runs it over its 240 x 320
+  // offscreen every frame the curtain is up. The trap at its 32-bit row loop (0x10052d00-0x10052d39), reached with the
+  // rectangle cut and the cache told, does every row. Pixels that aren't dword-aligned go on in the guest after the loop's
+  // first instruction, which sets ECX to the left cut * 4.
+  const alphaRest = addr(0x10052d07), alphaDone = addr(0x10052d39);
+  cpu.traps.set(addr(0x10052d00), c => {
+    const esp = r[4] >>> 0, width = r[3], cut = r[7], count = (width - cut) | 0, step = rd(esp + 0x24), alpha = rd(esp + 0x30) << 24;
+    let p = r[0];
+    if (p & 3) { r[1] = cut << 2; c.eip = alphaRest; return; }
+    let rows = r[5], before = 0, last = 0;
+    do {
+      p = (p + (cut << 2)) | 0;
+      if (cut < width) {
+        for (let i = p >>> 2, end = i + count; i < end; i++) last = m32[i] = (m32[i] & 0xffffff) | alpha;
+        p = (p + (count << 2)) | 0;
+      }
+      before = p; p = (p + step) | 0;
+      rows = (rows - 1) | 0;
+    } while (rows !== 0);
+    c.alu(0, before, step, 32); c.dec(1, 32);
+    if (cut < width) { r[1] = 0; r[2] = alpha; r[6] = last; } else r[1] = cut << 2;
+    r[0] = p; r[5] = 0;
+    c.eip = alphaDone;
+  });
+
+  // The fight cut-in's two passes over its picture of the screen (docs/re/re_render.md "The fight cut-in's picture effects").
+  // Each moves every channel a step toward a target: one above the target plus the step loses it, one below the target
+  // less the step gains it. The pixel gets a top byte of 0. Both loop over the display's width x height, which the guest
+  // reads, together with the pictures' pixels after telling their caches, before the traps at the loops take over.
+  const nudge = (ch, to, d) => (ch > to + d ? ch - d : ch < to - d ? ch + d : ch);
+  const nudged = (v, tr, tg, tb, d) => (nudge((v >>> 16) & 255, tr, d) << 16) | (nudge((v >>> 8) & 255, tg, d) << 8) | nudge(v & 255, tb, d);
+  // A pixel's gray: its three channels' mean, rounded down.
+  const grayOf = v => (((v >>> 16) & 255) + ((v >>> 8) & 255) + (v & 255)) / 3 | 0;
+  // FUN_100824a0 moves each pixel 3 levels toward its own gray. The trap at the test before its row loop (0x100824f4),
+  // reached with a positive height, does every row and leaves at the epilogue (0x10082599). A picture whose pixels aren't
+  // dword-aligned goes on in the guest after the trap's instruction, which sets ECX to the row length * 4.
+  const grayRest = addr(0x100824fb), grayDone = addr(0x10082599);
+  cpu.traps.set(addr(0x100824f4), c => {
+    const esp = r[4] >>> 0, width = rd(esp + 0x1c), step = r[0] << 2;
+    let p = r[5];
+    if (p & 3) { r[1] = step; c.eip = grayRest; return; }
+    let rows = r[3], before = 0, last = 0;
+    do {
+      for (let i = p >>> 2, end = i + width; i < end; i++) { const v = last = m32[i], m = grayOf(v); m32[i] = nudged(v, m, m, m, 3); }
+      before = p; p = (p + step) | 0;
+      rows = (rows - 1) | 0;
+    } while (rows !== 0);
+    c.alu(0, before, step, 32); c.dec(1, 32);
+    wr(esp + 0x10, 0); wr(esp + 0x18, step);
+    if (width > 0) {
+      const m = grayOf(last);
+      wr(esp + 0x14, last);
+      r[2] = m + 3; r[3] = width; r[6] = nudge(last & 255, m, 3); r[7] = nudge((last >>> 8) & 255, m, 3);
+    } else r[3] = 0;
+    r[0] = 0; r[1] = step; r[5] = p;
+    c.eip = grayDone;
+  });
+  // FUN_100825b0 moves each pixel of the first picture 9 levels toward the pixel at the same place in the second. The trap
+  // at the test before its row loop (0x10082635), reached with a positive height, does every row and leaves at the epilogue
+  // (0x1008272b). Pictures whose pixels aren't dword-aligned go on in the guest after the trap's instruction, which sets
+  // ECX to the first picture's row length * 4.
+  const fadeRest = addr(0x1008263c), fadeDone = addr(0x1008272b);
+  cpu.traps.set(addr(0x10082635), c => {
+    const esp = r[4] >>> 0, width = rd(esp + 0x30), stepA = r[7] << 2, stepB = r[0] << 2;
+    let a = r[5], b = rd(esp + 0x14);
+    if ((a | b) & 3) { r[1] = stepA; c.eip = fadeRest; return; }
+    let rows = r[3], before = 0, lastA = 0, lastB = 0, v = 0, t = 0;
+    do {
+      if (width > 0) {
+        for (let i = a >>> 2, j = b >>> 2, end = i + width; i < end; i++, j++) {
+          v = m32[i]; t = m32[j];
+          m32[i] = nudged(v, (t >>> 16) & 255, (t >>> 8) & 255, t & 255, 9);
+        }
+        lastA = a; lastB = b;
+      }
+      b = (b + stepB) | 0; before = a; a = (a + stepA) | 0;
+      rows = (rows - 1) | 0;
+    } while (rows !== 0);
+    c.alu(0, before, stepA, 32); c.dec(1, 32);
+    wr(esp + 0x14, b); wr(esp + 0x1c, a); wr(esp + 0x20, 0); wr(esp + 0x28, stepA); wr(esp + 0x2c, stepB);
+    if (width > 0) {
+      wr(esp + 0x10, t & 255); wr(esp + 0x18, 0); wr(esp + 0x24, (lastB - lastA) | 0);
+      r[3] = nudge((v >>> 8) & 255, (t >>> 8) & 255, 9); r[6] = (lastA + (width << 2)) | 0; r[7] = (t & 255) + 9;
+    }
+    r[0] = 0; r[1] = b; r[2] = stepA; r[5] = a;
+    c.eip = fadeDone;
   });
 }

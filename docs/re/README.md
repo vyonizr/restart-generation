@@ -22,7 +22,7 @@ The following table lists the notes and what each covers:
 | [`re_replay.md`](re_replay.md) | The engine's replay player: player mode, the replay text it reads, playback and seeking, the original player's controls, and the snapshot field a relayed battle must fix to replay as played. |
 | [`re_settings.md`](re_settings.md) | The settings file: its layout, the custom keys it holds, and what a rebind does. |
 | [`re_quit.md`](re_quit.md) | How the engine reports Quit through `tick`, and what the Java client did then. |
-| [`re_render.md`](re_render.md) | The engine's hottest drawing and update routines in a battle: the run-length sprite blitters, their data format and span routines; the scene object draw, its image cache and the run-length image; the curved band; the line blends; the sprung points; the tile grid edge pass; and the loop states `web/emu/fast.js` reproduces. |
+| [`re_render.md`](re_render.md) | The engine's hottest drawing and update routines in a battle: the run-length sprite blitters, their data format and span routines; the scene object draw, its image cache and the run-length image; the curved band; the line blends; the sprung points; the tile grid edge pass; the alpha fill of a rectangle; the fight cut-in's two picture effects; and the loop states `web/emu/fast.js` reproduces. |
 | [`re_screen.md`](re_screen.md) | The screen size: where it lives, who reads it, and changing it while the engine runs; the battle view's large-screen mode with its curtain and fades; the battle UI states a host can read; and the `.gfx` image container. |
 
 ### Names used in the notes

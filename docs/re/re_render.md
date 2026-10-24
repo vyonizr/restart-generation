@@ -1,4 +1,4 @@
-# Hot loops: sprites, tile grid edges, scene objects, the curved band, line blends, and sprung points
+# Hot loops: sprites, tile grid edges, scene objects, the curved band, line blends, sprung points, and the fight's picture effects
 
 Our notes on the engine routines that took the largest share of a battle's emulated instructions, written in our own words (see [LEGAL.md](../LEGAL.md)). [`web/emu/fast.js`](../../web/emu/fast.js) replaces their hot loops with JavaScript built from this note. Offsets are from the object in ECX ("this") unless stated. Stack slots are given as `[esp+n]` at the instruction named, after the routine's own pushes.
 
@@ -172,7 +172,7 @@ A second kind of image, with the vtable `0x10182a88`. Its frames are palette-ind
 | `+0x0c` | The table mode 3 adds through: one row of 256 bytes per level, indexed by each color channel (`FUN_1009da10`). Set from the renderer's `+0x0c` before each draw. |
 | `+0x14` | The size: its `+0x18` is the width, `+0x1c` the height and `+0x20` a pixel format, which must be 2 (32-bit) for the image to be drawn. |
 | `+0x20` | The draw mode: 0 fills, 1 blends at the level, 2 blends at each color's own alpha, 3 adds; any other draws nothing. |
-| `+0x2d` | A byte: when set the image is drawn mirrored, by other routines (`FUN_1009e760`). Never set in a battle we watched. |
+| `+0x2d` | A byte: when set the image is drawn mirrored (see [Draw a mirrored run-length frame](#draw-a-mirrored-run-length-frame)). Clear on the battlefield we watched; set on one of the two fighters of a fight cut-in. |
 | `+0x2e` | A byte: when set, every frame uses the colors of the palette object at `+0x48` (its `+0x08`, or none when `+0x48` is 0), read through the virtual method `+0x3c` (`FUN_1004a790`). When clear, the frame's own palette is entry `frame` of the table at `+0x54`. |
 | `+0x30`, `+0x34`, `+0x38`, `+0x3c` | The clip: bottom (exclusive), top, left, right (exclusive). |
 | `+0x40` | The frame count, returned by the virtual method `+0x1c` (`FUN_100b7f40`). |
@@ -187,6 +187,8 @@ A frame's rows follow each other. A row is a list of runs that ends once their l
 `FUN_1009e940(renderer, dst, pair, x, y, level, frame)`, a thiscall that pops its seven arguments (`ret 0x1c`): the virtual method `+0x50` that `FUN_10052de0` calls. When `+0x70` is set it passes everything on to `+0x58` and returns. A frame that is negative, or not below the frame count, becomes frame 0 (the count is only asked for when the frame isn't negative). It copies the renderer's clip into the image's clip and stores the level at `+0x64`.
 
 For an image that isn't mirrored it then gives up, drawing nothing, when x is at or right of the clip's right edge, when x + width is left of the left edge, when y is at or below the bottom edge, when y + height is above the top edge, or when the pixel format isn't 2, in that order. Each of these returns with EAX the x argument, and with ECX and EDX: the width and the left edge; x + width and the left edge; y and the left edge; y and the top edge; y and the format less 2. Otherwise it copies the renderer's `+0x0c` to the image's `+0x0c` and draws with `FUN_1009e550(dst, 2, row length, x, y, frame)`, the row length being the pair's first dword, and returns with what that left in EAX, ECX, and EDX. The comparisons are signed.
+
+A mirrored image skips the two tests on x. Its x becomes w − x instead, w being the `+0x18` of what the renderer's virtual method `+0x10` returns (the screen's width, we take it [INFERENCE]). The tests on y and the format follow as above, and it draws with `FUN_1009e760(dst, 2, row length, w − x, y, frame)`.
 
 ### Draw a run-length frame inside the clip
 
@@ -241,6 +243,52 @@ Its row loop, at `0x1009df68`, keeps everything on the stack:
 | `[esp+0x4c]` | The last run's length |
 
 It ends at `0x1009e0a9` with EAX the row step, ECX the row (now the rows to draw), EDX the screen offset, EBX the last run's length, EBP the rows to draw, EDI the pixels done in the last row, and the flags of comparing the row with the rows to draw.
+
+### Draw a mirrored run-length frame
+
+`FUN_1009e760(dst, shift, pitch, x, y, frame)` and `FUN_1009e0d0`, with the same arguments, draw a frame flipped left to right, with x its right edge: the first pixel of each row lands at x − 1, the next at x − 2, and so on. Both are thiscalls popping six arguments (`ret 0x18`) that read the run data and palette as `FUN_1009e550` does. `FUN_1009e760` is the case wholly inside the clip: x − width at or right of the left edge, x at or left of the right edge, y at or below the top edge, and y at or above bottom − height, signed. Any other frame it passes on to `FUN_1009e0d0` and returns with what that left in EAX, ECX, and EDX. `fast.js` reproduces only `FUN_1009e0d0`'s row loop: in a fight cut-in we watched, the mirrored fighter took that path on every frame, 92.5 % of a middle tick's guest instructions on the Full board.
+
+`FUN_1009e0d0` works out the following:
+
+- The rows to draw: the height, or the rows down to the bottom edge (bottom − y) if fewer.
+- The rows at the top to step over without drawing: top − y, or 0.
+- The cut: the pixels of each row, counted in run order, that lie at or right of the right edge, x − right, or 0.
+- The stop: the width, or x − left if fewer.
+
+It starts at the screen offset (pitch × y + x) << shift. With no rows to draw, it returns there with EAX the pitch, ECX the shift, and EDX the rows to draw. Otherwise the row step is (pitch + width) << shift, which takes the offset from the left end of one row to the right end of the next.
+
+It walks every run of every row, keeping the pixels done in the row. A run of length n, with d pixels done before it, has a skip of cut − d when d is below the cut, else 0. The skip isn't capped at n. Its count is n − skip, or stop − skip − d when d + n is past the stop, and can be 0 or negative. The offset first moves left by count << shift. An opaque run, in a row past the stepped-over ones and with a positive count, then draws count pixels from dst + offset − skip × 4 rightward, in the image's draw mode, as `FUN_1009de90` does: mode 2 at each color's own alpha, without the rescaling at level 0xff. A mode above 3 draws nothing. Last, the offset moves left by (n − count) << shift, which makes n << shift in all.
+
+Its row loop, at `0x1009e1b0`, holds the following values at its head:
+
+| Location | Holds |
+| --- | --- |
+| EAX, `[esp+0x30]` | The row step |
+| EBX | The image |
+| EBP | The screen offset |
+| ESI | The y argument |
+| `[esp+0x10]` | The width |
+| `[esp+0x14]` | The palette |
+| `[esp+0x18]` | The rows to draw |
+| `[esp+0x1c]` | The data base |
+| `[esp+0x20]` | The cut |
+| `[esp+0x24]` | The stop |
+| `[esp+0x28]` | The rows stepped over |
+| `[esp+0x38]` | `dst` |
+| `[esp+0x3c]` | The shift |
+| `[esp+0x40]` | The row, 0 |
+| `[esp+0x44]` | The data index |
+
+Each row clears EDI and `[esp+0x48]`, the pixels done in the row. Each run leaves its length at `[esp+0x2c]` and `[esp+0x4c]`, and its count in ESI.
+
+It ends at `0x1009e2f7`, the epilogue, with the following values:
+
+- EAX the row step.
+- ECX, EDX, and `[esp+0x40]` the rows to draw.
+- EBP the screen offset after the last row.
+- The flags of comparing the row with the rows to draw.
+- When the width is positive: ESI the last run's count, and EDI one of three values. After a run drawn in mode 0, it is the address after the last pixel written. After one drawn in another mode, it is the address of the first pixel. After a run not drawn, it is the count << shift.
+- When the width isn't positive: ESI the y argument and EDI 0.
 
 ## A curved band between two points
 
@@ -337,3 +385,109 @@ All arithmetic is 32-bit with arithmetic shifts. It returns with EAX the new z, 
 ### The loop that moves the sprung points
 
 `FUN_10038160` calls the virtual method `+0x18` of each object in an array, the 121 sprung points in the battle we watched. Its loop head is at `0x100383c0`. There ESI is the owner, whose `+0x08` is the count and `+0x0c` the array of 0x7c-byte objects; EDI is the index and EBP the byte offset of the object (0x7c × the index). Each pass calls the method with ECX the object and EDX its vtable, then reloads EAX with the count, adds 1 to the index and 0x7c to the offset, and goes on while the index is below the count, which it rereads each pass. The loop ends at `0x100383d6` with EAX the count, EDI the index, EBP the offset, ECX and EDX as the last call left them, and the flags of comparing the index with the count.
+
+## Set the alpha byte of a rectangle
+
+`FUN_10052bb0(drawable, x, y, w, h, alpha)` pops its six arguments (`ret 0x18`) and takes nothing in ECX. It is the virtual method `+0x3c` of a graphics context, but doesn't use the context. It sets the top byte of every pixel of the w × h rectangle at (x, y) of the drawable to the low byte of `alpha`, and leaves the three color bytes alone. The drawable is the kind `FUN_10052de0` draws to: `+0x18` its width, `+0x1c` its height, `+0x20` its pixel format, `+0x24` its image, and `+0x28` its cache.
+
+The menus call it on small images. In the battle view's large-screen mode ([re_screen.md](re_screen.md) "The battle view's large-screen mode") it runs on every frame the curtain is up. There the battle view clears its 240 × 320 offscreen (`bv+0x334`) through the offscreen's context (`bv+0x338`), then calls this method with (offscreen, 0, 0, its width, its height, alpha). The offscreen has no cache. We saw three of these calls:
+
+- `FUN_1002c1a0` during a fight, returning to `0x1002c22c`, with alpha 0xff000000.
+- `FUN_10027d80` during a rescue, returning to `0x10027dcd`, with 0xff000000.
+- `FUN_1002b5a0` for the animation chain, returning to `0x1002b62e`, with 0.
+
+The low byte of either alpha is 0, so every pixel's top byte becomes 0.
+
+It first cuts the rectangle to the drawable. When x − width + w isn't negative (tested by its sign), w becomes width − x; likewise h becomes height − y. Then a negative x becomes 0, and −x becomes the left cut; a negative y becomes 0, and −y the top cut. The cut w and h come from the x and y as passed, before they're set to 0. It then tells the cache that the image is in use (`FUN_1004a060`) and reads the row length through the image's virtual method `+0x0c`. The first pixel is at row length × y + x − left cut, in pixels, with x and y as they now are.
+
+What follows depends on the format:
+
+- **Format 2 (32-bit pixels).** It tells the cache again and stops if the image is 0. It tells the cache a third time and reads the pixel base. It draws h − top cut rows, or none when the top cut isn't below h. Each row steps over the left cut's pixels. When the left cut is below w, the next w − left cut pixels each become (pixel & 0xffffff) | (alpha << 24). The row then steps (row length − w) × 4 bytes to the next row.
+- **Format 4 (16-bit pixels).** It walks the same rows the same way, without the check for a missing image. Each pixel becomes its low 12 bits | (alpha << 12), kept to 16 bits.
+- **Any other format.** It does nothing after the first call to the cache.
+
+Every way out restores EBX, ESI, EDI, and EBP.
+
+### The alpha fill's 32-bit loop
+
+The loop head at `0x10052d00` is reached once with at least one row to draw; its closing jump comes back to it for each further row. At its head, the registers and stack slots hold the following values:
+
+| Location | Holds |
+| --- | --- |
+| EAX | The address of the row's first pixel, less the left cut |
+| EBX | w, after the cut |
+| EDX | The image's vtable |
+| EDI | The left cut |
+| EBP | The rows left |
+| ESI, `[esp+0x24]` | The step from the end of a row to the start of the next, (row length − w) × 4 |
+| `[esp+0x30]` | `alpha` |
+
+The loop ends at `0x10052d39`, the epilogue. There EBP is 0, EAX is the address after the last row's step, and the flags are those of adding the step and then decrementing the rows to 0. When the left cut is below w, ECX is 0, EDX alpha << 24, and ESI the last pixel written. Otherwise ECX is the left cut × 4, and EDX and ESI are as at the loop head.
+
+## The fight cut-in's picture effects
+
+When a fight starts, the fight cut-in (`bv+0x29c`) takes a picture of the whole screen into its `+0x04`, a drawable of the kind `FUN_10052de0` draws to. Its `+0x08` is a second picture of the same kind and size. Its draw, `FUN_100828a0`, draws the first picture at (0, 0) every frame ([re_screen.md](re_screen.md) "The rescue's backdrop"). Before that, it changes the picture with one of two passes. While the cut-in's `+0x10` is positive (the fight's last draws), it calls `FUN_100825b0`, draws the picture, and does nothing else. Otherwise, while its `+0x0c` is below 32 (its first 32 draws), it calls `FUN_100824a0`. In the fight we watched, those were ticks 4766–4772 and 4602–4633.
+
+Both are thiscalls on the cut-in, without arguments (`ret`). Both first read the display's width and height: `FUN_100021f0` returns the game object (the global at `0x101b828c`), whose `+0x2c` is the display, whose virtual method `+0x14` returns its surface, with the width at `+0x18` and the height at `+0x1c`. Before each read of a picture's pixel base or row length, they tell that picture's cache that it's in use (`FUN_1004a060`). They then read the base or row length through the picture's image's virtual method `+0x0c`, as `FUN_10052de0` does. The passes cover the display's width × height at each picture's own row length, whatever the picture's size. On the Full board the display and both pictures are 420 × 378.
+
+Each channel moves by a fixed step toward a target, red first, then green, then blue. When the channel is above the target plus the step, the step is taken off. When it's then below the target less the step, the step is added. These are signed comparisons, and the second can't undo the first. So a channel within the step of its target stays as it is. The pixel gets the three channels back with a top byte of 0, whatever its top byte was. No channel leaves 0 to 255.
+
+The cache calls don't change any pixels. For a loaded picture they only move its node to the front of the cache's newest-first list ("The image cache"). A first prototype skipped them, and its frames came out the same. Skipping them still leaves the list in another order, though, so memory differs and the cache could later drop another image. `fast.js` therefore traps only the two loops, after the guest has made the calls.
+
+### Gray the picture
+
+`FUN_100824a0` moves each pixel of the picture 3 levels toward its own gray. The target of each channel is m, the sum of the pixel's three channels divided by 3 and rounded down. The engine computes m with a one-operand `imul` by 0x55555556, which gives exactly that for these sums.
+
+The test at `0x100824f4`, after the routine has checked that the height is positive, is reached once, with the calls done. There the registers and stack slots hold the following values:
+
+| Location | Holds |
+| --- | --- |
+| EAX | The row length |
+| EBX | The height |
+| EBP | The pixel base |
+| ESI, EDI | The picture |
+| `[esp+0x1c]` | The width |
+
+The loop keeps the row length × 4 at `[esp+0x18]` and the rows left at `[esp+0x10]`. For each pixel it keeps the pixel as read at `[esp+0x14]`. It walks the rows from the top and each row from the left, and moves on by the row length after each row.
+
+It ends at `0x10082599`, the epilogue, with the following values:
+
+- EAX 0 and `[esp+0x10]` 0.
+- ECX and `[esp+0x18]` the row length × 4.
+- EBP the pixel base plus height × row length × 4.
+- The flags of adding the row length × 4 to EBP and then decrementing the rows to 0.
+- When the width is positive: EBX the width, EDX the last pixel's m + 3, ESI and EDI its new blue and green, and `[esp+0x14]` its value before.
+- When it isn't: EBX 0, and EDX, ESI, and EDI as at `0x100824f4`.
+
+### Fade toward the second picture
+
+`FUN_100825b0` moves each pixel of the first picture 9 levels toward the pixel at the same place in the second picture. The target of each channel is that channel of the second picture's pixel, which is read just before the first picture's pixel is written. The routine reads, in this order, the first picture's pixel base, the second's pixel base, the first's row length, and the second's row length.
+
+The test at `0x10082635`, after the routine has checked that the height is positive, is reached once, with the calls done. There the registers and stack slots hold the following values:
+
+| Location | Holds |
+| --- | --- |
+| EAX | The second picture's row length |
+| EBX | The height |
+| EBP, `[esp+0x1c]` | The first picture's pixel base |
+| EDI | The first picture's row length |
+| ESI | The second picture |
+| `[esp+0x14]` | The second picture's pixel base |
+| `[esp+0x30]` | The width |
+
+The loop keeps the following values:
+
+- The first picture's row length × 4 at `[esp+0x28]`, and the second's at `[esp+0x2c]`.
+- The rows left at `[esp+0x20]`.
+- The two rows' starts at `[esp+0x1c]` and `[esp+0x14]`.
+- In a row with a positive width: the distance from the first picture's row to the second's at `[esp+0x24]`, the pixels left at `[esp+0x18]`, and the second picture's pixel's blue at `[esp+0x10]`.
+
+It ends at `0x1008272b`, the epilogue, with the following values:
+
+- EAX 0 and `[esp+0x20]` 0.
+- ECX and `[esp+0x14]` the second picture's pixel base plus height × its row length × 4.
+- EDX the first picture's row length × 4.
+- EBP and `[esp+0x1c]` the first picture's pixel base plus height × its row length × 4.
+- The flags of adding the first picture's row length × 4 to EBP and then decrementing the rows to 0.
+- When the width is positive: EBX the last pixel's new green, ESI the address just after the last row in the first picture, EDI the last second-picture pixel's blue + 9, `[esp+0x10]` that blue, `[esp+0x18]` 0, and `[esp+0x24]` the last row's distance.
+- When it isn't: EBX the height, ESI the second picture, and EDI the first picture's row length.

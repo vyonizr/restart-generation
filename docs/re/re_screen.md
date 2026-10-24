@@ -113,9 +113,11 @@ Observed over the same fight, by guest instructions per engine function and per 
 
 - **Its first tick** loads the fight and takes the screen picture: about 19.6 M guest instructions on the Full board and 15.4 M on Classic, the same kind of one-off cost as a rescue's first tick.
 - **Its first 32 draws** each pass over every pixel of the picture (`FUN_100824a0`), moving each color channel 3 levels toward that pixel's gray (the mean of its three channels, rounded down), unless it is within 3 of it, so the board behind the fighters fades to gray. The pass covers the display's width × height, so at 420 × 378 it touches 2.07 times the pixels it does at 240 × 320: 5.1 M against 2.5 M instructions a tick, 91 % and 99 % of those ticks. Each pixel's step divides by 3 through a one-operand `imul`.
-- **The middle** draws the two fighters over the gray picture. One of them is drawn mirrored, through `FUN_1009e760` and `FUN_1009e0d0` in guest code.
+- **The middle** draws the two fighters over the gray picture. One of them is drawn mirrored, through `FUN_1009e760` and `FUN_1009e0d0`, which was 92.5 % of a middle tick once the alpha fill below was done in JavaScript.
 - **Its last 7 draws** each pass over every pixel of the picture again (`FUN_100825b0`), moving each channel 9 levels toward the same channel of the second picture, `[+8]`, unless it is within 9 of it: a cross-fade back to the screen's colors over the same display-sized loop, 92.5 % of those ticks on the Full board.
 - **In the large-screen mode, every curtain frame** also sets the alpha byte of each pixel of the 240 × 320 offscreen (`FUN_10052bb0`), about 0.46 M instructions a tick, during a rescue as well as a fight. It is 90 % of a Full board rescue tick and half of a fight's middle tick. It doesn't run at 240 × 320.
+
+`web/emu/fast.js` does the loops of `FUN_100824a0`, `FUN_100825b0`, `FUN_10052bb0` and `FUN_1009e0d0` in JavaScript ([re_render.md](re_render.md)), with the same frames. With them, a Full board fight tick takes about 0.02 M guest instructions in its intro and ending and 0.03 M in its middle, and at a 6× CPU slowdown in Chromium, played one tick per frame as the page does, the intro, the middle and the ending keep real time (0.99, 1.00 and 1.00), against 0.16, 0.97 and 0.26 before. The first tick's load remains, a freeze of about 0.8 s at that slowdown, as a rescue's does.
 
 ### The fades
 
