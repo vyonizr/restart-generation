@@ -203,8 +203,12 @@ One step of the cycle a battle repeats: tile placement (all players at once), th
 _Avoid_: round, stage
 
 **Defeated player**:
-A player who can no longer win the battle: their castle or princess was captured, or they left the battle or dropped out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
-_Avoid_: eliminated player, knocked-out player
+A player who can no longer win the battle: another player's hero rescued their princess, or they left the battle or dropped out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
+_Avoid_: eliminated player, knocked-out player, captured castle
+
+**Princess rescued**:
+A hero carrying another player's princess into its own castle, which the game shows with its rescue animation. It defeats that princess's player. Taking a princess out of a castle, or picking one up, only steals her, and she can be won back.
+_Avoid_: princess captured, castle captured, princess stolen (that is the reversible step before)
 
 **Stopped player**:
 A player whose page or bot sends nothing more while the battle goes on for the others, who still give them their turns: a sleeping phone, a hidden tab, a hung bot. The server can't tell a stopped player from a defeated one, because both are silent.
@@ -249,3 +253,15 @@ _Avoid_: recording (that word means a video of the game, which `docs/LEGAL.md` f
 **Footage**:
 An MP4 file a visitor makes from a replay on its page: the engine's picture and sound, for cutting in a video editor and sharing. Once saved it leaves the site, so replay expiry, account deletion, and turning replays off don't reach it.
 _Avoid_: recording, video, clip, replay file
+
+**Knocked-out hero**:
+A hero whose health ran out: it drops any princess it carries, is thrown away or sent back to its castle, and plays on with part of its health. It can happen any number of times, and its player is not defeated by it.
+_Avoid_: dead hero, killed hero, knocked-out player (that is a defeated player)
+
+**Moment**:
+Something in a replay that changes who can win and is worth jumping to: a princess rescued or a hero knocked out. Things every turn has, such as special skills and phase banners, are not moments, and neither are a stolen princess or a player leaving or dropping out.
+_Avoid_: highlight, key moment, event, chapter
+
+**Mark**:
+The place on a replay's timeline of the moments of one turn, set at the start of that turn, so that the visitor sees the move that leads to them and their animation plays.
+_Avoid_: marker, bookmark, timestamp, tick

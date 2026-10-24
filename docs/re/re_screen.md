@@ -80,9 +80,9 @@ Three animation players of the battle view draw into the offscreen and then call
 | --- | --- | --- |
 | The fight cut-in, `bv+0x29c` | A fight, which needs a hero against a hero (`FUN_10030e20`). Its state at `+0x14` is 1 while running and 2 when done. | The offscreen is cleared to opaque black and the fight is drawn into it (`FUN_100828a0`). Static: no fight happened in our runs. |
 | The rescue, `bv+0x2a0` | A princess rescued, or not. Its state at `+0x8` is 1 while running, 2 while ending, and 0 when idle. | `FUN_100831a0` draws it into the context `FUN_10027d80` returns. |
-| The animation chain, `bv+0x2a4` | The battle's intro, the phase banners, item messages (`FUN_10076ed0`), special skills, a hero's game over (`FUN_10074d00`), and a story rescue. Its byte `+0x50` is 1 while one plays; `FUN_100282f0` reads it too. | `FUN_1002b5a0` draws it the same way. Each of these starts through `FUN_10075ef0` and then `FUN_100758d0` or `FUN_1002a550`, which play on `bv+0x2a4`. |
+| The animation chain, `bv+0x2a4` | The battle's intro, the phase banners, item messages (`FUN_10076ed0`), special skills, the local player's own defeat screen (`FUN_10074d00`, a per-hero game over on CommanderDestroyEvent, not a knock-out), and a story rescue. Its byte `+0x50` is 1 while one plays; `FUN_100282f0` reads it too. | `FUN_1002b5a0` draws it the same way. Each of these starts through `FUN_10075ef0` and then `FUN_100758d0` or `FUN_1002a550`, which play on `bv+0x2a4`. |
 
-The intro, the phase banners and a rescue were observed inside the curtain. The inset's opaque pixels matched a stock 240 × 320 engine: the intro's at the same tick, and the banners' and the rescue art's 16 frames late (see below). The board behind a rescue's art doesn't match: see "The rescue's backdrop". The battle's message list (`FUN_10083a00` on `bv+0x1b8`), which shows texts such as a castle being captured, draws on the main screen at full-size positions, not in the curtain (static, and seen in replay frames). A player knocked out goes to the observer state with the full board and no curtain.
+The intro, the phase banners and a rescue were observed inside the curtain. The inset's opaque pixels matched a stock 240 × 320 engine: the intro's at the same tick, and the banners' and the rescue art's 16 frames late (see below). The board behind a rescue's art doesn't match: see "The rescue's backdrop". The battle's message list (`FUN_10083a00` on `bv+0x1b8`), which shows texts such as a princess stolen from a castle, draws on the main screen at full-size positions, not in the curtain (static, and seen in replay frames). A defeated player goes to the observer state with the full board and no curtain.
 
 A phase banner looks cut off at the inset's right edge. That is not a layout fault: the chain animation draws the banner as stock does, its text slides in from beyond the right edge of a 240-wide area, and a long banner is cut at both edges on a stock phone screen too. At 420 × 378 the phone screen's edge happens to be visible next to the curtain.
 
@@ -117,7 +117,7 @@ A battle's screens are UI states, run by a UI state manager `M`. `M` is `[[[app+
 | PlaceTile | `0x10186860` | Placing a tile. |
 | `InfoUIState` | `0x101880d4` | Not the player's turn, and the battle's intro. |
 | `MoveUnitUIState`, `FireCannonUIState` | | The hero's turn and the cannon phase. |
-| `ObserverUIState` | | After the local player is knocked out. |
+| `ObserverUIState` | | After the local player is defeated. |
 | `TextMessageUIState` | | Chat entry; its draw is `FUN_100c2a00`. |
 
 While the battle menu is up, `FUN_100d5d90` runs every frame: it grays the width × height of the screen through `FUN_1008d4a0`, and its `FUN_10045c50` draws the menu. `FUN_100f94a0` runs once, when the menu opens, and it was the only menu screen build during a battle. While a story message is up, its draw `FUN_100b8570` runs every frame.
