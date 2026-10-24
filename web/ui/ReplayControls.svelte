@@ -2,7 +2,7 @@
      double speed, and the volume. With marks (CONTEXT.md), Previous and Next sit on each side of play. It works once the engine has
      built the battle, except while footage is rendered on it. -->
 <script>
-  import { replay, togglePlay, seek, holdSlider, releaseSlider, setSkipEmpty, setDoubleSpeed, setVolume, toggleMute, jumpMark, toMark } from './replay.svelte.js';
+  import { replay, togglePlay, seek, step, holdSlider, releaseSlider, setSkipEmpty, setDoubleSpeed, setVolume, toggleMute, jumpMark, toMark } from './replay.svelte.js';
   import { clock, markLabel } from '../replay-text.js';
   import { STEP_S, markTarget } from './replayflow.js';
 
@@ -11,6 +11,18 @@
   const SEEK_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
   // Where a mark's tick sits on the track: the slider's thumb is 14px wide, so its centre runs from 7px to the width less 7px.
   const share = at => Math.min(1, at / replay.length);
+  // The thumb shows the replay's exact second, a mark's included, so the slider steps by 1 s. Dragging still seeks in 5 s steps, as
+  // the original player did, and only when the step changes, since each seek runs the battle again up to it; its end is a step too.
+  function drag(value) {
+    const to = value >= replay.length ? replay.length : Math.round(value / STEP_S) * STEP_S;
+    if (to !== replay.time) seek(to);
+  }
+  // The arrows step 5 s on the slider too (Left and Right through the page's keys, replay.svelte.js), not the browser's 1 s.
+  function key(e) {
+    if (!SEEK_KEYS.has(e.key) || e.shiftKey) return;
+    holdSlider();
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); step(e.key === 'ArrowUp' ? 1 : -1); }
+  }
 </script>
 
 {#snippet jump(direction)}
@@ -27,11 +39,12 @@
   </button>
   {#if marks.length}{@render jump(1)}{/if}
   <div class="timeline">
-    <input class="time" type="range" min="0" max={replay.length} step={STEP_S} value={replay.time} disabled={off} aria-label="Time"
+    <input class="time" type="range" min="0" max={replay.length} step="1" value={replay.time} disabled={off} aria-label="Time"
       aria-valuetext="{clock(replay.time)} of {clock(replay.length)}"
-      onpointerdown={holdSlider} onpointerup={releaseSlider} onpointercancel={releaseSlider} onblur={releaseSlider}
-      onkeydown={e => { if (SEEK_KEYS.has(e.key) && !e.shiftKey) holdSlider(); }} onkeyup={e => { if (SEEK_KEYS.has(e.key)) releaseSlider(); }}
-      oninput={e => seek(+e.currentTarget.value)}>
+      onpointerdown={holdSlider} onpointerup={e => { e.currentTarget.value = String(replay.time); releaseSlider(); }}
+      onpointercancel={releaseSlider} onblur={releaseSlider}
+      onkeydown={key} onkeyup={e => { if (SEEK_KEYS.has(e.key)) releaseSlider(); }}
+      oninput={e => drag(+e.currentTarget.value)}>
     {#if replay.length > 0}
       {#each marks as mark (mark.at)}
         {@const label = markLabel(replay.meta, mark)}

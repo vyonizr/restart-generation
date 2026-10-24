@@ -225,12 +225,12 @@ function save(blob, name) {
 
 // Space plays or pauses, the arrows seek by 5 seconds, Shift and an arrow go to the previous or next mark, F switches double speed,
 // M mutes, wherever focus is, except for the keys the focused element uses itself: every key in a text field, Space and Enter on a
-// button or link, the arrows on a slider (without Shift).
+// button or link, the arrows on the volume slider (the time slider steps by 1 s only to show a mark's second, ReplayControls.svelte).
 function onKey(e) {
   if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('dialog, .login')) return;
   const t = e.target;
   const own = t.matches?.('textarea, input:not([type=range])') || (t.matches?.('button, a') && (e.key === ' ' || e.key === 'Enter'))
-    || (t.matches?.('input[type=range]') && e.key.startsWith('Arrow') && !e.shiftKey);
+    || (t.matches?.('input[type=range]:not(.time)') && e.key.startsWith('Arrow'));
   const keys = e.shiftKey && e.key.startsWith('Arrow') ? { ArrowLeft: () => jumpMark(-1), ArrowRight: () => jumpMark(1) }
     : { ' ': togglePlay, ArrowLeft: () => step(-1), ArrowRight: () => step(1), f: () => setDoubleSpeed(!replay.doubleSpeed),
       F: () => setDoubleSpeed(!replay.doubleSpeed), m: toggleMute, M: toggleMute };

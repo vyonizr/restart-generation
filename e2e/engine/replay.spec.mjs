@@ -57,7 +57,8 @@ test('a played replay runs to its end at double speed, and offers to watch it ag
 });
 
 // The witness's moments (docs/adr/0030): Bots' battles end with a rescue, so a played seed replay has marks. Each is a tick on the
-// slider named by its moments; Next and a click on a tick seek to it.
+// slider named by its moments; Next and a click on a tick seek to it, and the slider's thumb sits on the tick, not on the nearest
+// 5 s step, which a mark's second seldom is.
 test('a played replay shows its marks, and Next and its ticks go to them', async ({ page, errors }) => {
   let found = null;
   for (const { id } of seed.played) {
@@ -79,10 +80,12 @@ test('a played replay shows its marks, and Next and its ticks go to them', async
   if (next !== null) {
     await controls.getByRole('button', { name: 'Next moment' }).click();
     await expect.poll(at).toBe(next);
+    await expect(time).toHaveValue(String(next));
   }
   const last = meta.marks.at(-1);
   await ticks.at(-1).click();
   await expect.poll(at).toBe(last.at);
+  await expect(time).toHaveValue(String(last.at));
   await expect(controls.getByRole('button', { name: 'Next moment' })).toBeDisabled();
   expect(errors).toEqual([]);
 });
