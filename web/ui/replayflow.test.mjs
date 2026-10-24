@@ -4,17 +4,53 @@
 import assert from 'node:assert';
 import { createReplayFlow } from './replayflow.js';
 
+// `clock` is the engine's clock in ms when a test sets it; otherwise it is the whole seconds of replayTime.
 function fakeEngine({ length = 60 } = {}) {
   const e = {
     replayLoaded: false, replayTime: 0, replayLength: length, replayAnimating: false, playing: true, mode: null, calls: [], time: 0,
+    clock: null,
+    get replayClock() { return e.clock ?? e.replayTime * 1000; },
     playReplay() { e.playing = true; e.calls.push('play'); },
     pauseReplay() { e.playing = false; e.calls.push('pause'); },
-    seekReplay(s) { e.replayTime = s; e.calls.push(`seek ${s}`); },
+    seekReplay(s) { e.replayTime = s; e.clock = null; e.calls.push(`seek ${s}`); },
     setReplayMode(m) { e.mode = { skipEmpty: m.skipEmpty, doubleSpeed: m.doubleSpeed }; },
   };
   return e;
 }
-const state = () => ({ loaded: false, unplayable: false, playing: false, ended: false, time: 0, length: 0, skipEmpty: true, doubleSpeed: false });
+const state = () => ({ loaded: false, unplayable: false, playing: false, ended: false, time: 0, position: 0, length: 0, skipEmpty: true, doubleSpeed: false });
+
+// The thumb follows the engine's clock between whole seconds, and stops at the slider's end, though the clock runs on past it.
+{
+  const s = state(), e = fakeEngine({ length: 30 }), flow = createReplayFlow(s, e);
+  e.replayLoaded = true;
+  e.replayTime = 12; e.clock = 12480; flow.frame();
+  assert.deepStrictEqual([s.time, s.position], [12, 12.48]);
+  e.replayTime = 30; e.clock = 31250; e.replayAnimating = true; flow.frame();
+  assert.strictEqual(s.position, 30);
+  flow.seek(7);
+  assert.deepStrictEqual([s.time, s.position], [7, 7]);
+}
+
+// A click or a drag on the time slider lands on the exact second under the pointer. Each seek runs the battle again, so a drag
+// seeks only where the pointer rests for 150 ms, and letting go seeks to where it stopped before the replay resumes.
+{
+  let ms = 0;
+  const s = state(), e = fakeEngine(), flow = createReplayFlow(s, e, () => ms);
+  e.replayLoaded = true; flow.frame();
+  e.calls.length = 0;
+  flow.hold();
+  flow.scrub(21.4); ms += 16; flow.frame();
+  flow.scrub(22.6); ms += 16; flow.frame();
+  flow.scrub(23.2); ms += 100; flow.frame();
+  assert.deepStrictEqual(e.calls, ['pause'], 'nothing sought while the pointer moves');
+  ms += 60; flow.frame();
+  assert.deepStrictEqual([e.calls, s.time], [['pause', 'seek 23'], 23], 'rested 160 ms: sought');
+  ms += 500; flow.frame();
+  assert.strictEqual(e.calls.length, 2, 'not sought again');
+  flow.scrub(37.8); ms += 16;
+  flow.release();
+  assert.deepStrictEqual(e.calls.slice(2), ['seek 38', 'play'], 'let go: the last second first, then playing on');
+}
 
 // Nothing works until the engine has built the replay's battle; then it plays at once, with skip-empty on, as the original did.
 {
@@ -99,5 +135,38 @@ const state = () => ({ loaded: false, unplayable: false, playing: false, ended: 
   flow.setDoubleSpeed(true);
   flow.setSkipEmpty(false);
   assert.deepStrictEqual(e.mode, { skipEmpty: false, doubleSpeed: true });
+}
+
+// Previous and Next go to the marks (.scratch/replay-marks/spec.md 18): Next to the first one after the playhead, Previous to the
+// last one more than 2 s behind it, so pressed again right after a jump it goes on back. Past either end they do nothing.
+{
+  const s = { ...state(), meta: { marks: [{ at: 10 }, { at: 30 }, { at: 50 }] } }, e = fakeEngine(), flow = createReplayFlow(s, e);
+  e.replayLoaded = true; flow.frame();
+  e.replayTime = 10; flow.frame();
+  flow.jump(1);
+  assert.strictEqual(e.replayTime, 30, 'not the mark under the playhead');
+  e.replayTime = 31; flow.frame();
+  flow.jump(-1);
+  assert.strictEqual(e.replayTime, 10, 'a mark only just passed is skipped');
+  e.replayTime = 33; flow.frame();
+  flow.jump(-1);
+  assert.strictEqual(e.replayTime, 30);
+  e.calls.length = 0;
+  e.replayTime = 8; flow.frame(); flow.jump(-1);
+  e.replayTime = 50; flow.frame(); flow.jump(1);
+  assert.deepStrictEqual(e.calls, [], 'nothing before the first mark or after the last');
+}
+
+// A jump from the end screen plays from the mark, which the end screen would otherwise cover; elsewhere a paused replay stays paused.
+{
+  const s = { ...state(), meta: { marks: [{ at: 12 }] } }, e = fakeEngine({ length: 30 }), flow = createReplayFlow(s, e);
+  e.replayLoaded = true; flow.frame();
+  e.replayTime = 30; flow.frame();
+  assert.strictEqual(s.ended, true);
+  flow.jump(-1);
+  assert.deepStrictEqual([s.ended, s.playing, e.replayTime], [false, true, 12]);
+  flow.togglePlay();
+  flow.toMark(12);
+  assert.deepStrictEqual([s.playing, e.replayTime], [false, 12]);
 }
 console.log('replay flow ok');

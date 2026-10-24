@@ -48,3 +48,50 @@ for (let n = 1; n <= 40; n++) {
 }
 assert.deepStrictEqual([...tails].sort(), [0, 1, 2], 'every tail length was exercised');
 console.log('replay text ok');
+
+// Marks (server/replay.js `marks`, .scratch/replay-marks/spec.md 8-9). A worked example of the engine's smoothing: stored times
+// 1000, 3000, 5000 (BattleBegin), 25000, 25500, 26000 smooth to 1000, 2000, 3500, 14250, 19875, 22938, so message 3, an EndTurn
+// that opens a turn, sits at 10750 ms on the replay clock and the turn's first message at 16375 ms. Read from the stored times,
+// the opener would sit at 20 s instead.
+{
+  const times = [0, 2000, 4000, 24000, 24500, 25000];
+  assert.deepStrictEqual(replay.marks(times, 2, [{ index: 5, opener: 3, kind: 'rescue', seat: 2, by: 1 }]),
+    [{ at: 11, moments: [{ kind: 'rescue', seat: 2, by: 1 }] }], 'the first whole second after the opener');
+  // Moments of one turn share its mark, in the order of their messages; a knock-out names no one who did it.
+  assert.deepStrictEqual(replay.marks(times, 2, [
+    { index: 5, opener: 3, kind: 'rescue', seat: 2, by: 1 },
+    { index: 4, opener: 3, kind: 'knockout', seat: 2 },
+    { index: 3, opener: 2, kind: 'knockout', seat: 1 },
+  ]), [
+    { at: 0, moments: [{ kind: 'knockout', seat: 1 }] },
+    { at: 11, moments: [{ kind: 'knockout', seat: 2 }, { kind: 'rescue', seat: 2, by: 1 }] },
+  ]);
+}
+
+// Over made-up battles, a seek to a mark leaves the turn's first message and the moment's own message to play, and has run the
+// opener whenever a whole second lies between it and the turn's first message. The clock here uses the note's other form of the
+// smoothing, the lag g_k = floor((r_k - r_(k-1) + g_(k-1)) / 2), so the two forms check each other.
+{
+  let fallbacks = 0;
+  for (let n = 0; n < 200; n++) {
+    let t = 0, a = n + 1;
+    const rand = k => { // mulberry32
+      a = a + 0x6d2b79f5 | 0;
+      let x = Math.imul(a ^ a >>> 15, 1 | a);
+      x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x;
+      return Math.floor(((x ^ x >>> 14) >>> 0) / 2 ** 32 * k);
+    };
+    const times = Array.from({ length: 40 }, () => (t += rand(4) ? rand(1500) : rand(60000)));
+    const begin = 2, lag = [0];
+    for (let k = 1; k < times.length; k++) lag.push(Math.floor((times[k] - times[k - 1] + lag[k - 1]) / 2));
+    const d = times.map((r, k) => r - lag[k] - (times[begin] - lag[begin]));
+    for (let o = begin; o < times.length - 1; o++) {
+      const i = o + 1 + rand(times.length - o - 1);
+      const [{ at }] = replay.marks(times, begin, [{ index: i, opener: o, kind: 'knockout', seat: 1 }]);
+      assert(at * 1000 < d[o + 1] && at * 1000 < d[i], `battle ${n}: the turn is still to play after a seek to ${at}`);
+      if (at * 1000 < d[o]) { fallbacks++; assert(Math.ceil(d[o] / 1000) * 1000 >= d[o + 1], `battle ${n}: ${at} needlessly before the opener`); }
+    }
+  }
+  assert(fallbacks > 0, 'some turns began within the second of their opener');
+}
+console.log('replay marks ok');

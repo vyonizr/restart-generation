@@ -6,7 +6,7 @@
 //   E2E_NAMES_URL   name-only (ADR 0009), sending its server copy: where the engine asks for a name to go online.
 // The last two only when RG_GAME is set; without it the engine tests skip. Nothing here touches data/dev or a running
 // `npm run dev`. The played replays are cached in data/e2e/ (ignored by git: they are made from battle templates, docs/LEGAL.md)
-// and played again only when server/seed.json's `played` list changes.
+// and played again only when server/seed.json's `played` list, or the code that makes a replay and its marks, changes.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -46,10 +46,14 @@ function runSeed(env, args) {
   if (r.status !== 0) throw new Error(`server/seed.js ${args.join(' ')} failed:\n${r.stdout}${r.stderr}`);
 }
 
-// The seed's played battles, played once by Bots and kept in data/e2e/replays.db. A different `played` list starts the cache over.
+// The seed's played battles, played once by Bots and kept in data/e2e/replays.db. A different `played` list, or a change to what
+// the server keeps of a battle (its relay, its witness, the replay text and marks), starts the cache over.
+const REPLAY_CODE = ['server/battle.js', 'server/replay.js', 'server/witness.mjs'];
 function playedReplays(env) {
   const { played } = JSON.parse(fs.readFileSync(path.join(root, 'server', 'seed.json'), 'utf8'));
-  const key = crypto.createHash('sha256').update(JSON.stringify(played)).digest('hex');
+  const hash = crypto.createHash('sha256').update(JSON.stringify(played));
+  for (const file of REPLAY_CODE) hash.update(fs.readFileSync(path.join(root, file)));
+  const key = hash.digest('hex');
   const keyFile = path.join(CACHE, 'played.sha256');
   if (fs.existsSync(keyFile) && fs.readFileSync(keyFile, 'utf8') === key) return path.join(CACHE, 'replays.db');
   fs.rmSync(CACHE, { recursive: true, force: true });

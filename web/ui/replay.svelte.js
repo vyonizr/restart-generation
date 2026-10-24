@@ -10,7 +10,7 @@ import { createScreen } from './screen.js';
 import { stayAwake } from './wake.js';
 import { touch } from './device.js';
 import { createReplayFlow } from './replayflow.js';
-import { BUTTONS, usable } from './pads.js';
+import { BUTTONS, SHOULDERS, usable } from './pads.js';
 import { footageName } from '../replay-text.js';
 // Footage needs Mediabunny (footage.js), so it comes in a chunk of its own, after the page, and only to a page that can use it.
 const footageModule = () => import('./footage.js');
@@ -18,7 +18,7 @@ const footageModule = () => import('./footage.js');
 const VOLUME = 0.8;
 
 export const replay = $state({
-  meta: null,        // what the server keeps beside the replay: players, heroes, seats, environment, kind, date, result
+  meta: null,        // what the server keeps beside the replay: players, heroes, seats, environment, kind, date, result, marks
   gone: false,       // the replay doesn't exist, is 30 days old, or replays are off on this server
   booted: false,     // the engine is up: Watch and Download replay work
   loaded: false,     // the engine has built the replay's battle: the controls work
@@ -26,6 +26,7 @@ export const replay = $state({
   playing: false,
   ended: false,      // the end screen is up
   time: 0, length: 0, // whole seconds from BattleBegin
+  position: 0,        // the same clock in fractional seconds: where the time slider's thumb sits
   skipEmpty: true, doubleSpeed: false, // the engine's defaults
   volume: VOLUME, muted: false,
   // Download replay: 'checking' whether this browser can encode it, 'insecure' (WebCodecs is for secure pages only, which a LAN
@@ -135,9 +136,12 @@ const idle = () => exporting ? null : flow;
 export const togglePlay = () => idle()?.togglePlay();
 export const watchAgain = () => idle()?.watchAgain();
 export const seek = seconds => idle()?.seek(seconds);
+export const scrub = seconds => idle()?.scrub(seconds);
 export const holdSlider = () => idle()?.hold();
 export const releaseSlider = () => idle()?.release();
 export const step = direction => idle()?.step(direction);
+export const jumpMark = direction => idle()?.jump(direction);
+export const toMark = at => idle()?.toMark(at);
 export const setSkipEmpty = on => idle()?.setSkipEmpty(on);
 export const setDoubleSpeed = on => idle()?.setDoubleSpeed(on);
 export function setVolume(v) {
@@ -221,15 +225,18 @@ function save(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-// Space plays or pauses, the arrows seek by 5 seconds, F switches double speed, M mutes, wherever focus is, except for the keys the
-// focused element uses itself: every key in a text field, Space and Enter on a button or link, the arrows on a slider.
+// Space plays or pauses, the arrows seek by 5 seconds, Shift and an arrow go to the previous or next mark, F switches double speed,
+// M mutes, wherever focus is, except for the keys the focused element uses itself: every key in a text field, Space and Enter on a
+// button or link, the arrows on the volume slider (the time slider steps by 1 s only to show a mark's second, ReplayControls.svelte).
 function onKey(e) {
   if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('dialog, .login')) return;
   const t = e.target;
   const own = t.matches?.('textarea, input:not([type=range])') || (t.matches?.('button, a') && (e.key === ' ' || e.key === 'Enter'))
-    || (t.matches?.('input[type=range]') && e.key.startsWith('Arrow'));
-  const act = { ' ': togglePlay, ArrowLeft: () => step(-1), ArrowRight: () => step(1), f: () => setDoubleSpeed(!replay.doubleSpeed),
-    F: () => setDoubleSpeed(!replay.doubleSpeed), m: toggleMute, M: toggleMute }[e.key];
+    || (t.matches?.('input[type=range]:not(.time)') && e.key.startsWith('Arrow'));
+  const keys = e.shiftKey && e.key.startsWith('Arrow') ? { ArrowLeft: () => jumpMark(-1), ArrowRight: () => jumpMark(1) }
+    : { ' ': togglePlay, ArrowLeft: () => step(-1), ArrowRight: () => step(1), f: () => setDoubleSpeed(!replay.doubleSpeed),
+      F: () => setDoubleSpeed(!replay.doubleSpeed), m: toggleMute, M: toggleMute };
+  const act = keys[e.key];
   if (own || !act) return;
   e.preventDefault();
   page.input = 'keys';
@@ -238,9 +245,9 @@ function onKey(e) {
 }
 
 // A gamepad, as on the game page (pads.js): the bottom button starts the replay, then plays or pauses it; the D-pad's left and
-// right seek.
+// right seek, and the shoulder buttons go to the previous or next mark.
 function watchGamepad() {
-  const READ = { select: BUTTONS.select, left: BUTTONS.left, right: BUTTONS.right };
+  const READ = { select: BUTTONS.select, left: BUTTONS.left, right: BUTTONS.right, ...SHOULDERS };
   const was = {};
   const poll = () => {
     const pad = [...(navigator.getGamepads?.() ?? [])].find(usable);
@@ -249,7 +256,8 @@ function watchGamepad() {
       if (down && !was[control]) {
         page.input = 'gamepad';
         sound?.ctx.resume();
-        if (control !== 'select') step(control === 'left' ? -1 : 1);
+        if (control === 'previous' || control === 'next') jumpMark(control === 'previous' ? -1 : 1);
+        else if (control !== 'select') step(control === 'left' ? -1 : 1);
         else if (page.start) pressWatch();
         else togglePlay();
       }

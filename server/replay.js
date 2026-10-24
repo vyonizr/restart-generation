@@ -12,7 +12,7 @@ function engineBase64(buf) {
   return s;
 }
 
-// The engine moves each time halfway back towards the previous nonzero one, so the first must not be 0.
+// The engine moves each time halfway back towards the previous smoothed one, so the first must not be 0.
 const FIRST_MS = 1000;
 
 // `history` is the relay's messages in order, each { t: ms since the table began, raw: the whole GameMessage }.
@@ -30,4 +30,34 @@ function encode(game, history) {
   return engineBase64(Buffer.concat([length, zlib.deflateSync(bytes, { level: 2 })]));
 }
 
-module.exports = { encode };
+// Each message's time on the engine's replay clock, in ms after BattleBegin (message `begin`), as the replay player smooths the
+// stored times (docs/re/re_replay.md "What the engine does with it"): each moves halfway, rounded up, from the previous smoothed
+// time towards its own, in unsigned 32-bit arithmetic, and the messages before BattleBegin carry their lag into every later one.
+function clock(times, begin) {
+  const a = [];
+  let prev = 0;
+  for (const t of times) {
+    const r = (FIRST_MS + t) >>> 0;
+    prev = prev ? (r - ((r - prev) >>> 0 >>> 1)) >>> 0 : r;
+    a.push(prev);
+  }
+  return a.map(v => (v - a[begin]) >>> 0);
+}
+
+// The replay's marks (CONTEXT.md) from the witness's moments, each { index, opener, kind, seat, by? }: one per turn, at the start
+// of the turn, as [{ at, moments: [{ kind, seat, by? }] }] sorted by `at`. `at` is a second for seekReplay: the first whole second
+// after the turn's opener, or, when the turn's first message comes within that second, the last second before that message.
+// A seek runs every message up to `at` without drawing it, so the turn's messages, and the moments' animations, all play after
+// it (.scratch/replay-marks/research/mark-time.md).
+function marks(times, begin, moments) {
+  const d = clock(times, begin), byAt = new Map();
+  for (const m of [...moments].sort((x, y) => x.index - y.index)) {
+    const o = Math.max(m.opener, begin), j = Math.min(o + 1, m.index);
+    const at = Math.max(0, Math.min(Math.ceil(d[o] / 1000), Math.ceil(d[j] / 1000) - 1));
+    if (!byAt.has(at)) byAt.set(at, []);
+    byAt.get(at).push({ kind: m.kind, seat: m.seat, ...(m.by && { by: m.by }) });
+  }
+  return [...byAt].sort(([x], [y]) => x - y).map(([at, list]) => ({ at, moments: list }));
+}
+
+module.exports = { encode, marks };

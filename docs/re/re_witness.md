@@ -55,6 +55,17 @@ The logic's own forced end can't fire, because its clock never moves. A finished
 - **Ranks.** The per-player stats list is at `logic+0x1c`: its entry count at `+0xc` and its entry pointers at `+0x10`, indexed by player index. The rank is at entry `+0x134`: -1 while unranked, then the number of players still alive when the player fell, and 1 for the winner, as `server/bot.mjs` reads them. The relay gives each player the same index as its seat. They are final once the logic is finished.
 - [INFERENCE] If two players fall in one step, both may get the same rank, so a battle may have two players at rank 1, or none. It was never observed.
 
+## Reading moments
+
+The witness also tells the server each moment (CONTEXT.md) and the message that brought it about, for the replay's marks ([ADR 0030](../adr/0030-replay-marks-are-worked-out-by-the-witness-when-the-replay-is-saved.md)). The detail and the observations behind it are in `.scratch/replay-marks/research/moment-detection.md`. After each message it compares the state with the state after the message before:
+
+- **The index.** The worker counts the messages it was given for the table since its start, including the ones a finished logic no longer takes. That count is the message's place in the table's history, since the relay records and feeds each message in one step and the replay text keeps every one.
+- **Each seat's Commander,** read through its slot every time, because a defeated seat's Commander is freed later and its memory reused: the knock-out count at `+0x20`, which rises by one each time the seat's hero is knocked out, and the princesses at `+0x24`, the seat's own princess while she is home plus every princess it rescued.
+- **What each hero carries.** The battlefield's unit list starts at `+0x6c` (a node is `+4` next, `+8` unit). A unit whose kind at `+0xe4` is 0 is a hero, its owner seat is at `+0x30`, a removed unit has a nonzero byte at `+0x34`, and a hero's carried princess is at `+0xec`, with her owner at her own `+0x30`.
+- **A rescue** raises the rescuer's princess count while its hero carried another seat's princess before the message. When the hero carried nothing before it, the princess came to it within the same message: a knock-out handed it the victim's princess while it stood in its own castle, and the rescue defeated her seat, whose slot is now clear. Bringing its own princess home raises the count too, and is not a rescue.
+- **A knock-out** raises the knock-out count. A seat defeated in the same message has no slot left to read, so a knock-out of its hero then goes unseen; the rescue that defeated it marks that turn anyway.
+- **The turn.** The battlefield's battle turn (`+0x9c`), phase (`+0x94`) and current seat (`+0x98`). Each moment names the last message after which those three changed before its own: the opener of the turn it happened in (BattleBegin, an EndTurn, or the current player's EndGame).
+
 ## Why the logic doesn't run as a network host
 
 The Arena server ran the logic as a network host (flags `logic+0x90` bit 0), which also avoids the early-finish clause. But a host logic acknowledges each message through its connection hub, and the witness's hub has no connections. The second battle followed in the same engine then looped forever in `FUN_1005c140`, called from `FUN_10112750` (observed). The witness therefore runs it with flags 0 and patches the clause.
