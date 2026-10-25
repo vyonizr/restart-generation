@@ -115,5 +115,7 @@ export async function gateway(dir, game, played) {
     };
     check();
   }).catch(e => { child.kill(); throw e; });
-  return { url, account: { name: HERO, token: seed.tokenOf(HERO) }, stop: () => child.kill() };
+  // friend: a friend of the hero's, who joins the hero's room so that it can start (shots.mjs room).
+  const friend = FRIENDS.find(([a, , state]) => a === HERO && state === 'both')[1];
+  return { url, account: { name: HERO, token: seed.tokenOf(HERO) }, friend: { name: friend, token: seed.tokenOf(friend) }, stop: () => child.kill() };
 }

@@ -179,11 +179,10 @@ function handle(req, s, send) {
   if (!s) return send(err(REPLY.INVALID_SESSION, 'InvalidSession'));
   switch (req.cmd) {
     case CMD.UNIFIED_LOGOUT: case 104: dropSession(s); return send(ok());
-    case CMD.FILL_BOTS: // this server's own: P1 1 (CPU) or 2 (Expert) fills the empty seats of friendly room P2 with bots, when this player starts it
+    case CMD.FILL_BOTS: // this server's own: P1 1 fills the empty seats of friendly room P2 with bots when this player starts it; an older page's 2 (Expert) counts as 1 (docs/adr/0037)
       s.fillBots = ['1', '2'].includes(String(p[1])) ? Number(p[2]) : 0;
-      s.botLevel = String(p[1]) === '2' ? 'expert' : 'cpu';
       return send(ok());
-    case CMD.BOT_CHOICE: // this server's own: what Start in friendly room P1 does about bots: ask, level, go or gone (casino.botQuestion)
+    case CMD.BOT_CHOICE: // this server's own: what Start in friendly room P1 does about bots: ask, go or gone (casino.botQuestion)
       return send(ok([[gameServer.botQuestion(Number(p[1]))]]));
     case CMD.RETRIEVE_ALL_EVENTS: case 311: case 130: { // long poll
       // A resent copy of the held poll (same R) takes it over, so its events go to the newest copy; nothing is answered or
@@ -372,10 +371,9 @@ const DIST_DIR = path.join(WEB_DIR, 'dist');
 // RG_GAME, the server copy: the ResetGeneration folder or the standalone .zip. A server that isn't public sends it to every visitor;
 // a public one only for its download code (docs/adr/0031). Without it, the page asks players for their own files.
 if (process.env.RG_GAME) import('../shared/game.mjs').then(m => m.loadGame()).then(f => {
-  require('./aiprofiles').apply(f); // a bot-ai.json key the game's XML doesn't have stops the server here
   log(`server copy from ${process.env.RG_GAME}, sent ${MODE.public ? 'only for the download code (npm run download-code)' : 'to every visitor'}`);
   return sender.setGame(f);
-}).catch(e => { log(`RG_GAME: ${e.message}`); if (/bot-ai\.json/.test(e.message)) process.exit(1); });
+}).catch(e => log(`RG_GAME: ${e.message}`));
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
 
 const httpServer = http.createServer((req, res) => {

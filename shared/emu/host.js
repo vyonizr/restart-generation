@@ -22,12 +22,6 @@ export const UNLOCKS = [
   { what: 'no story locked', va: 0x100c8a98, from: '8b570433c9', to: 'eb4c' }, // FUN_100c89c0: a story with no playable mission shows 0%
   { what: 'no hero grayed out', va: 0x100dc850, from: '8b41348b4c2404c6040101c20400', to: 'c20400' }, // ret 4
 ];
-// A player alone in their friendly room can press Start, for a match the server fills with bots. The lobby
-// otherwise shows and accepts Start only with another member listed (FUN_100eaaf0, FUN_100eadd0 key 4; docs/adr/0008).
-export const LONE_START = [
-  { what: 'Start shown when alone', va: 0x100eab1b, from: '8b463485c07462', to: '8b463485c09090' },
-  { what: 'Start accepted when alone', va: 0x100eae95, from: '8b462c85c0762d', to: '8b462c85c09090' },
-];
 // A headless engine (a bot, server/bot.mjs, or the witness, server/witness.mjs) has no battle screen: FUN_1000f610, the
 // battlefield's "busy" check, waits for its visual events, which only a local player's battle screen plays back. Without
 // this, a bot's AI (FUN_100b1f00) waits forever and a witness's battle is never finished (docs/re/re_witness.md).

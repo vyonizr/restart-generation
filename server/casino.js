@@ -184,7 +184,7 @@ function lockPlayer(s, lock, api) {
 // A friendly start with the bot switch on: bots fill every empty seat up to four. The players wait on
 // GAME_STARTING while the bots start, about 15 s. The room closes only once the table starts; if it can't,
 // the players are unlocked back into it.
-function startWithBots(c, players, level, api) {
+function startWithBots(c, players, api) {
   c.starting = true;
   for (const p of players) lockPlayer(p, true, api);
   const fail = list => {
@@ -193,7 +193,7 @@ function startWithBots(c, players, level, api) {
     for (const b of list) bots.stop(b);
     for (const p of players) if (api.sessions.has(p.sid)) lockPlayer(p, false, api);
   };
-  bots.spawn(MAX_SEATS - players.length, api.log, level).then(list => {
+  bots.spawn(MAX_SEATS - players.length, api.log).then(list => {
     const humans = players.filter(p => api.sessions.has(p.sid)), seated = [...humans, ...list];
     if (!humans.length || seated.length < 2 || !battle.seatCounts().has(seated.length)) return fail(list);
     closeFriendly(c, api);
@@ -202,17 +202,16 @@ function startWithBots(c, players, level, api) {
 }
 
 // What the page does when a member presses Start in room c (shared/snap.js): 'gone' drops the Start because the
-// room can't start, 'ask' puts the bot question (no, CPU or Expert) to the player when 2 or 3 people are listed, 'level'
-// asks a player alone which level fills the seats, and 'go' sends the Start on.
+// room can't start, 'ask' asks whether bots fill the empty seats when 2 or 3 people are listed, and 'go' sends the
+// Start on. A player alone gets no bots (docs/adr/0037), so their Start goes on and fails as the game's own would.
 function botChoice(c, canFill) {
   if (!c || c.starting) return 'gone';
   const n = c.lobby.length;
-  if (!canFill || n >= MAX_SEATS) return 'go';
-  return n > 1 ? 'ask' : 'level';
+  return canFill && n > 1 && n < MAX_SEATS ? 'ask' : 'go';
 }
 
-// A player alone always gets bots (CPU level unless the page asked for Expert); with others listed, only if the starter said yes.
-const fillsWithBots = (n, answeredYes, canFill) => canFill && n >= 1 && n < MAX_SEATS && (n === 1 || answeredYes);
+// Bots fill the empty seats only when 2 or 3 people are listed and the starter said yes.
+const fillsWithBots = (n, answeredYes, canFill) => canFill && answeredYes && n > 1 && n < MAX_SEATS;
 const canFillWithBots = () => bots.available() && battle.seatCounts().has(MAX_SEATS);
 
 function closeFriendly(c, api) {
@@ -297,15 +296,14 @@ function onCasino(s, type, kind, action, body, api) {
     case A.FRIENDLY_START: { // any listed member may start (no host check in the client)
       const c = friendly.get(body.readUInt32LE(0));
       const players = c && !c.starting ? c.lobby.slice(0, MAX_SEATS) : [];
-      const answered = Boolean(c) && s.fillBots === c.id, level = answered ? s.botLevel : 'cpu';
-      const withBots = fillsWithBots(players.length, answered, canFillWithBots());
+      const withBots = fillsWithBots(players.length, Boolean(c) && s.fillBots === c.id, canFillWithBots());
       s.fillBots = 0; // the answer is for this start only
       if (!players.length || (!withBots && (players.length < 2 || !battle.seatCounts().has(players.length)))) {
         return send(s, api, type, Buffer.concat([header(RESPONSE, action), u8(1), u32(0)])); // MATCHMAKING_FAILED
       }
       reply();
-      api.log(`friendly arena ${c.id} starts with ${players.map(p => p.name).join(', ')}${withBots ? ` and ${level} bots` : ''}`);
-      if (withBots) return startWithBots(c, players, level, api);
+      api.log(`friendly arena ${c.id} starts with ${players.map(p => p.name).join(', ')}${withBots ? ' and bots' : ''}`);
+      if (withBots) return startWithBots(c, players, api);
       closeFriendly(c, api);
       return startTable(players, T.FRIENDLY_CASINO, api);
     }

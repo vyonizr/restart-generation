@@ -50,25 +50,22 @@ export class SnapClient {
   // whether to send the Start on: not if another member's Start closed the room meanwhile.
   async askBots(room) {
     const query = async () => (await this.request(CMD.BOT_CHOICE, { 1: room })).lines[0];
-    let state = await query();
-    // 'ask' offers no bots, CPU or Expert; 'level' (a player alone) offers CPU or Expert. If the room changes while the
-    // box is open, the box closes and the new state decides: a new question, or the Start going on or being dropped.
-    while (state === 'ask' || state === 'level') {
-      const question = this.bots.ask(state === 'level');
-      let changed = null, asking = false; // a query that is still being resent skips the next ones
-      const watch = setInterval(async () => {
-        if (asking) return;
-        asking = true; const s = await query(); asking = false;
-        if (s !== state) { changed = s; question.close(); }
-      }, 2000);
-      const answer = await question.answer; // 'none', 'cpu' or 'expert', or null once the room changed
-      clearInterval(watch);
-      if (answer === null) { state = changed ?? state; continue; }
-      if (answer === 'none' && state === 'level') return false; // Back: a player alone can't start without bots
-      await this.request(CMD.FILL_BOTS, { 1: { none: 0, cpu: 1, expert: 2 }[answer], 2: room });
-      return true;
-    }
-    return state !== 'gone';
+    const state = await query();
+    if (state !== 'ask') return state !== 'gone';
+    // 'ask' asks whether bots fill the empty seats. If the room changes while the box is open (someone joins, leaves or
+    // starts it), the box closes and the new state decides whether the Start goes on or is dropped.
+    const question = this.bots.ask();
+    let changed = null, asking = false; // a query that is still being resent skips the next ones
+    const watch = setInterval(async () => {
+      if (asking) return;
+      asking = true; const s = await query(); asking = false;
+      if (s !== state) { changed = s; question.close(); }
+    }, 2000);
+    const answer = await question.answer; // true for yes, false for no, or null once the room changed
+    clearInterval(watch);
+    if (answer === null) return changed !== 'gone';
+    await this.request(CMD.FILL_BOTS, { 1: answer ? 1 : 0, 2: room });
+    return true;
   }
 
   // ---- transport ----

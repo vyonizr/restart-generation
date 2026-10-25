@@ -179,7 +179,7 @@ One of the game's 18 playfield layouts that a battle is played on. Its look is c
 _Avoid_: stage, arena
 
 **Bot**:
-A player the computer controls in an online battle, filling a seat no person took. Player-facing text calls it "CPU", the game's own word.
+A player the computer controls in an online friendly match, filling a seat no person took. Player-facing text calls it "CPU", the game's own word. The engine's own opponents in Arcade Mode aren't bots.
 _Avoid_: CPU (outside player-facing text), AI player, computer
 
 **Person**:
@@ -189,10 +189,6 @@ _Avoid_: human player, real player
 **AI profile**:
 One of the engine's situational weight sets that decide how a bot values its moves, such as the default one or the one used while a princess is carried.
 _Avoid_: AI level, strategy
-
-**Difficulty**:
-How hard a bot plays, chosen by the player who starts a friendly match with bots: **CPU** runs the stock AI profiles; **Expert** picks its heroes from a stronger pool and also applies the AI-profile changes listed in `server/bot-ai.json`, which lists none, so its AI otherwise plays like **CPU**. It is one choice per match for all of its bots, not a setting of the server or the account.
-_Avoid_: AI level, skill
 
 **Observer**:
 Someone attached to a battle who doesn't play in it. A player who waits while other players take their turns is still a player, not an observer.

@@ -26,8 +26,8 @@ export const CMD = {
   DECLINE_BUDDY: 308,
   REMOVE_BUDDY: 309,
   // Not SNAP Mobile commands: this server's own.
-  FILL_BOTS: 900,  // P1 1 (CPU), 2 (Expert) or 0 (no bots), P2 room id: fill the empty seats when this player starts that room
-  BOT_CHOICE: 901, // P1 room id; replies ask, level, go or gone for a Start in that room
+  FILL_BOTS: 900,  // P1 1 (bots) or 0 (no bots), P2 room id: fill the empty seats when this player starts that room
+  BOT_CHOICE: 901, // P1 room id; replies ask, go or gone for a Start in that room
 };
 
 // Events (the first field of each line of a long-poll reply).

@@ -1,7 +1,8 @@
-// The dialogs the engine opens over the game screen: the name a server without accounts asks for when the player goes online
-// (ADR 0009), and the CPU level a player alone in a friendly room is asked for at Start (ADR 0008).
+// The dialogs the page opens over the game screen: the name a server without accounts asks for when the player goes online
+// (ADR 0009), and the CPU question at a friendly Start with 2 or 3 people in the room (ADR 0008, ADR 0037).
 import { test, expect, seed } from '../fixtures.mjs';
 import { start, mainMenu, walk, engineTime, byKey, ONLINE } from './engine.mjs';
+import { tokenOf } from '../../server/seed.js';
 
 test('on a server without accounts, going online asks for a name; Cancel goes back, and a name logs in', async ({ page }) => {
   await page.goto(process.env.E2E_NAMES_URL);
@@ -23,26 +24,43 @@ test('on a server without accounts, going online asks for a name; Cancel goes ba
   await expect.poll(async () => (await (await page.request.get(`${process.env.E2E_NAMES_URL}/status`)).json()).online, { timeout: 30000 }).toBe(1);
 });
 
-test.describe('a member with friends', () => {
-  // Making a room needs a friend; the arrow keys need the default keys, which a member's saved game may have changed.
-  const member = seed.accounts.find(a => a.kind === 'member' && !a.keys && seed.friends.some(([x, y, state]) => state === 'both' && (x === a.name || y === a.name)));
-  test.use({ account: member.name });
+// Two members who are friends both ways, so one can make a room and the other sees it; the arrow keys need the default keys, which
+// a member's saved game may have changed.
+const plain = seed.accounts.filter(a => a.kind === 'member' && !a.keys).map(a => a.name);
+const friends = (x, y) => seed.friends.some(([a, b, state]) => state === 'both' && ((a === x && b === y) || (a === y && b === x)));
+const [host, guest] = plain.flatMap(x => plain.filter(y => y !== x && friends(x, y)).map(y => [x, y]))[0];
 
-  test('alone in a friendly room, Start asks for the CPU level, with CPU chosen', async ({ page }) => {
+test('with 2 people in a friendly room, Start asks whether CPU players fill the empty seats, and Yes starts the battle', async ({ browser, baseURL }) => {
+  test.setTimeout(300000); // two engines on one machine, then the bots' start
+  const online = async name => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [{ origin: baseURL, localStorage: [{ name: 'rg:account', value: JSON.stringify({ name, token: tokenOf(name) }) }] }] } });
+    const page = await context.newPage();
     await start(page);
     const keys = byKey(page);
     await mainMenu(page, keys);
     await walk(page, keys, ONLINE);
     await engineTime(page, 3000, { after: true }); // the Arena login
-    // Online opens on Quick Match, with Your Stats, Rankings and Create Room below it; Create Room asks for a hero, then waits
-    // for players with Start.
-    await walk(page, keys, ['down', 'down', 'down', 'select', 'select']);
-    await keys('select');
-    const dialog = page.getByRole('dialog', { name: 'Choose the CPU level' });
-    await expect(dialog.getByRole('button', { name: 'CPU', exact: true })).toBeFocused();
-    await expect(dialog.getByRole('button', { name: 'No' })).toHaveCount(0); // alone, the room can't start without them
-    await dialog.getByRole('button', { name: 'CPU', exact: true }).click();
-    await expect(dialog).toBeHidden();
-    await expect(page.getByLabel('Game screen')).toBeFocused();
-  });
+    return [page, keys];
+  };
+  // Online opens on Quick Match, with Your Stats, Rankings and Create Room below it; Create Room asks for a hero, then waits for
+  // players. A friend's room is listed just above Quick Match, and entering it asks for a hero too.
+  const [page, keys] = await online(host);
+  await walk(page, keys, ['down', 'down', 'down', 'select', 'select']);
+  const [other, otherKeys] = await online(guest);
+  await walk(other, otherKeys, ['up', 'select', 'select']);
+  await engineTime(page, 3000, { after: true }); // the room lists the guest, and Start appears
+  await keys('select');
+  const dialog = page.getByRole('dialog', { name: 'Fill the empty seats with CPU players?' });
+  const yes = dialog.getByRole('button', { name: 'Yes' }), no = dialog.getByRole('button', { name: 'No' });
+  await expect(yes).toBeFocused();
+  await keys('left');
+  await expect(no).toBeFocused();
+  await keys('right');
+  await expect(yes).toBeFocused();
+  await keys('select');
+  await expect(dialog).toBeHidden();
+  await expect(page.getByLabel('Game screen')).toBeFocused();
+  await page.waitForFunction(() => window.rgStats?.battle, null, { timeout: 120000 }); // the bots start with the battle
+  await other.context().close();
+  await page.context().close();
 });

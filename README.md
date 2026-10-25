@@ -74,19 +74,17 @@ On a server without Discord sign-in, the Start screen shows the name you play on
 
 ### CPU players
 
-In a friendly match, CPU players can fill the empty seats. They need the game location on your server: see [Optional: set the game location](#optional-set-the-game-location).
+In a friendly match with 2 or 3 people in the room, CPU players can fill the empty seats. They need the game location on your server: see [Optional: set the game location](#optional-set-the-game-location).
 
 1. Select **Start** in your room.
-2. Choose the CPU level:
-   - If you're alone in the room, choose **CPU** or **Expert**.
-   - If 2 or 3 people are in the room, the page asks "Fill the empty seats with CPU players?" Choose **CPU** or **Expert**. To play with people only, choose **No**.
+2. The page asks "Fill the empty seats with CPU players?" Choose **Yes**. To play with people only, choose **No**.
 
-   To move between the choices, use Left and Right (or the D-pad), and press Select. Back chooses **No**, or, when you're alone, cancels the start. You can also click a choice.
+   To move between the choices, use Left and Right (or the D-pad), and press Select. Back chooses **No**. You can also click a choice.
 3. Wait about 15 seconds. The CPU players start with the battle.
 
-**CPU** is the AI of the game, with a random hero. **Expert** chooses its hero from a list of strong heroes and otherwise plays like **CPU**.
+CPU players are the AI of the game, each with a random hero.
 
-Ranked matches don't have CPU players.
+A room shows **Start** only once someone else is in it. To play against CPU players alone, use Arcade Mode in Single-Player. Ranked matches don't have CPU players.
 
 ### Online battles need battle templates
 

@@ -1,6 +1,6 @@
 // Self-play: a base Bot against a candidate Bot, headless (docs/adr/0012, ticket 06).
 // The base Bot runs the game's own AI profiles, or the changes in --baseline. The candidate runs them with the changes in
-// --candidate (the format of server/bot-ai.json). Each battle starts a throwaway gateway's Bot engines
+// --candidate (the format of server/aiprofiles.js). Each battle starts a throwaway gateway's Bot engines
 // (server/bot.mjs), which queue in ranked Quick Match like people and are seated at one table. Each engine
 // reports its own result from the engine's rank table (rank 1 won); the server's guess (server/battle.js) isn't used.
 // The gateway gets the server copy, so its witness follows every battle (docs/adr/0020); a lane fails when the witness's
@@ -9,7 +9,7 @@
 //
 // Usage: node --env-file=.env tools/selfplay.mjs [--battles 20] [--seed N] [--candidate deltas.json] [--baseline deltas.json]
 //          [--lanes 1] [--speed 1] [--timeout 20] [--pass 0.7] [--same-hero] [--players 2] [--replays] [--out results.json]
-//   --candidate  AI profile changes for the candidate (default server/bot-ai.json)
+//   --candidate  AI profile changes for the candidate (default none: the game's own profiles, a mirror match)
 //   --baseline   AI profile changes for the base Bot (default none: the game's own profiles)
 //   --seed       picks each battle's two heroes and which Bot is queued first (default random, printed)
 //   --lanes      battles run at once, each on its own throwaway gateway (default 1); each needs about 1.5 GB, more with --players
@@ -46,9 +46,9 @@ const LANES = Math.max(1, Math.min(WANTED_LANES, Math.floor((os.freemem() - 3e9)
 if (LANES < WANTED_LANES) console.log(`Asked for ${WANTED_LANES} lanes; running ${LANES}, which is what the free memory and cores allow.`);
 const SEED = +arg('seed', Math.floor(Math.random() * 2 ** 32)) >>> 0;
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const candidateFile = path.resolve(arg('candidate', path.join(root, 'server', 'bot-ai.json')));
+const candidateFile = arg('candidate', '') && path.resolve(arg('candidate', ''));
 const baselineFile = arg('baseline', '') && path.resolve(arg('baseline', ''));
-const SIDES = { base: baselineFile ? aiProfiles.load(baselineFile) : [], candidate: aiProfiles.load(candidateFile) };
+const SIDES = { base: baselineFile ? aiProfiles.load(baselineFile) : [], candidate: candidateFile ? aiProfiles.load(candidateFile) : [] };
 if (!process.env.RG_GAME) { console.error('set RG_GAME (npm run selfplay reads .env)'); process.exit(2); }
 if (JSON.stringify(SIDES.base) === JSON.stringify(SIDES.candidate)) console.log('Both sides have the same changes, so this is a mirror match.');
 const other = side => (side === 'base' ? 'candidate' : 'base');
@@ -157,7 +157,7 @@ const schedule = Array.from({ length: BATTLES }, (_, i) => {
   return { n: i + 1, heroes: { base: a, candidate: SAME_HERO ? a : b }, first: rand() < 0.5 ? 'base' : 'candidate' };
 });
 const results = [], t0 = Date.now();
-console.log(`seed ${SEED}, ${BATTLES} battles, ${LANES} lane${LANES > 1 ? 's' : ''}, speed ${SPEED}x, candidate ${path.basename(candidateFile)}, base ${baselineFile ? path.basename(baselineFile) : 'stock'}`);
+console.log(`seed ${SEED}, ${BATTLES} battles, ${LANES} lane${LANES > 1 ? 's' : ''}, speed ${SPEED}x, candidate ${candidateFile ? path.basename(candidateFile) : 'stock'}, base ${baselineFile ? path.basename(baselineFile) : 'stock'}`);
 await Promise.all(Array.from({ length: LANES }, (_, i) => startLane(i)));
 
 let next = 0;

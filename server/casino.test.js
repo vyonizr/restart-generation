@@ -6,16 +6,17 @@ const { botChoice, fillsWithBots, finishMatch, abandonMatch, fameLevel } = requi
 const room = n => ({ lobby: Array(n).fill({}) });
 assert.strictEqual(botChoice(undefined, true), 'gone');
 assert.strictEqual(botChoice({ ...room(2), starting: true }, true), 'gone');
-assert.strictEqual(botChoice(room(1), true), 'level'); // alone: the player picks the level
+assert.strictEqual(botChoice(room(1), true), 'go');    // alone: no bots, and the Start fails as the game's own would
 assert.strictEqual(botChoice(room(2), true), 'ask');
 assert.strictEqual(botChoice(room(3), true), 'ask');
 assert.strictEqual(botChoice(room(4), true), 'go');   // no empty seat
 assert.strictEqual(botChoice(room(2), false), 'go');  // the server can't run bots
 
-assert.strictEqual(fillsWithBots(1, false, true), true);
-assert.strictEqual(fillsWithBots(1, false, false), false);
+assert.strictEqual(fillsWithBots(1, true, true), false);  // alone, even with an older page's yes
 assert.strictEqual(fillsWithBots(2, true, true), true);
+assert.strictEqual(fillsWithBots(3, true, true), true);
 assert.strictEqual(fillsWithBots(3, false, true), false);
+assert.strictEqual(fillsWithBots(2, true, false), false);
 assert.strictEqual(fillsWithBots(4, true, true), false);
 console.log('friendly bot choice ok');
 
@@ -38,28 +39,26 @@ import('../shared/snap.js').then(({ startRoom }) => {
 // The page holds a Start while it asks, and sends the answer first.
 import('../shared/snap.js').then(async ({ SnapClient }) => {
   // answers: what each question gets, in order; undefined leaves that question open until the room changes.
+  // Resolves with whether the Start goes on, the commands sent, and how many questions were asked.
   const run = async (choices, answers = []) => {
-    const sent = [], asked = [], c = new SnapClient({ ui: {} });
+    const sent = [], c = new SnapClient({ ui: {} });
+    let asked = 0;
     c.request = async (cmd, params) => { sent.push([cmd, params[1]]); return { lines: [cmd === 901 ? choices.shift() : ''] }; };
-    c.bots = { ask: alone => {
-      asked.push(alone);
+    c.bots = { ask: () => {
+      asked++;
       const answer = answers.shift(), p = { close: () => resolve(null) }; let resolve;
       p.answer = new Promise(r => { resolve = r; if (answer !== undefined) r(answer); });
       return p;
     } };
     return [await c.askBots(1002), sent, asked];
   };
-  assert.deepStrictEqual(await run(['ask'], ['cpu']), [true, [[901, 1002], [900, 1]], [false]]);
-  assert.deepStrictEqual(await run(['ask'], ['expert']), [true, [[901, 1002], [900, 2]], [false]]);
-  assert.deepStrictEqual(await run(['ask'], ['none']), [true, [[901, 1002], [900, 0]], [false]]);
-  assert.deepStrictEqual(await run(['level'], ['expert']), [true, [[901, 1002], [900, 2]], [true]]); // alone: two buttons
-  assert.deepStrictEqual(await run(['level'], ['cpu']), [true, [[901, 1002], [900, 1]], [true]]);
-  assert.deepStrictEqual(await run(['level'], ['none']), [false, [[901, 1002]], [true]]);           // Back: no Start without bots
-  assert.deepStrictEqual(await run(['go']), [true, [[901, 1002]], []]);   // full, or no bots on this server: no question
-  assert.deepStrictEqual(await run(['gone']), [false, [[901, 1002]], []]); // another member started the match
-  assert.deepStrictEqual(await run(['ask', 'gone']), [false, [[901, 1002], [901, 1002]], [false]]); // closed while asking
-  // Someone joins a lone player's room while the box is open: it closes and the other question opens.
-  assert.deepStrictEqual(await run(['level', 'ask'], [undefined, 'expert']), [true, [[901, 1002], [901, 1002], [900, 2]], [true, false]]);
+  assert.deepStrictEqual(await run(['ask'], [true]), [true, [[901, 1002], [900, 1]], 1]);
+  assert.deepStrictEqual(await run(['ask'], [false]), [true, [[901, 1002], [900, 0]], 1]);
+  assert.deepStrictEqual(await run(['go']), [true, [[901, 1002]], 0]);   // full, alone, or no bots on this server: no question
+  assert.deepStrictEqual(await run(['gone']), [false, [[901, 1002]], 0]); // another member started the match
+  assert.deepStrictEqual(await run(['ask', 'gone']), [false, [[901, 1002], [901, 1002]], 1]); // closed while asking
+  // The others leave while the box is open: it closes and the Start goes on, for the server to refuse.
+  assert.deepStrictEqual(await run(['ask', 'go']), [true, [[901, 1002], [901, 1002]], 1]);
   console.log('page bot question ok');
 });
 

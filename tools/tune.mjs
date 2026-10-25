@@ -1,6 +1,6 @@
 // Automated tuning of the Bots' AI profiles by self-play (docs/adr/0012, ticket 07). No human measures anything.
 //
-// It keeps a current best set of changes (the format of server/bot-ai.json), starting from none. Each step proposes a
+// It keeps a current best set of changes (the format of server/aiprofiles.js), starting from none. Each step proposes a
 // candidate (the best plus one change: first a list of hypotheses taken from reading the profiles, then random scalings of
 // related keys) and plays it against the best in tools/selfplay.mjs. A candidate that wins enough of the decided battles
 // becomes the best. After every few candidates the best plays the game's own profiles, which gives the strength curve;

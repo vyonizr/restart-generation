@@ -74,9 +74,9 @@ To check that replays play back the battles as they were played, run self-play w
 
 If `RG_GAME` is set, the server can fill friendly matches with bots, players that the server controls. A `--public` server never runs bots, whatever `RG_GAME` says.
 
-The player who selects **Start** in a friendly room chooses the difficulty, **CPU** or **Expert**, and a bot fills every empty seat. With 2 or 3 people in the room, they can also choose **No** to play with people only. For what players see, see [CPU players](../README.md#cpu-players). The game lets only a player with at least one friend create a room. Ranked matches never get bots, and the Java client gets no question and starts with people only.
+When 2 or 3 people are in a friendly room, the player who selects **Start** chooses whether bots fill the empty seats. For what players see, see [CPU players](../README.md#cpu-players). A player alone in a room can't start it, as in the original game ([ADR 0037](adr/0037-bots-fill-seats-only-for-2-or-3-people-with-no-difficulty-choice.md)), and the game lets only a player with at least one friend create a room. Ranked matches never get bots, and the Java client gets no question and starts with people only.
 
-**CPU** runs the game's own AI profiles with a random hero. **Expert** chooses its hero from `server/bot-heroes.json` and also applies the AI-profile changes listed in `server/bot-ai.json`. That file lists none, so Expert's AI otherwise plays like CPU's, and self-play hasn't shown Expert to be harder ([ADR 0012](adr/0012-bots-run-with-retuned-ai-profiles.md)).
+Bots run the game's own AI profiles, each with a random hero.
 
 Each bot runs the game in a worker thread on the server and starts when the match does, which takes about 15 seconds. Each bot needs about 400 MB of memory.
 

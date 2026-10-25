@@ -160,9 +160,10 @@ export function scenes({ browser, enc, gw, out, add, battles, arena }) {
       }
     }),
 
-    // A friendly room (e2e/engine/dialogs.spec.mjs): Online, Create Room, a hero, Start alone, Expert, and the battle that starts.
+    // A friendly room (e2e/engine/dialogs.spec.mjs): Online, Create Room, a hero; a friend enters the room, then Start, Yes to CPU
+    // players, and the battle that starts.
     room: aspect => arena(async () => {
-      const context = await open(browser, gw, aspect);
+      const context = await open(browser, gw, aspect), friendContext = await open(browser, gw, aspect, { 'rg:account': JSON.stringify(gw.friend) });
       try {
         const page = await clockedPage(context);
         const press = presser(page, aspect);
@@ -171,14 +172,26 @@ export function scenes({ browser, enc, gw, out, add, battles, arena }) {
         await walk(page, press, ['down', 'down', 'select']);
         await pass(page, 3000); // the Arena login
         await walk(page, press, ['down', 'down', 'down', 'select', 'select']);
+        // The friend's Online menu lists the hero's room just above Quick Match. Once in it, the friend's engine runs on the real
+        // clock, so it keeps up with the battle.
+        const friend = await clockedPage(friendContext);
+        const friendPress = presser(friend, aspect);
+        await ready(friend);
+        await mainMenu(friend, friendPress);
+        await walk(friend, friendPress, ['down', 'down', 'select']);
+        await pass(friend, 3000);
+        await walk(friend, friendPress, ['up', 'select', 'select']);
+        await friend.clock.resume();
+        await pass(page, 3000); // the room lists the friend, and Start appears
         await press('select');
         await until(page, () => Boolean(document.querySelector('#bots-ask')), null, 30000);
-        await shot(page, aspect, 'cpu-level', 'rooms');
-        await page.locator('#bots-expert').click({ force: true });
+        await shot(page, aspect, 'cpu-question', 'rooms');
+        await page.locator('#bots-yes').click({ force: true });
         await until(page, () => Boolean(window.rgStats?.battle));
         await pass(page, 8000);
         await shot(page, aspect, 'room-battle', 'rooms');
       } finally {
+        await friendContext.close();
         await context.close();
       }
     }),

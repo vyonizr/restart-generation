@@ -1,7 +1,7 @@
 // Browser host: gets the game files, runs the engine in the emulator, draws frames to the canvas, forwards the keyboard, the
 // touch pad and the gamepad and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page`
 // (page.svelte.js).
-import { GameHost, UNLOCKS, LONE_START, REPLAY_WIDTH, REPLAY_HEIGHT } from '../../../../shared/emu/host.js';
+import { GameHost, UNLOCKS, REPLAY_WIDTH, REPLAY_HEIGHT } from '../../../../shared/emu/host.js';
 import { createScreen } from './screen.js';
 import { SnapClient } from '../../../../shared/snap.js';
 import { page, padSession } from '../page.svelte.js';
@@ -101,10 +101,9 @@ async function main(canvas) {
   await new Promise(r => setTimeout(r));
   const login = accounts ? accountLogin(accounts) : createNameLogin();
   const snap = new SnapClient({ url: 'snap', ui: { ...login, replaySaved, battleJoined }, log: s => console.warn('[snap]', s) });
-  const bots = await botsAvailable();
-  if (bots) snap.bots = botQuestion;
+  if (await botsAvailable()) snap.bots = botQuestion;
   // Every story and hero is open only on a server that isn't public (ADR 0007); elsewhere they are earned.
-  const patches = [...(server?.unlockAll ? UNLOCKS : []), ...(bots ? LONE_START : [])];
+  const patches = server?.unlockAll ? UNLOCKS : [];
   window.rgPatches = patches.map(p => p.what); // exposed for debugging, like rgStats
   const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: LANGUAGE, snap: snap.methods(), patches, board: true });
   snap.attach(game);

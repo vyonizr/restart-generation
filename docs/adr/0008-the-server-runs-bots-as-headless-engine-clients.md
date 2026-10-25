@@ -8,9 +8,9 @@ In-memory patches (ADR 0007) apply to the bot's engine copy too. Three of them m
 - The battle doesn't end when every player is an AI player, which is what the bot sees right after its own seat joins.
 - The game never reports itself busy. Its busy check waits for visual events that only a local player's battle screen plays back, and the AI doesn't act while the game is busy.
 
-A bot's engine can also run retuned AI profiles, as data in its own copy of `gameplay.pak`; ADR 0012 covers that.
+ADR 0012 let a bot's engine run retuned AI profiles, as data in its own copy of `gameplay.pak`; since ADR 0037, only self-play's bots do.
 
-The browser client also gets two patches when the server can run bots: the friendly lobby shows and accepts **Start** for a player alone in the room, who picks the Bots' difficulty (ADR 0012) and gets bots in every empty seat. When 2 or 3 people are listed, the page holds the engine's start message, asks "Fill the empty seats with CPU players?" in a box over the game, and sends the answer before the start message goes on. The box offers No, CPU and Expert (ADR 0012): Left and Right move between them, Select presses the focused one and Back answers No. Any member who presses **Start** can answer, not only the host. The server tells the page whether to ask, and the page drops the held start if another member started the match meanwhile. With 4 people listed, or on a server that can't run bots, **Start** works as before. The game still lets only a player with at least one friend create a room.
+The browser client also asks when the server can run bots. When 2 or 3 people are listed, the page holds the engine's start message, asks "Fill the empty seats with CPU players?" in a box over the game, and sends the answer before the start message goes on. The box offers No and Yes: Left and Right move between them, Select presses the focused one and Back answers No. Any member who presses **Start** can answer, not only the host. The server tells the page whether to ask, and the page drops the held start if another member started the match meanwhile. With 4 people listed, or on a server that can't run bots, **Start** works as before. The game still lets only a player with at least one friend create a room. Changed by [ADR 0037](0037-bots-fill-seats-only-for-2-or-3-people-with-no-difficulty-choice.md): a patch used to let a player alone press **Start** and get bots, and the box offered a difficulty (ADR 0012).
 
 ## Considered options
 
@@ -24,11 +24,11 @@ The browser client also gets two patches when the server can run bots: the frien
 - The page and this server add three messages of their own, outside the original protocols:
   - SNAP command `901` asks what **Start** in a room does about bots: `ask`, `go` or `gone`.
   - SNAP command `900` carries the answer for the next start.
-  - `GET /bots` tells the page whether to apply the patches and ask.
+  - `GET /bots` tells the page whether to ask.
 
   The engine never sees them. The page recognizes the start message by its bytes.
 - While the box is open the player is already locked into "Game starting", so it has no Cancel.
-- Bots need the server's own copy of the game (`RG_GAME`). Without it, the page never asks and applies no bot patches. A `--public` server never runs bots, even with `RG_GAME` set: it gets no SNAP address for them, `bots.available()` stays false, and `bots.spawn` starts nothing.
+- Bots need the server's own copy of the game (`RG_GAME`). Without it, the page never asks. A `--public` server never runs bots, even with `RG_GAME` set: it gets no SNAP address for them, `bots.available()` stays false, and `bots.spawn` starts nothing.
 - Each bot is a full emulator: a worker thread with 350 to 410 MB of memory. In battle it uses little CPU, about 2% of a core, because it never draws the battle.
 - A bot's password is a key that exists only in the server process, and its account is never saved.
 - The AI decides at once, with no visible thinking delay, and plays at its full strength: its think budget is measured on the engine's virtual clock, so it always gets the maximum.

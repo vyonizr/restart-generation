@@ -340,17 +340,16 @@ The page also sends two SNAP commands that only this server defines:
 
 | C | Name | Params | Response fields |
 | --- | --- | --- | --- |
-| 900 | Fill bots | P1 `1` (**CPU**), `2` (**Expert**), or `0` (no bots); P2 friendly room id | None |
-| 901 | Bot choice | P1 friendly room id | One of `ask`, `level`, `go`, or `gone` |
+| 900 | Fill bots | P1 `1` (yes) or `0` (no); P2 friendly room id | None |
+| 901 | Bot choice | P1 friendly room id | One of `ask`, `go`, or `gone` |
 
 The page sends 901 when the player presses Start in a friendly room. The answer tells the page what to do:
 
-- `ask`: two or three people are listed, so the page asks the player whether to fill the empty seats with bots, and at which difficulty.
-- `level`: the player is alone, so the page asks which difficulty fills the seats.
-- `go`: no seat is empty, or the server can't run bots, so the page sends the Start on.
+- `ask`: two or three people are listed, so the page asks the player whether to fill the empty seats with bots.
+- `go`: no seat is empty, the player is alone, or the server can't run bots, so the page sends the Start on. Alone, the Start fails with the game's matchmaking-failed dialog: a player alone gets no bots ([ADR 0037](adr/0037-bots-fill-seats-only-for-2-or-3-people-with-no-difficulty-choice.md)).
 - `gone`: the room is gone or already starting, so the page drops the Start.
 
-When the page asked the player, it sends 900 with their answer before it passes the Start on. If the answer is `1` or `2`, the server fills the room's empty seats with bots of that difficulty when this player's Start arrives.
+When the page asked the player, it sends 900 with their answer before it passes the Start on. If the answer is `1`, the server fills the room's empty seats with bots when this player's Start arrives. An older page's `2` (Expert, which is gone) counts as `1`.
 
 The server also sends one event that only this server defines, and only to a browser: its own session is the one whose requests come over `POST /snap`. The Java client never gets it.
 

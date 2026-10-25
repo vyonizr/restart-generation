@@ -4,6 +4,8 @@ Bots play at the engine's own strength (ADR 0008), and that proved too easy: the
 
 This is a second kind of in-memory change beside the patches of ADR 0007: replaced data instead of replaced code. ADR 0007 forbids file changes in the player's game copy, in browser storage and on disk. The Bot's pak exists only in the server process's memory, and the original stays untouched.
 
+Changed by [ADR 0037](0037-bots-fill-seats-only-for-2-or-3-people-with-no-difficulty-choice.md): no change was shown to help, so the server's bots run the game's own profiles, the committed deltas file is gone, and only self-play applies changes, from files named on its command line.
+
 ## Considered options
 
 - **Load the `Agressive/` profiles in the game's data.** Rejected: they are a stale snapshot from before special skills, threat fields and movement-cost distances existed. They lack about 75 of the live keys, which would load as 0, and use tile-based distance thresholds (3 and 7) where the live files use movement cost (1200 and 2100). The engine never loads them, and no mission sets the `AIType` that would select them.
@@ -21,7 +23,6 @@ This is a second kind of in-memory change beside the patches of ADR 0007: replac
 - Measured results: none of the first five changes beat the Bot running the best set so far (14, 13, 13, 12 and 11 wins of 24: calmer randomness, defend the castle, defend the princess, go for the laser cannon, fix the `AISGTP` typo). All eleven candidate changes stacked won 13 of 30 against stock; zeroing every random term won 17 of 40; weighting the objective more won 14 of 30. The profiles are robust to moderate changes. By the plateau rule, further weight tuning is not the next step: a stronger Bot needs lookahead (the deferred option above), which is a new decision and ticket.
 - Hero choice is the one lever with a signal. Over 286 decided battles between equal Bots, AGGRESSOR won 67% of its battles (36 of 54), CYBORG 57% and HEDGEHOG 56%; NINJA won 39%. Only AGGRESSOR is clearly above 50%, so the signal is weak.
 - Bots don't cheat: no hidden information, no bonus resources.
-- A delta whose key is missing from the player's XML fails at server start, which catches a game-version mismatch.
+- A delta whose key is missing from the player's XML fails when it is applied, which catches a game-version mismatch.
 - The server needs a pak writer. `tools/re/pakx.js` only extracts.
-- Two difficulties (CONTEXT.md "Difficulty"), chosen per match by the player who presses Start. **CPU** is the game's own AI profiles with a random hero, as before. **Expert** runs the deltas in `server/bot-ai.json` (none yet) and draws its hero from `server/bot-heroes.json` (AGGRESSOR, CYBORG, HEDGEHOG). With none of the weight changes shown to help, Expert is the strongest-looking hero pool on stock profiles, and the page says only that: "Expert CPU players choose from the strongest heroes". It is not shown to be harder.
-- The page asks when a friendly Start has bots: with 2 or 3 people listed, No, CPU or Expert; for a player alone, CPU or Expert (command 900's P1 is 1 for CPU, 2 for Expert; command 901 answers `ask`, `level`, `go` or `gone`). An older page that doesn't ask gets CPU bots.
+- Two difficulties (**CPU** and **Expert**, the latter with the strongest-looking hero pool) were chosen per match until ADR 0037 removed Expert, which self-play never showed to be harder.

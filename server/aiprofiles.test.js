@@ -66,6 +66,5 @@ const write = d => { const f = path.join(tmp, 'x.json'); fs.writeFileSync(f, JSO
 assert.throws(() => ai.load(write([{ profile: 'AISF', key: 'A', value: 1, why: 't' }])), /AISF isn't a profile/);
 assert.throws(() => ai.load(write([{ profile: 'AISD', key: 'A', value: 1 }])), /needs a key/);
 assert.throws(() => ai.load(write([{ profile: 'AISD', key: 'A', value: 1.5, why: 't' }])), /needs a key/);
-assert.deepStrictEqual(ai.load(), JSON.parse(fs.readFileSync(path.join(__dirname, 'bot-ai.json'), 'utf8'))); // the committed file is valid
 fs.rmSync(tmp, { recursive: true });
 console.log('bot ai profiles ok');

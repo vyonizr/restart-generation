@@ -23,7 +23,7 @@ export const page = $state({
   nameLogin: null,  // { value, rename }: the name dialog on a server without accounts, at an online login or, with rename, from Start
   notices: false,   // the Notices dialog is open (opened from the footer)
   replays: '',      // the name whose replays the Replays dialog lists, while it is open (docs/adr/0024)
-  bots: null,       // { alone, focus }: the CPU question at a friendly Start; focus is 'none', 'cpu' or 'expert'
+  bots: null,       // { yes }: the CPU question at a friendly Start; yes is whether Yes, not No, is highlighted
   onlineName: '',   // "Online as <name>" under Start, on a server without accounts: the name set, or the GuestNNNNNN one until then
   onlineNamed: false, // whether the player has set that name, which turns Set name into Change name and shows Replays
   dialogs: 0,       // dialogs open; the game screen can't be reached while one is
