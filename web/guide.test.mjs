@@ -159,6 +159,17 @@ const pixels = p => Array.from({ length: p.width * p.height }, (_, i) => [...p.r
   assert.deepStrictEqual(items.entries.map(e => pixels(e.picture)), [[[0, 255, 0, 255], [0, 255, 0, 255]], [[255, 0, 0, 255], [255, 0, 0, 255]]]);
 }
 
+// A list's picture is cut to the box of its visible pixels, however its frame pads it, and remembers the frame's size; one with
+// nothing visible keeps its frame. The instructions' pictures stay whole (above).
+{
+  const low = gfx(4, [['....', '....', '....'], ['....', '..R.', '.GG.']], { R: RED, G: GREEN });
+  const [, , items] = (await readGuide(copy({ menus: { 'data/menus/gfx/things.gfx': low } }), 'en')).tabs;
+  const [icon, empty] = items.entries.map(e => e.picture);
+  assert.deepStrictEqual([icon.width, icon.height, icon.frame], [2, 2, { width: 4, height: 3 }]);
+  assert.deepStrictEqual(pixels(icon), [[0, 0, 0, 0], [255, 0, 0, 255], [0, 255, 0, 255], [0, 255, 0, 255]]);
+  assert.deepStrictEqual([empty.width, empty.height, empty.frame], [4, 3, { width: 4, height: 3 }]);
+}
+
 // The language: settings.cfg's, as the engine takes it, else the code the page passes; English where that language has no file.
 // The 8-bit files are Windows-1252, and a UTF-16 file starts with its byte-order mark.
 {

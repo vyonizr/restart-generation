@@ -36,8 +36,15 @@
   }
 
   // The items' icons are about 30 pixels wide, twice that on the page. A larger picture among them, such as a portrait, keeps its own
-  // size, so that the column stays as wide as an icon's plate.
-  const rowScale = (id, p) => id === 'items' && (p.width > 38 || p.height > 50) ? 1 : 2;
+  // size, so that the column stays as wide as an icon's plate. The frame decides, not the cut picture (web/guide.js), so a portrait
+  // whose visible part is small stays at its own size.
+  const rowScale = (id, p) => id === 'items' && (p.frame.width > 38 || p.frame.height > 50) ? 1 : 2;
+  // Every plate of a list is as large as the list's largest picture, at the size it's drawn, so each picture sits centred on the
+  // same plate. Its padding and the 92px least width are in styles.css.
+  const plate = t => {
+    const sizes = t.entries.map(e => [e.picture.width, e.picture.height].map(n => n * rowScale(t.id, e.picture)));
+    return { width: Math.max(...sizes.map(s => s[0])), height: Math.max(...sizes.map(s => s[1])) };
+  };
 </script>
 
 <!-- A picture at `scale` times its size. -->
@@ -64,7 +71,8 @@
         {/each}
       </div>
     {:else}
-      <ul class="guide-list" data-tab={guide.tabs[tab].id}>
+      {@const size = plate(guide.tabs[tab])}
+      <ul class="guide-list" data-tab={guide.tabs[tab].id} style:--plate-w="{size.width}px" style:--plate-h="{size.height}px">
         {#each guide.tabs[tab].entries as entry, i (i)}
           <li>
             <div class="guide-plate">{@render pic(entry.picture, rowScale(guide.tabs[tab].id, entry.picture))}</div>

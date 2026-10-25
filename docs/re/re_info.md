@@ -107,6 +107,6 @@ There is no fallback to English. A language ID whose file is missing leaves the 
 
 - It reads the same sheet, text and pictures from the player's copy, in the browser, and keeps them in memory only.
 - It takes the language from `settings.cfg` as the engine does, or from the code the page passes when there is no such file. Where that language has no file, it uses English, which the engine doesn't do.
-- It shows each picture whole, at its own pixels, and ignores the rectangles, which only place the pictures inside the phone's screen.
+- It ignores the rectangles, which only place the pictures inside the phone's screen, and shows each picture at its own pixels: whole in the instructions, and in the heroes' and items' lists cut to the box of its visible pixels, so that it can sit centred on its plate. The items' frames are 30 × 38 with each icon drawn against the bottom edge, up to 22 pixels below the top; the heroes' portraits sit near the middle of theirs.
 - Where the engine would show its placeholder for a key name, the guide uses the name of key ID 5, Enter, which the engine always keeps on Primary.
 - If the sheet, a text, a picture or a palette is missing or isn't in the form described here, the page has no guide.

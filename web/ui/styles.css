@@ -101,10 +101,11 @@
 #guide .guide-read p { margin: 0 0 14px; }
 .guide-plate { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: fit-content; padding: 12px; background: var(--ink-1); margin: 0 0 14px; }
 .guide-pic { display: block; image-rendering: pixelated; }
-/* The heroes and the items: a picture on its plate beside a title and a sentence, in two columns where they fit. */
+/* The heroes and the items: a picture on its plate beside a title and a sentence, in two columns where they fit. Every plate of a list
+   is the size of its largest picture (GuideDialog.svelte sets --plate-w and --plate-h), and each picture sits in the middle of it. */
 .guide-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); align-items: start; gap: 24px 32px; margin: 0; padding: 0; list-style: none; }
 .guide-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 16px; }
-.guide-list .guide-plate { min-width: 92px; margin: 0; padding: 8px; }
+.guide-list .guide-plate { align-items: center; width: max(92px, var(--plate-w) + 16px); height: calc(var(--plate-h) + 16px); margin: 0; padding: 8px; }
 #guide .guide-list h3 { font-size: 20px; margin: 4px 0 6px; }
 @media (max-width: 599px) {
   #guide { width: calc(100vw - 16px); height: calc(100dvh - 16px); padding: 20px 16px 16px; }

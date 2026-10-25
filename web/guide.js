@@ -85,6 +85,27 @@ function picture(bytes, frame, colors) {
   return { width, height, rgba };
 }
 
+// A list's picture cut to the box its visible pixels fill, so the page can centre what shows: the items' frames draw their icons
+// against the bottom edge. `frame` keeps the uncut size, which decides how large the page draws it. A picture with nothing visible
+// keeps its frame.
+function cropped({ width, height, rgba }) {
+  let x0 = width, y0 = height, x1 = -1, y1 = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!rgba[(y * width + x) * 4 + 3]) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      y1 = y;
+    }
+  }
+  const frame = { width, height };
+  if (x1 < 0) return { width, height, rgba, frame };
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, out = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) out.set(rgba.subarray(((y0 + y) * width + x0) * 4, ((y0 + y) * width + x1 + 1) * 4), y * w * 4);
+  return { width: w, height: h, rgba: out, frame };
+}
+
 // An image spec: a path, then optionally `,frame` and `:palette`, then a rectangle the guide doesn't need (docs/re/re_info.md).
 function spec(text) {
   const m = need(/^([^,(]+?)(?:,(\d+)(?::(\d))?)?(?:\([^)]*\))?$/.exec(text.trim()), 'an image spec');
@@ -137,10 +158,10 @@ async function read(files, language) {
     if (hero) {
       const index = HERO_TYPES.indexOf(hero[1]);
       if (index < 0) throw new Unreadable(`the hero ${hero[1]}`);
-      return { title: text(title), text: text(`DESC_${hero[1]}`), picture: await image({ path: HEROES_GFX, frame: index, palette: HEROES_PALETTE }) };
+      return { title: text(title), text: text(`DESC_${hero[1]}`), picture: cropped(await image({ path: HEROES_GFX, frame: index, palette: HEROES_PALETTE })) };
     }
     need(described, `the row ${title}`);
-    return { title: text(title), text: text(described[2]), picture: await image(spec(described[1])) };
+    return { title: text(title), text: text(described[2]), picture: cropped(await image(spec(described[1]))) };
   }));
   heroes.entries = await rows('HEROES');
   items.entries = await rows('ITEMS');
