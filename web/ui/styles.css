@@ -100,7 +100,11 @@
 #guide .guide-read h3:first-child { margin-top: 4px; }
 #guide .guide-read p { margin: 0 0 14px; }
 .guide-plate { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: fit-content; padding: 12px; background: var(--ink-1); margin: 0 0 14px; }
+/* A soft picture is drawn at the device's pixels (GuideDialog.svelte), so the browser only fits it to its box; a sharp one, or any
+   picture for a player who asks for more contrast, is its own pixels drawn square. */
 .guide-pic { display: block; image-rendering: pixelated; }
+.guide-pic.soft { image-rendering: auto; }
+@media (prefers-contrast: more) { .guide-pic.soft { image-rendering: pixelated; } }
 /* The heroes and the items: a picture on its plate beside a title and a sentence, in two columns where they fit. Every plate of a list
    is the size of its largest picture (GuideDialog.svelte sets --plate-w and --plate-h), and each picture sits in the middle of it. */
 .guide-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); align-items: start; gap: 24px 32px; margin: 0; padding: 0; list-style: none; }

@@ -12,3 +12,18 @@ export function toggleFinish() {
   page.finish = page.finish === 'soft' ? 'sharp' : 'soft';
   try { localStorage.setItem(KEY, page.finish); } catch { /* storage blocked: the choice lasts until the page closes */ }
 }
+
+// One game pixel's cell of the soft finish's grid, `size` device pixels square, as stage.css draws it: across the cell, clear for
+// 55%, then darkening to black at 22% at its right edge, and the same down to its bottom edge; read at each pixel's middle. Footage
+// (footage.js) and the guide's pictures (GuideDialog.svelte) draw it themselves. Made once per size: the guide asks for one per
+// picture, and making it was half of what a soft picture cost.
+const cells = new Map();
+export function gridCell(size) {
+  if (cells.has(size)) return cells.get(size);
+  const shade = k => Math.max(0, ((k + 0.5) / size - 0.55) / 0.45) * 0.22;
+  const cell = new OffscreenCanvas(size, size), ctx = cell.getContext('2d'), image = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) image.data[(y * size + x) * 4 + 3] = Math.round((1 - (1 - shade(x)) * (1 - shade(y))) * 255);
+  ctx.putImageData(image, 0, 0);
+  cells.set(size, cell);
+  return cell;
+}

@@ -1,9 +1,11 @@
 <!-- The guide (CONTEXT.md, docs/adr/0033): the info menu's instructions, heroes and items, read from the player's own copy
      (web/guide.js) in the game's language, over the page like the notices. The tabs take the menu's own labels; the pictures are the
-     game's own pixels, twice their size. A tap on the shade closes it, so the touch pad under it can't press a key by mistake. -->
+     game's own pixels, twice their size, in the screen finish the game screen has. A tap on the shade closes it, so the touch pad under
+     it can't press a key by mistake. -->
 <script>
   import Dialog from './Dialog.svelte';
   import { page } from './page.svelte.js';
+  import { GRID_MIN_PITCH, gridCell } from './finish.js';
 
   const guide = page.guide;
   let tab = $state(0), panel = $state();
@@ -23,15 +25,33 @@
     if (panel) panel.scrollTop = 0;
   }
 
-  // A picture's pixels on a canvas the size of the picture; CSS draws it twice as large, square pixel by square pixel. A tab change can
-  // hand a canvas another picture.
-  function paint(canvas, picture) {
-    const draw = p => {
-      canvas.width = p.width;
-      canvas.height = p.height;
-      canvas.getContext('2d').putImageData(new ImageData(p.rgba, p.width, p.height), 0, 0);
+  // A picture on its canvas in the screen finish (CONTEXT.md), as the game screen shows it (stage.css). Sharp: the picture's own
+  // pixels, which CSS draws `scale` times as large, square pixel by square pixel. Soft: drawn smoothed at the device's pixels, and
+  // where a game pixel is at least GRID_MIN_PITCH device pixels wide, with the pixel grid over its visible pixels only, so the plate
+  // around it stays clean. A player who asks for more contrast gets sharp, as on the screen. A tab change can hand a canvas another
+  // picture, and the Soft screen toggle another finish.
+  const contrast = matchMedia('(prefers-contrast: more)');
+  function paint(canvas, args) {
+    const draw = ({ picture: p, scale, soft }) => {
+      const image = new ImageData(p.rgba, p.width, p.height);
+      if (!soft || contrast.matches) {
+        canvas.width = p.width;
+        canvas.height = p.height;
+        canvas.getContext('2d').putImageData(image, 0, 0);
+        return;
+      }
+      const pitch = scale * devicePixelRatio, cell = Math.ceil(pitch), frame = new OffscreenCanvas(p.width, p.height);
+      frame.getContext('2d').putImageData(image, 0, 0);
+      canvas.width = p.width * cell;
+      canvas.height = p.height * cell;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+      if (pitch < GRID_MIN_PITCH) return;
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = ctx.createPattern(gridCell(cell), 'repeat');
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
-    draw(picture);
+    draw(args);
     return { update: draw };
   }
 
@@ -49,7 +69,8 @@
 
 <!-- A picture at `scale` times its size. -->
 {#snippet pic(picture, scale = 2)}
-  <canvas class="guide-pic" style:width="{picture.width * scale}px" style:height="{picture.height * scale}px" aria-hidden="true" use:paint={picture}></canvas>
+  <canvas class="guide-pic" class:soft={page.finish === 'soft'} style:width="{picture.width * scale}px" style:height="{picture.height * scale}px" aria-hidden="true"
+    use:paint={{ picture, scale, soft: page.finish === 'soft' }}></canvas>
 {/snippet}
 
 <div class="guide-shade" aria-hidden="true" onclick={close}></div>

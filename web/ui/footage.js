@@ -10,6 +10,7 @@ import { REPLAY_WIDTH, REPLAY_HEIGHT } from '../emu/host.js';
 import { LOAD_LIMIT_MS, createEndWatch, createDefeats } from './replayflow.js';
 import { SOUND_BLOCK_MS } from './audio.js';
 import { rgbaOf } from './screen.js';
+import { gridCell } from './finish.js';
 import { heroName, shortDay } from '../replay-text.js';
 
 // The battle at most 1080 px tall: 1200 × 1080, 1080 / 378 of the engine's size. Not a whole multiple, so the picture is made at
@@ -133,7 +134,7 @@ function painter(soft, top, height) {
   const big = new OffscreenCanvas(REPLAY_WIDTH * SCALE, REPLAY_HEIGHT * SCALE), bigCtx = big.getContext('2d');
   let grid = null;
   if (soft) {
-    bigCtx.fillStyle = bigCtx.createPattern(gridCell(), 'repeat');
+    bigCtx.fillStyle = bigCtx.createPattern(gridCell(SCALE), 'repeat');
     bigCtx.fillRect(0, 0, big.width, big.height);
     grid = new OffscreenCanvas(WIDTH, HEIGHT);
     grid.getContext('2d').drawImage(big, 0, 0, WIDTH, HEIGHT);
@@ -244,16 +245,6 @@ function cut(ctx, text, width) {
     if (ctx.measureText(`${text.slice(0, mid)}…`).width <= width) { fits = mid; lo = mid + 1; } else hi = mid - 1;
   }
   return `${text.slice(0, fits)}…`;
-}
-
-// One game pixel's cell of the soft finish's grid, as stage.css draws it: across the cell, clear for 55%, then darkening to black
-// at 22% at its right edge, and the same down to its bottom edge; read at each output pixel's middle.
-function gridCell() {
-  const shade = k => Math.max(0, ((k + 0.5) / SCALE - 0.55) / 0.45) * 0.22;
-  const cell = new OffscreenCanvas(SCALE, SCALE), ctx = cell.getContext('2d'), image = ctx.createImageData(SCALE, SCALE);
-  for (let y = 0; y < SCALE; y++) for (let x = 0; x < SCALE; x++) image.data[(y * SCALE + x) * 4 + 3] = Math.round((1 - (1 - shade(x)) * (1 - shade(y))) * 255);
-  ctx.putImageData(image, 0, 0);
-  return cell;
 }
 
 // A block of 16-bit samples at 8 kHz as floats at 48 kHz, each step drawn as a line from the previous sample (`last`, the end of
