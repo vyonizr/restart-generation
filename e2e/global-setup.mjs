@@ -27,8 +27,8 @@ const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.
 const discord = url => ({ RG_DISCORD_CLIENT_ID: 'e2e', RG_DISCORD_CLIENT_SECRET: 'e2e', RG_PUBLIC_URL: url, RG_GUESTS_PER_IP_HOUR: '100000' });
 
 // The newest page source (web/ but its build output, shared/, the build's config) against the last build, so an unchanged page
-// isn't built again.
-function buildPage() {
+// isn't built again. tools/showcase/showcase.mjs builds it the same way.
+export function buildPage() {
   const built = path.join(root, 'web', 'dist', 'index.html');
   const newest = dir => fs.readdirSync(dir, { withFileTypes: true }).reduce((t, e) => {
     const p = path.join(dir, e.name);

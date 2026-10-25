@@ -1,0 +1,97 @@
+<!doctype html>
+<!-- The showcase's encoder (docs/adr/0036): the frames the script filmed, and a replay's sound, made into an H.264 and AAC MP4 file with
+     WebCodecs through Mediabunny, as the replay page makes footage (web/src/lib/replay/footage.js); and a card's clip, a clip drawn
+     into a card. WebCodecs is for secure pages only, so the script serves this page at a localhost address (capture.mjs). -->
+<meta charset="utf-8">
+<title>Showcase encoder</title>
+<script type="module">
+import { Output, Mp4OutputFormat, BufferTarget, VideoSampleSource, AudioSampleSource, VideoSample, AudioSample, Quality, Input, BufferSource, ALL_FORMATS, Conversion } from '/__showcase/mediabunny.mjs';
+
+const FPS = 30;
+const RATE = 48000; // the engine's 8 kHz sound goes in at 48 kHz and 96 kbps, as footage's does
+const mp4 = () => new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target: new BufferTarget() });
+let output = null, video = null, audio = null, frames = 0, width = 0, height = 0;
+
+const bytesOf = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+const base64 = blob => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result).split(',')[1]);
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(blob);
+});
+
+// 16-bit samples at `rate` as floats at 48 kHz, each step a line from the sample before, as footage.js resample().
+function resample(pcm, rate) {
+  const up = RATE / rate, out = new Float32Array(pcm.length * up);
+  let a = 0;
+  for (let i = 0; i < pcm.length; i++) {
+    const b = pcm[i] / 32768;
+    for (let k = 0; k < up; k++) out[i * up + k] = a + (b - a) * (k + 1) / up;
+    a = b;
+  }
+  return out;
+}
+
+window.clip = {
+  // A new file `w` × `h` (even numbers, as H.264 takes), with a sound track if `withSound`.
+  async start({ w, h, withSound }) {
+    width = w; height = h; frames = 0;
+    output = mp4();
+    video = new VideoSampleSource({ codec: 'avc', quality: new Quality('high') });
+    output.addVideoTrack(video, { frameRate: FPS });
+    audio = null;
+    if (withSound) {
+      audio = new AudioSampleSource({ codec: 'aac', quality: new Quality({ bitrate: 96e3 }) });
+      output.addAudioTrack(audio);
+    }
+    await output.start();
+  },
+  // The next frame, a JPEG in base64, drawn to the file's size.
+  async frame(b64) {
+    const bitmap = await createImageBitmap(new Blob([bytesOf(b64)], { type: 'image/jpeg' }), { resizeWidth: width, resizeHeight: height, resizeQuality: 'high' });
+    const sample = new VideoSample(new VideoFrame(bitmap, { timestamp: Math.round(frames * 1e6 / FPS), duration: Math.round(1e6 / FPS) }));
+    await video.add(sample);
+    sample.close();
+    bitmap.close();
+    frames++;
+  },
+  // The whole clip's sound: 16-bit mono samples at `rate`, in base64.
+  async sound(b64, rate) {
+    const bytes = bytesOf(b64);
+    const sample = new AudioSample({ data: resample(new Int16Array(bytes.buffer, 0, bytes.length >> 1), rate), format: 'f32', numberOfChannels: 1, sampleRate: RATE, timestamp: 0 });
+    await audio.add(sample);
+    sample.close();
+  },
+  // The finished file, in base64.
+  async finish() {
+    await output.finalize();
+    const blob = new Blob([output.target.buffer], { type: 'video/mp4' });
+    output = video = audio = null;
+    return await base64(blob);
+  },
+};
+
+// A card's clip (cards.mjs): the card `ground` (a PNG in base64, w × h) with the clip at `clip` drawn whole and centered into its
+// `box` each frame; the clip's sound is kept as it is. The finished file, in base64.
+window.cardClip = async ({ clip, ground, box, w, h }) => {
+  const input = new Input({ source: new BufferSource(await (await fetch(clip)).arrayBuffer()), formats: ALL_FORMATS });
+  const back = await createImageBitmap(new Blob([bytesOf(ground)], { type: 'image/png' }));
+  const canvas = new OffscreenCanvas(w, h), ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  const output = mp4();
+  const conversion = await Conversion.init({ input, output,
+    video: { codec: 'avc', quality: new Quality('high'), processedWidth: w, processedHeight: h, process: sample => {
+      const scale = Math.min(box.width / sample.displayWidth, box.height / sample.displayHeight);
+      const dw = sample.displayWidth * scale, dh = sample.displayHeight * scale;
+      ctx.drawImage(back, 0, 0);
+      sample.draw(ctx, box.x + (box.width - dw) / 2, box.y + (box.height - dh) / 2, dw, dh);
+      return canvas;
+    } } });
+  if (!conversion.isValid) throw new Error(`the clip can't be converted: ${JSON.stringify(conversion.discardedTracks.map(t => t.reason))}`);
+  await conversion.execute();
+  back.close();
+  return await base64(new Blob([output.target.buffer], { type: 'video/mp4' }));
+};
+
+window.clipReady = true;
+</script>

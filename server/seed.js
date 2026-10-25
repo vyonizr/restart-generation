@@ -214,4 +214,4 @@ async function main(argv) {
 
 if (require.main === module) main(process.argv.slice(2)).catch(e => { console.error(e.message); process.exitCode = 1; });
 
-module.exports = { apply, check, settingsFile, offset, tokenOf };
+module.exports = { apply, check, play, settingsFile, offset, tokenOf };

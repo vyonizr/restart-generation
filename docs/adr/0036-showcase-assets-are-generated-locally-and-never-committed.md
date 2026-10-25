@@ -1,0 +1,22 @@
+# Showcase assets are generated locally and never committed
+
+A landing page and social posts about the revival need pictures and videos of the page with the game running in it. Those are screenshots and recordings of the game, which `docs/LEGAL.md` rule 2 keeps out of every commit, issue, pull request and CI artifact, and which PRODUCT.md and DESIGN.md keep off the project's own page. The repository therefore holds only the script that makes them, `npm run showcase` (`tools/showcase/`), and the script writes everything it makes to `tmp/showcase/`, which git ignores and `npm run legal-check` refuses. It runs only on a machine that has the game (`RG_GAME`) and battle templates. The pictures are posted somewhere outside the repository, such as an external landing page or a maintainer's own social media, as players post footage under ADR 0028.
+
+The script stages everything it shows. Bots play four battles as made-up players (`tools/showcase/cast.mjs`), which are not seed accounts (ADR 0023), test fixtures or bot names, so no picture shows a name that means something elsewhere. A throwaway gateway in Discord mode with made-up credentials holds those players as members, with their stats, friends and replays, and the page signs in as one of them, as the engine-tier end-to-end tests do (ADR 0025). The played battles are cached in `tmp/showcase/cache/` and played again only with `--fresh` or when the code that makes a replay changes.
+
+Every picture shows the page around the game, so it is clear that the game is played on this site. The browser window takes the shape of each picture (16:9, 1:1, or a phone at 9:16), so the page lays itself out for it and nothing is cropped. Once the game has started, the script holds the page's clock under Playwright's fake clock and moves it on itself. Waiting for the engine therefore costs only the time the machine needs to run it, and a clip is filmed a frame at a time, 1/30 s apart. A replay clip seeks to its moment with the page's own time slider instead of playing up to it. Its sound comes from the same engine seeking the same replay in Node. Frames are photographed as JPEG while earlier ones are encoded to H.264 MP4 with WebCodecs through Mediabunny, as footage is (ADR 0028). The three shapes are filmed at once, but the scenes that go online take turns, because every shape signs in as the same member. Each still and clip also gets a card in the page's own design (DESIGN.md) with a headline and caption from `tools/showcase/copy.mjs` and the line saying that the site is not affiliated with RedLynx, Ubisoft or Nokia (rule 6). The site's name on a card is the page's own header in the capture; a card adds it only where the capture has none.
+
+## Considered options
+
+- **Commit the pictures, or put them on the project's own page.** Rejected. That breaks rule 2 and PRODUCT.md, and changing either needs its own decision.
+- **Record in real time with Playwright's video recording.** Rejected. It records VP8 WebM at a low bitrate, which X and Instagram don't take and which smears pixel art. It has no sound, and it stutters while the emulator takes a whole core. Frame-stepping gives every frame and the same result on every run.
+- **Composite the exported footage over a still of the page.** Rejected. The page around the game would be frozen, so the lower third wouldn't change when a hero is knocked out. That isn't the page as it behaves.
+- **Encode with ffmpeg.** Rejected. It would add an install, and Mediabunny with WebCodecs already makes the MP4 files the page's footage uses.
+- **Use the seed accounts.** Rejected. Developers know those names from the tests and the development server, and `server/seed.js` checks that they carry the `Dev_` prefix.
+
+## Consequences
+
+- `server/seed.js` exports `play()`, and `e2e/global-setup.mjs` exports `buildPage()`, for the script to use.
+- A phone's game page has no header (DESIGN.md "Touch pad"), so its raw 9:16 captures don't show the site's name. The manifest and the preview page mark those captures. Their cards carry the name.
+- Captions keep to facts from README.md and PRODUCT.md: no testimonials, no press quotes, no player counts. Every caption ends with what a player needs (their own copy of the game) and the non-affiliation line.
+- Anyone who posts the pictures does so under Ubisoft's video policy, as with footage (ADR 0028). The repository never carries them.
