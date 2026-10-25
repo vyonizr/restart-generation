@@ -2,7 +2,7 @@
   "_": "Exceptions to tools/legal-check.mjs (docs/LEGAL.md). Every entry says where the file comes from. A file that is not here and is not text is refused.",
   "media": {
     "web/src/assets/fonts/anton.woff2": "Anton, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-anton.txt)",
-    "web/src/assets/fonts/raleway.woff2": "Raleway, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-raleway.txt)",
+    "web/src/assets/fonts/manrope.woff2": "Manrope 4.504, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-manrope.txt), the Latin subset Google Fonts serves, unmodified",
     "web/src/assets/fonts/roboto-mono.woff2": "Roboto Mono, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-robotomono.txt)",
     "web/public/favicon.svg": "Drawn for this project: the letters RG in Anton on a dark square",
     "web/public/favicon.ico": "Made from favicon.svg",
@@ -10,7 +10,8 @@
     "web/public/apple-touch-icon.png": "Made from favicon.svg",
     "web/public/wake.mp4": "Generated for this project: a few seconds of black video that keeps a phone awake (wake.js)",
     "web/fonts/anton.woff2": "Only in older commits: the same Anton font, before it moved to web/src/assets/fonts (ADR 0035)",
-    "web/fonts/raleway.woff2": "Only in older commits: the same Raleway font, before it moved to web/src/assets/fonts (ADR 0035)",
+    "web/fonts/raleway.woff2": "Only in older commits: the Raleway font, before it moved to web/src/assets/fonts (ADR 0035) and Manrope replaced it",
+    "web/src/assets/fonts/raleway.woff2": "Only in older commits: the Raleway font, SIL Open Font License 1.1, before Manrope replaced it",
     "web/fonts/roboto-mono.woff2": "Only in older commits: the same Roboto Mono font, before it moved to web/src/assets/fonts (ADR 0035)",
     "web/wake.mp4": "Only in older commits: the same generated video, kept where the page's source expected it then"
   },

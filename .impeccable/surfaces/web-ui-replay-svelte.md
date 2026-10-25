@@ -19,7 +19,7 @@ Decided in a prototype round of three layouts (Broadcast replay, Stage with cont
 
 THESIS: A finished battle shown the way television shows a replay: the engine's 420 × 378 view as the broadcast picture, a REPLAY bug on its corner, and the players as a lower third. It refuses the generic video player: a black box with an overlaid control bar and nothing about who played.
 
-OWN-WORLD: The game page's Stage, unchanged: ink ground, one crimson, Anton uppercase, Raleway, Roboto Mono for the clock only, square corners, the outlined ghost name behind. Crimson marks the REPLAY tag and the play button only; white marks each player's place when the replay ends. Each seat's square takes its color in the battle.
+OWN-WORLD: The game page's Stage, unchanged: ink ground, one crimson, Anton uppercase, Manrope, Roboto Mono for the clock only, square corners, the outlined ghost name behind. Crimson marks the REPLAY tag and the play button only; white marks each player's place when the replay ends. Each seat's square takes its color in the battle.
 
 STORY: The visitor sees who played and on what before the game loads (the lower third and the facts line), presses Watch, watches the battle with the seats under it, each defeated seat turning hollow as the game shows its defeat, and at the end the view dims to the result while each winner's seat gets its crown.
 

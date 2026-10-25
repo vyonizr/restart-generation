@@ -1,12 +1,12 @@
 /* What every page shares (DESIGN.md): the fonts, the tokens, the base type, the buttons, the header's name and the footer strip. The
    game page (app.css), the replay page (replay.css) and the Terms and Privacy policy pages (doc.css) build on it. */
 @font-face { font-family: 'Anton'; src: url(../assets/fonts/anton.woff2) format('woff2'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Raleway'; src: url(../assets/fonts/raleway.woff2) format('woff2'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url(../assets/fonts/manrope.woff2) format('woff2'); font-weight: 200 800; font-display: swap; }
 @font-face { font-family: 'Roboto Mono'; src: url(../assets/fonts/roboto-mono.woff2) format('woff2'); font-weight: 100 700; font-display: swap; }
 :root {
   --ink-0: #11141b; --ink-1: #181c26; --ink-2: #282b35; --ink-3: #373b49;
   --red: #a50034; --light-2: #e2e4ec; --light-3: #c6cad7;
-  --display: 'Anton', 'Arial Narrow', sans-serif; --body: 'Raleway', system-ui, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace;
+  --display: 'Anton', 'Arial Narrow', sans-serif; --body: 'Manrope', system-ui, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace;
   color-scheme: dark; scrollbar-color: var(--ink-3) var(--ink-1);
 }
 * { box-sizing: border-box; }

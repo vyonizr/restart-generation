@@ -8,7 +8,7 @@ What the page carries from others is in the following sections. The texts are th
 
 ## Fonts (web/src/assets/fonts)
 
-Anton, Raleway, and Roboto Mono are licensed under the SIL Open Font License, Version 1.1. Each font is used unmodified, as a web font file.
+Anton, Manrope, and Roboto Mono are licensed under the SIL Open Font License, Version 1.1. Each font is used unmodified, as a web font file.
 
 ### Anton
 
@@ -110,12 +110,12 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
-### Raleway
+### Manrope
 
-The Raleway font comes with the following notice and license:
+The Manrope font comes with the following notice and license:
 
 ```text
-Copyright 2010 The Raleway Project Authors (impallari@gmail.com), with Reserved Font Name "Raleway".
+Copyright 2018 The Manrope Project Authors (https://github.com/googlefonts/manrope)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

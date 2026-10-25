@@ -19,7 +19,7 @@ Decided in "Choose the visual direction": direction B, Stage, dark only.
 
 THESIS: The engine's own 240 × 320 screen is the hero, centered at the largest size that fits one viewport. It refuses the category default: a landing page with a banner, feature cards, and a play button below the fold.
 
-OWN-WORLD: A dark stage, dark only. Ground `#181c26`, footer strip `#282b35`, white text, `#c6cad7` secondary. One crimson, `#a50034`, for fills, buttons, and the `4px` bar under the title, never as body text. Anton uppercase display at line height 0.9, Raleway body, Roboto Mono for the header's name, the online count, the footer, and key caps. Square corners. Buttons invert to white on hover over `0.2s`. A huge `1px` outlined "RESTART GENERATION" ghost sits behind the screen at about 12% opacity.
+OWN-WORLD: A dark stage, dark only. Ground `#181c26`, footer strip `#282b35`, white text, `#c6cad7` secondary. One crimson, `#a50034`, for fills, buttons, and the `4px` bar under the title, never as body text. Anton uppercase display at line height 0.9, Manrope body, Roboto Mono for the header's name, the online count, the footer, and key caps. Square corners. Buttons invert to white on hover over `0.2s`. A huge `1px` outlined "RESTART GENERATION" ghost sits behind the screen at about 12% opacity.
 
 STORY: A player sees the name, brings their own copy or presses **Start**, and plays without scrolling. The key legend stays in view while they play. The footer says plainly that this is an unofficial fan revival; the file picker and the notices dialog say that the files stay in the browser.
 
