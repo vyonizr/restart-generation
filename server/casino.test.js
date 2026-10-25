@@ -136,7 +136,7 @@ async function score(names, outcome, { ranked = true, delay = 0, losers = [] } =
   // A finished ranked battle: the players, their heroes and seats, and the witness's result.
   let r = await played([ada, bo]);
   assert.strictEqual(r.saved.length, 1);
-  assert.deepStrictEqual(r.saved[0].accounts, ['1', '2']);
+  assert.deepStrictEqual(r.saved[0].seats, [{ account: '1', seat: 1 }, { account: '2', seat: 2 }]);
   assert.deepStrictEqual(r.saved[0].meta, {
     ranked: true, environment: g.parseGame(r.table.game).environment,
     players: [{ name: 'Ada', hero: 'HEDGEHOG', seat: 1, bot: false }, { name: 'Bo', hero: 'PLUMBER', seat: 2, bot: false }],
@@ -149,7 +149,7 @@ async function score(names, outcome, { ranked = true, delay = 0, losers = [] } =
 
   // A guessed result says so; bots and the Java client (not a browser) aren't told, and bots have no account to delete.
   r = await played([ada, { name: 'Robo', hero: 'PLUMBER', bot: true }, { name: 'Cy', hero: 'HEDGEHOG', web: false }], { outcome: { failed: 'test' } });
-  assert.deepStrictEqual(r.saved[0].accounts, ['1', '3']);
+  assert.deepStrictEqual(r.saved[0].seats, [{ account: '1', seat: 1 }, { account: '3', seat: 3 }]);
   assert.strictEqual(r.saved[0].meta.result.guessed, true);
   assert.strictEqual(r.saved[0].meta.result.ranks, null);
   assert.deepStrictEqual(r.saved[0].meta.players.map(p => p.bot), [false, true, false]);

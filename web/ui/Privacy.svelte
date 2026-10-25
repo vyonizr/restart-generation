@@ -15,7 +15,7 @@
   ]);
 </script>
 
-<DocPage title="Privacy policy" ghost="Privacy" changed="24 October 2026" {toc} {server}>
+<DocPage title="Privacy policy" ghost="Privacy" changed="25 October 2026" {toc} {server}>
   <p class="lede">This page says what this Restart Generation server keeps about you when you play online, why, for how long, and how to have it removed. It keeps only what online play needs. It sells nothing, shows no ads, and runs no analytics.</p>
 
   <section id="who">
@@ -46,17 +46,17 @@
   {#if replays}
     <section id="replays">
       <h2>Replays</h2>
-      <p>The server keeps every online battle that began as a replay, so its players and anyone they share its link with can watch it again. A replay holds the players' names as they were in that battle, their heroes and seats, every move, and the chat sent during the battle, with when each arrived. It is kept for 30 days and then deleted. Anyone who has a replay's link can watch it.</p>
-      <p>Each replay is also listed under every player's name for its 30 days, so anyone who knows your name can watch your battles.{#if discord} A wiped guest's replays leave its list but stay watchable by link. A guest who signs in to an existing member moves its replays to the member.{/if}</p>
-      <p>A replay is kept for its 30 days even after a guest account in it is deleted. {#if discord}When a member deletes their account{:else}When {admin} deletes an account{/if}, the replays of every battle it played are deleted with it.</p>
-      <p>Anyone who can watch a replay can also save it from its page as footage: an MP4 file, made in their own browser, of the battle as the replay plays it, players' names included. The server sends nothing more for it and never sees the file. Once saved, footage is out of the server's reach: the 30 days, deleting an account, and turning replays off don't remove it.</p>
+      <p>The server keeps every online battle that began as a replay, so its players and anyone they share its link with can watch it again. A replay holds the players' names as they were in that battle, their heroes and seats, every move, and the chat sent during the battle, with when each arrived. Each player keeps the replays of their last 25 battles: when a player's new battle makes 26, their oldest leaves their list. A replay is deleted once it is in the last 25 battles of none of its players, so its link works until then. Anyone who has a replay's link can watch it.</p>
+      <p>Each replay is also listed under the name of every player who keeps it, so anyone who knows your name can watch your last 25 battles.{#if discord} A guest who signs in to an existing member moves its replays to the member.{/if}</p>
+      <p>{#if discord}When a guest account is deleted, its battles leave its list and are deleted unless another player in them still keeps them. When a member deletes their account{:else}When {admin} deletes an account{/if}, the replays of every battle it played are deleted with it.</p>
+      <p>Anyone who can watch a replay can also save it from its page as footage: an MP4 file, made in their own browser, of the battle as the replay plays it, players' names included. The server sends nothing more for it and never sees the file. Once saved, footage is out of the server's reach: deleting a replay, deleting an account, and turning replays off don't remove it.</p>
     </section>
   {/if}
 
   <section id="passes">
     <h2>What it passes on and forgets</h2>
     <ul>
-      <li>{#if replays}Chat in a battle goes to the other players, and stays in the battle's replay for 30 days. {:else}Chat in a battle goes to the players it's for. The server doesn't store it. {/if}The message with a friend request goes to the player it's for, and the server doesn't store it.</li>
+      <li>{#if replays}Chat in a battle goes to the other players, and stays in the battle's replay for as long as the replay is kept. {:else}Chat in a battle goes to the players it's for. The server doesn't store it. {/if}The message with a friend request goes to the player it's for, and the server doesn't store it.</li>
       <li>Room names are shown to everyone in the lobby while the room is open.</li>
       <li>Your IP address limits how often one network can make some requests{#if discord}, such as creating guest accounts{/if}. The server keeps it in memory for at most a day, and never writes it down.</li>
     </ul>
@@ -96,7 +96,7 @@
       <ul>
         <li><strong>Download my data</strong>, in a member's Account menu, saves everything the server keeps about your account in one file{#if replays}, with links to the replays of your battles{/if}.</li>
         <li><strong>Delete my account</strong>, in the same menu, removes it for good: your name, stats, friends and saved game{#if replays}, and the replays of your battles{/if}.</li>
-        <li>A guest account is deleted 24 hours after you last play, with everything the server keeps about it{#if replays} except the replays of its battles, which stay for their 30 days{/if}. A sign-in token stops working 90 days after you last use it.</li>
+        <li>A guest account is deleted 24 hours after you last play, with everything the server keeps about it{#if replays}, and its replays except those another player in them still keeps{/if}. A sign-in token stops working 90 days after you last use it.</li>
       </ul>
       <p>A member's account stays until you or {admin} delete it. For anything else, such as a correction or a question, write to {admin} at the address at the top of this page. If that address is a public page, don't post anything there that you want kept private. You can also complain to the data protection authority where you live.</p>
     {:else}

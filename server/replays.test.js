@@ -2,12 +2,10 @@
 const assert = require('assert');
 const replays = require('./replays');
 
-const DAY = 24 * 3600 * 1000;
 const t0 = 1e12;
-const battle = (accounts, created = t0) => ({
-  created, text: 'QUJD', accounts,
-  meta: { ranked: true, environment: 2, players: [{ name: 'Ada', hero: 'NINJA', seat: 1 }, { name: 'Bo', hero: 'PLUMBER', seat: 2 }] },
-});
+const META = { ranked: true, environment: 2, players: [{ name: 'Ada', hero: 'NINJA', seat: 1 }, { name: 'Bo', hero: 'PLUMBER', seat: 2 }] };
+// A battle the accounts played, in seats 1, 2, … in that order.
+const battle = (accounts, created = t0) => ({ created, text: 'QUJD', seats: accounts.map((account, i) => ({ account, seat: i + 1 })), meta: META });
 
 const db = replays.open(':memory:');
 
@@ -15,48 +13,66 @@ const db = replays.open(':memory:');
 const id = db.save(battle(['1', '2']));
 assert.match(id, /^[A-Za-z0-9_-]{16,}$/);
 assert.notStrictEqual(db.save(battle(['1', '2'])), id, 'every replay gets its own id');
-const got = db.get(id, t0 + DAY);
+const got = db.get(id);
 assert.strictEqual(got.text, 'QUJD');
-assert.deepStrictEqual(got.meta, { ...battle([]).meta, created: t0 });
-assert.strictEqual(db.get('no-such-replay-id', t0), null);
+assert.deepStrictEqual(got.meta, { ...META, created: t0 });
+assert.strictEqual(db.get('no-such-replay-id'), null);
 
-// A replay is kept for 30 days, whatever happens to the accounts in it.
-const old = db.save(battle(['3'], t0));
-assert(db.get(old, t0 + 30 * DAY - 1), 'still there just before 30 days');
-assert.strictEqual(db.get(old, t0 + 30 * DAY), null, 'gone at 30 days, before any sweep');
-const fresh = db.save(battle(['3'], t0 + 10 * DAY));
-assert(db.sweep(t0 + 30 * DAY) >= 1, 'the sweep deletes what has expired');
-assert.strictEqual(db.get(old, t0), null, 'a swept replay is gone for good');
-assert(db.get(fresh, t0 + 30 * DAY), 'a newer replay outlives the sweep');
+// Each account keeps its last KEEP battles (docs/adr/0034). A new one takes the oldest off the list at once, and a replay goes only
+// when no account keeps it: Ada's oldest battle stays while Bo, who played it, still keeps it.
+const keep = replays.open(':memory:');
+const shared = keep.save(battle(['ada', 'bo'], t0));
+const alone = keep.save(battle(['ada'], t0 + 1));
+const ada = Array.from({ length: replays.KEEP - 1 }, (_, i) => keep.save(battle(['ada'], t0 + 2 + i)));
+assert.strictEqual(keep.listOf('ada').length, replays.KEEP, 'the 26th battle pushed the oldest off');
+assert(!keep.listOf('ada').some(r => r.id === shared), "off Ada's list");
+assert(keep.get(shared), 'Bo still keeps it');
+assert(keep.listOf('ada').some(r => r.id === alone));
+keep.save(battle(['ada'], t0 + 100));
+assert.strictEqual(keep.get(alone), null, 'a battle only Ada kept is deleted when it leaves her list');
+assert.strictEqual(keep.listOf('ada')[0].created, t0 + 100, 'newest first');
+assert.strictEqual(keep.listOf('ada').at(-1).id, ada[0]);
+for (let i = 0; i < replays.KEEP; i++) keep.save(battle(['bo'], t0 + 200 + i));
+assert.strictEqual(keep.get(shared), null, 'gone once it has left every list');
+
+// The list says which seat the account played in, so the page can say whether it won and with which hero.
+const seats = replays.open(':memory:');
+seats.save(battle(['20', '21']));
+assert.deepStrictEqual(seats.listOf('21'), [{ ...META, id: seats.listOf('21')[0].id, created: t0, seat: 2 }]);
+assert.deepStrictEqual(seats.listOf('99'), []);
+
+// The sweep: an account that no longer exists, as a wiped guest, keeps nothing, so a battle only it kept is deleted; a row from
+// before seats were kept gets the seat its account's name played in, and none when the name isn't in the replay any more.
+const sweep = replays.open(':memory:');
+const wiped = sweep.save(battle(['guest'])), withBo = sweep.save(battle(['guest', 'bo']));
+const unseated = sweep.save({ ...battle([]), seats: [{ account: 'ada' }, { account: 'renamed' }] });
+assert.strictEqual(sweep.listOf('ada')[0].seat, null);
+const names = { bo: 'Bo', ada: 'ADA', renamed: 'Somebody' };
+assert.strictEqual(sweep.sweep(account => names[account] ?? null), 1);
+assert.strictEqual(sweep.get(wiped), null);
+assert(sweep.get(withBo), 'Bo still keeps the battle the guest played with him');
+assert.deepStrictEqual(sweep.listOf('guest'), []);
+assert.strictEqual(sweep.listOf('ada').find(r => r.id === unseated).seat, 1);
+assert.strictEqual(sweep.listOf('renamed')[0].seat, null);
 
 // A member who deletes their account deletes every replay of a battle they played in; the others' stay. Until then the account's
-// replays are listed for Download my data, oldest first, without the expired ones.
-const both = db.save(battle(['10', '11']));
+// replays are listed for Download my data, oldest first.
+const both = db.save(battle(['10', '11'], t0));
 const other = db.save(battle(['11', '12'], t0 + 1));
-assert.deepStrictEqual(db.ofAccount('11', t0 + DAY), [{ id: both, created: t0 }, { id: other, created: t0 + 1 }]);
-assert.deepStrictEqual(db.ofAccount('11', t0 + 30 * DAY), [{ id: other, created: t0 + 1 }]);
+assert.deepStrictEqual(db.ofAccount('11'), [{ id: both, created: t0 }, { id: other, created: t0 + 1 }]);
 db.removeAccount('10');
-assert.strictEqual(db.get(both, t0), null);
-assert(db.get(other, t0), 'a battle the member wasn\'t in keeps its replay');
+assert.strictEqual(db.get(both), null);
+assert(db.get(other), 'a battle the member wasn\'t in keeps its replay');
 
-// A player's replays are listed under their name (ADR 0024): newest first, with what the page shows around each one and when it
-// expires, without the expired ones.
-const list = replays.open(':memory:');
-const first = list.save(battle(['20', '21'], t0)), second = list.save(battle(['20'], t0 + DAY));
-assert.deepStrictEqual(list.listOf('20', t0 + 2 * DAY), [
-  { id: second, created: t0 + DAY, expires: t0 + 31 * DAY, ...battle([]).meta },
-  { id: first, created: t0, expires: t0 + 30 * DAY, ...battle([]).meta },
-]);
-assert.deepStrictEqual(list.listOf('20', t0 + 30 * DAY).map(r => r.id), [second]);
-assert.deepStrictEqual(list.listOf('99', t0), []);
-
-// A guest who signs in to a member that already exists hands the member its replays, including a battle the two played together.
-const together = list.save(battle(['30', '31'], t0)), alone = list.save(battle(['30'], t0 + 1));
-list.moveAccount('30', '31');
-assert.deepStrictEqual(list.listOf('31', t0 + DAY).map(r => r.id), [alone, together]);
-assert.deepStrictEqual(list.listOf('30', t0 + DAY), []);
-
-// A battle with only bots and guests that are gone is still kept: nothing but its age removes it.
-const bots = db.save(battle([]));
-assert(db.get(bots, t0));
+// A guest who signs in to a member that already exists hands the member its replays, including a battle the two played together,
+// and the member keeps its newest KEEP of them all.
+const move = replays.open(':memory:');
+const together = move.save(battle(['30', '31'], t0)), guestOnly = move.save(battle(['30'], t0 + 1));
+move.moveAccount('30', '31');
+assert.deepStrictEqual(move.listOf('31').map(r => r.id), [guestOnly, together]);
+assert.deepStrictEqual(move.listOf('30'), []);
+for (let i = 0; i < replays.KEEP; i++) move.save(battle(['32'], t0 + 10 + i));
+move.moveAccount('32', '31');
+assert.strictEqual(move.listOf('31').length, replays.KEEP);
+assert.strictEqual(move.get(together), null);
 console.log('replays ok');

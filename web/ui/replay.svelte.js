@@ -19,7 +19,7 @@ const VOLUME = 0.8;
 
 export const replay = $state({
   meta: null,        // what the server keeps beside the replay: players, heroes, seats, environment, kind, date, result, marks
-  gone: false,       // the replay doesn't exist, is 30 days old, or replays are off on this server
+  gone: false,       // the replay doesn't exist, no player keeps it any more (docs/adr/0034), or replays are off on this server
   booted: false,     // the engine is up: Watch and Download replay work
   loaded: false,     // the engine has built the replay's battle: the controls work
   unplayable: false, // the engine never built it (replayflow.js): the overlay says so and the engine stops
@@ -63,7 +63,7 @@ async function main(canvas) {
   page.ownCopy = !server?.servesGame;
   if (!found.ok) {
     replay.gone = true;
-    page.status = server?.replays === false ? 'This server keeps no replays.' : ''; // the title says the rest
+    page.status = server?.replays === false ? 'This server keeps no replays.' : 'Each player keeps their last 25 battles.'; // docs/adr/0034
     return;
   }
   const { text, meta } = await found.json();

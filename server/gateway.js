@@ -45,9 +45,9 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 const FILES = dataFiles(MODE, DATA_DIR);
 fs.mkdirSync(FILES.dir, { recursive: true });
 const db = store.open(process.env.RG_DB || FILES.accounts);
-// Replays (CONTEXT.md), kept for 30 days in a file beside the accounts they name (dataFiles). RG_REPLAYS=0 keeps no new ones and
-// serves none; the file stays open so an account deleted meanwhile still takes its replays with it. RG_REPLAYS_DB overrides the
-// file, as RG_DB does for tests.
+// Replays (CONTEXT.md), each account's last 25 (docs/adr/0034), in a file beside the accounts they name (dataFiles). RG_REPLAYS=0
+// keeps no new ones and serves none; the file stays open so an account deleted meanwhile still takes its replays with it.
+// RG_REPLAYS_DB overrides the file, as RG_DB does for tests.
 const REPLAYS = process.env.RG_REPLAYS !== '0';
 const replayStore = replays.open(process.env.RG_REPLAYS_DB || (process.env.RG_DB === ':memory:' ? ':memory:' : FILES.replays));
 
@@ -63,7 +63,7 @@ const authConfig = MODE.config;
 const busy = id => [...sessions.values()].some(s => s.userId === id);
 const remove = acc => { for (const s of [...sessions.values()]) if (s.userId === acc.id) dropSession(s); };
 const dropReplays = acc => replayStore.removeAccount(acc.id);
-const auth = createAuth({ store: db, config: authConfig, log, busy, remove, dropReplays, replaysOf: acc => (REPLAYS ? replayStore.ofAccount(acc.id, Date.now()) : []), moveReplays: (from, to) => replayStore.moveAccount(from.id, to.id) });
+const auth = createAuth({ store: db, config: authConfig, log, busy, remove, dropReplays, replaysOf: acc => (REPLAYS ? replayStore.ofAccount(acc.id) : []), moveReplays: (from, to) => replayStore.moveAccount(from.id, to.id) });
 // The server copy for visitors (docs/adr/0031): every visitor of a server that isn't public, only the download code on a public one.
 // RG_GAME_MB_PER_DAY caps what a public server sends a day; the compressed bundle is kept in data/ between starts.
 const sender = createSender({ public: MODE.public, file: path.join(FILES.dir, 'download-code.json'), cacheDir: DATA_DIR, log,
@@ -359,8 +359,9 @@ setInterval(() => {
 }, 5000);
 if (auth.enabled) { auth.sweep(); setInterval(auth.sweep, 60000); }
 setInterval(sender.sweep, 3600000); // the networks counted for the download code, forgotten within a day
-// Replays older than 30 days are never served (server/replays.js); this deletes them from the file too.
-const sweepReplays = () => { const n = replayStore.sweep(Date.now()); if (n) log(`deleted ${n} replay${n > 1 ? 's' : ''} older than 30 days`); };
+// Each account keeps its last 25 replays (server/replays.js); within the hour, an account that is gone, as a wiped guest, keeps none,
+// and a replay no account keeps is deleted.
+const sweepReplays = () => { const n = replayStore.sweep(id => db.byId(id)?.name ?? null); if (n) log(`deleted ${n} replay${n > 1 ? 's' : ''} no player keeps`); };
 sweepReplays(); setInterval(sweepReplays, 3600000);
 
 // ---- browser client: serves the built page (web/dist) and the server copy of the game (server/sendgame.js) ----
@@ -412,13 +413,13 @@ const httpServer = http.createServer((req, res) => {
   if (url === '/replays') {
     const acc = REPLAYS && db.byName(parsed.searchParams.get('name') ?? '');
     res.writeHead(REPLAYS ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify(REPLAYS ? { replays: acc ? replayStore.listOf(acc.id, Date.now()) : [] } : { error: 'off' }));
+    return res.end(JSON.stringify(REPLAYS ? { replays: acc ? replayStore.listOf(acc.id) : [] } : { error: 'off' }));
   }
-  // A replay (CONTEXT.md): its page, with the link preview in its head, and the data the page plays. One that doesn't exist, is
-  // 30 days old, or is on a server that turned replays off is gone: the page says so.
+  // A replay (CONTEXT.md): its page, with the link preview in its head, and the data the page plays. One that doesn't exist, that no
+  // player keeps any more, or that is on a server that turned replays off is gone: the page says so.
   const replay = /^\/replay\/([\w-]{1,64})(\/data)?$/.exec(url);
   if (replay) {
-    const found = REPLAYS ? replayStore.get(replay[1], Date.now()) : null;
+    const found = REPLAYS ? replayStore.get(replay[1]) : null;
     if (replay[2]) {
       res.writeHead(found ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify(found ?? { error: 'gone' }));

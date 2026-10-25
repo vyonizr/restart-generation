@@ -58,13 +58,14 @@ const accounts = require('./store').open(accountsFile);
 const ada = accounts.create('Ada', 'named', Date.now());
 accounts.close();
 const db = replays.open(file);
-const id = db.save({ created: Date.now(), text: 'QUJD', accounts: [ada.id], meta: { ...meta, created: undefined } });
-const old = db.save({ created: Date.now() - replays.KEEP_MS - 1000, text: 'QUJD', accounts: [ada.id], meta });
+const id = db.save({ created: Date.now(), text: 'QUJD', seats: [{ account: ada.id, seat: 1 }], meta: { ...meta, created: undefined } });
+// A battle only a guest kept, and the guest has been wiped since: the gateway's first sweep deletes it.
+const unkept = db.save({ created: Date.now(), text: 'QUJD', seats: [{ account: ada.id + 1000, seat: 2 }], meta });
 db.close();
 
 (async () => {
   try {
-    // The page fetches a replay's text and what it shows around it; one that doesn't exist or is 30 days old is gone.
+    // The page fetches a replay's text and what it shows around it; one that doesn't exist or that no player keeps is gone.
     let g = await gateway({ RG_REPLAYS_DB: file, RG_DB: accountsFile });
     assert.strictEqual(JSON.parse((await g.get('/status')).body).replays, true);
     const found = await g.get(`/replay/${id}/data`);
@@ -73,11 +74,11 @@ db.close();
     assert.strictEqual(data.text, 'QUJD');
     assert.deepStrictEqual(data.meta.players, meta.players);
     assert.strictEqual((await g.get('/replay/no-such-replay-id/data')).status, 404);
-    assert.strictEqual((await g.get(`/replay/${old}/data`)).status, 404);
-    // Anyone can list the replays under a player's name, whatever its case (ADR 0024); a name nobody holds has none.
+    assert.strictEqual((await g.get(`/replay/${unkept}/data`)).status, 404);
+    // Anyone can list the replays under a player's name, whatever its case (ADR 0024), with the seat that player played in, so the
+    // page can say whether they won; a name nobody holds has none.
     const listed = JSON.parse((await g.get('/replays?name=ADA')).body);
-    assert.deepStrictEqual(listed.replays.map(r => [r.id, r.ranked, r.players.length]), [[id, true, 3]]);
-    assert.strictEqual(listed.replays[0].expires - listed.replays[0].created, replays.KEEP_MS);
+    assert.deepStrictEqual(listed.replays.map(r => [r.id, r.ranked, r.players.length, r.seat]), [[id, true, 3, 1]]);
     assert.deepStrictEqual(JSON.parse((await g.get('/replays?name=Nobody')).body), { replays: [] });
     g.child.kill();
 

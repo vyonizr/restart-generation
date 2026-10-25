@@ -9,40 +9,40 @@
 
 #online-as button { font-size: 13px; padding: 4px 8px; }
 
-/* Your replays (ReplaysDialog.svelte, docs/adr/0024): over the page, like the notices, because a month of battles is too long for the
-   screen. Each replay is a step down the ink ramp, its seats laid out like the replay page's lower third. */
+/* Your replays (ReplaysDialog.svelte, docs/adr/0024, 0034): over the page, like the notices, because 25 battles are too long for the
+   screen. One line per replay, ruled off from the next: when, the kind of match, the environment and hero, the result, the buttons. */
 #replays { position: fixed; z-index: 10; width: min(560px, 92vw); max-height: calc(100dvh - 32px); grid-template-rows: auto auto minmax(0, 1fr) auto;
   overflow: hidden; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 65%); }
 .replays-state { display: grid; justify-items: start; gap: 12px; font: 15px/1.6 var(--body); color: var(--light-2); }
 #replays .replays-state p { font: inherit; color: inherit; }
 .replays-state button { font-size: 16px; padding: 8px 14px; }
-.replay-list { display: grid; gap: 8px; margin: 0 -8px 0 0; padding: 0 8px 0 0; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
-.replay-item { display: grid; gap: 12px; padding: 14px; background: var(--ink-1); }
-#replays .replay-facts { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font: 13px/1.4 var(--body); color: var(--light-3); }
-.replay-facts b { font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; color: #fff; margin-right: 2px; }
-.replay-facts time { font-variant-numeric: tabular-nums; }
-.replay-seats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; list-style: none; background: var(--ink-3); border: 1px solid var(--ink-3); }
-.replay-seats li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; background: var(--ink-2); }
-/* Each seat where its castle stands on the board (docs/re/re_rules.md): four go clockwise from the top left, 1 2 over 4 3; the third
-   of three stands under the middle of the other two, each of the three cells framed on its own. Under 420px it's one column in
-   seat order. */
-@media (min-width: 420px) {
-  .replay-seats li:nth-child(3):nth-last-child(2) { order: 1; }
-  .replay-seats:has(li:nth-child(3):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); background: none; border-color: transparent; }
-  .replay-seats:has(li:nth-child(3):last-child) li { grid-column: span 2; outline: 1px solid var(--ink-3); }
-  .replay-seats:has(li:nth-child(3):last-child) li:last-child { grid-column: 2 / 4; }
+.replay-list { display: grid; align-content: start; margin: 0 -8px 0 0; padding: 0 8px 0 0; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.replay-item { display: grid; grid-template-columns: 104px 20px minmax(0, 1fr) 78px auto; align-items: center; gap: 12px; padding: 7px 2px;
+  border-bottom: 1px solid var(--ink-3); }
+.replay-item time { font: 13px/1.4 var(--body); font-variant-numeric: tabular-nums; color: var(--light-2); white-space: nowrap; }
+.replay-kind { display: grid; place-items: center; color: var(--light-2); }
+.replay-kind svg, .replay-copy svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; }
+.replay-kind svg { width: 20px; height: 20px; }
+.replay-played { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.replay-environment { display: flex; flex: none; }
+.replay-environment svg { width: 24px; height: 24px; outline: 1px solid var(--ink-3); }
+.replay-played b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 14px/1 var(--display); text-transform: uppercase;
+  letter-spacing: .01em; color: #fff; }
+.replay-outcome { justify-self: start; font: 12px/1 var(--body); color: var(--light-3); }
+.replay-outcome.won, .replay-outcome.lost { padding: 4px 8px; font: 400 13px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; }
+.replay-outcome.won { background: #fff; color: var(--red); }
+.replay-outcome.lost { background: var(--ink-3); color: var(--light-2); }
+.replay-actions { display: flex; align-items: center; gap: 4px; }
+#replays .replay-actions a.button { font-size: 13px; padding: 5px 10px; }
+#replays .replay-actions .replay-copy { display: grid; place-items: center; min-width: 27px; padding: 5px 6px; border-color: var(--ink-3);
+  font: 12px/1 var(--body); text-transform: none; }
+.replay-copy svg { width: 14px; height: 14px; }
+/* Under 420px: when, the kind and the environment and hero on top; the result and the buttons under them */
+@media (max-width: 419px) {
+  .replay-item { grid-template-columns: auto 20px minmax(0, 1fr); row-gap: 6px; column-gap: 10px; }
+  .replay-outcome { grid-column: 1; grid-row: 2; }
+  .replay-actions { grid-column: 2 / -1; grid-row: 2; justify-self: end; }
 }
-.replay-seats .seat { display: grid; place-content: center; width: 26px; height: 26px; background: var(--ink-3); font: 400 15px/1 var(--display); color: #fff; }
-.replay-seats .player { display: grid; gap: 3px; min-width: 0; }
-.replay-seats .player b, .replay-seats .player span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.replay-seats .player b { font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; color: var(--light-2); }
-.replay-seats .player span { font: 12px/1.2 var(--body); color: var(--light-3); }
-.replay-seats .me .player b { color: #fff; }
-.replay-seats .me .seat { background: var(--light-2); color: var(--ink-1); }
-.replay-seats .place { padding: 4px 7px; background: #fff; font: 400 13px/1 var(--display); text-transform: uppercase; color: var(--red); }
-.replay-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
-#replays .replay-actions a.button, #replays .replay-actions button { font-size: 15px; padding: 8px 14px; }
-.replay-expires { margin-left: auto; font: 12px/1.4 var(--body); color: var(--light-3); }
 
 /* Who you are: the header on a desktop, a line under Start on a touch device */
 .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -178,10 +178,7 @@
   .slow, .nudge { display: flex; align-items: center; justify-content: center; gap: 12px; width: var(--w); justify-self: center;
     font: 13px/1.6 var(--body); color: var(--light-2); }
   .slow button { flex: none; font-size: 16px; padding: 6px 12px; }
-  #replays .replay-actions a.button, #replays .replay-actions button, .replays-state button { padding: 13px 16px; }
-}
-@media (max-width: 419px) {
-  .replay-seats { grid-template-columns: minmax(0, 1fr); }
+  #replays .replay-actions a.button, #replays .replay-actions .replay-copy, .replays-state button { padding: 13px 16px; }
 }
 /* Landscape: a thinner bottom gap, so the column gets the height */
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) {

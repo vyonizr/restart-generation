@@ -13,7 +13,7 @@ const dump = ({ accounts, replays: r }) => ({
   accounts: seed.accounts.map(a => accounts.byName(a.name)).filter(Boolean).map(acc => ({
     ...acc, dates: accounts.dates(acc), rank: acc.kind === 'guest' ? null : accounts.rank(acc),
     friends: accounts.friends(acc).map(f => [f.account.name, f.state]), saves: accounts.saves(acc),
-    replays: r.ofAccount(acc.id, now),
+    replays: r.ofAccount(acc.id),
   })),
 });
 
@@ -48,6 +48,14 @@ const dump = ({ accounts, replays: r }) => ({
   assert.deepStrictEqual(db.accounts.dates(own), { created: now - 5, lastActive: now - 5 });
   assert.strictEqual(db.accounts.linkState(own, ada), 'both');
 
+  // Every seed replay is still kept by one of its players: Dev_Hoarder's oldest leave its list, which holds only the newest 25,
+  // and stay on their opponents'.
+  assert.deepStrictEqual(seed.replays.filter(r => !db.replays.get(r.id)).map(r => r.id), []);
+  const hoarder = db.replays.ofAccount(db.accounts.byName('Dev_Hoarder').id);
+  assert.strictEqual(hoarder.length, replays.KEEP);
+  assert.ok(!hoarder.some(r => r.id === 'dev-replay-11'));
+  assert.ok(db.replays.ofAccount(db.accounts.byName('Dev_Kofi').id).some(r => r.id === 'dev-replay-11'));
+
   // A developer signs in with the token the seed prints: a member's lasts 90 days, a guest's until the guest is wiped.
   assert.strictEqual(db.accounts.byToken(tokenOf('Dev_Bo'), now + MEMBER_TOKEN_MS - 1), db.accounts.byName('Dev_Bo'));
   assert.strictEqual(db.accounts.byToken(tokenOf('Dev_Bo'), now + MEMBER_TOKEN_MS + 1), null);
@@ -66,11 +74,11 @@ const dump = ({ accounts, replays: r }) => ({
   assert.throws(() => settingsFile({ primary: 'F1' }), /Custom Keys/);
 
   // A played replay keeps the engine's text across runs and moves to the new id of an account wiped since.
-  db.replays.put({ id: seed.played[0].id, created: now - 60e3, text: 'engine text', accounts: [], meta: { ranked: true, environment: 0, players: [], result: null } });
+  db.replays.put({ id: seed.played[0].id, created: now - 60e3, text: 'engine text', seats: [], meta: { ranked: true, environment: 0, players: [], result: null } });
   apply(seed, { ...db, discord: true, now });
-  assert.strictEqual(db.replays.get(seed.played[0].id, now).text, 'engine text');
+  assert.strictEqual(db.replays.get(seed.played[0].id).text, 'engine text');
   const guest = db.accounts.byName('Guest900001');
-  assert.ok(db.replays.ofAccount(guest.id, now).some(r => r.id === 'dev-replay-06'));
+  assert.ok(db.replays.ofAccount(guest.id).some(r => r.id === 'dev-replay-06'));
 
   // Name-only: every seed member is a named account with no Discord ID, token or saved game, and there are no guests.
   const names = open();

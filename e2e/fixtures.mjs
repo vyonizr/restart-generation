@@ -31,11 +31,12 @@ export const test = base.extend({
 });
 export { expect };
 
-// The seed replays listed under `name` (docs/adr/0024), newest first, as the server lists them. A seed time such as "-1d3h" is an
-// offset from the seeding run, so the larger one is the newer.
+// The seed replays listed under `name` (docs/adr/0024): its newest 25 (docs/adr/0034), newest first, as the server lists them. A seed
+// time such as "-1d3h" is an offset from the seeding run, so the larger one is the newer.
 export const replaysOf = name => seed.replays
   .filter(r => r.players.some(p => !p.bot && p.name === name))
-  .sort((a, b) => offset(b.created) - offset(a.created));
+  .sort((a, b) => offset(b.created) - offset(a.created))
+  .slice(0, 25);
 
 // A --public gateway won't start without battle templates, which CI can't have (docs/LEGAL.md), so tests put a public server's
 // answer to GET /status in front of the test gateway's: the fields it fills from RG_ADMIN_NAME, RG_HOSTING and RG_CONTACT.

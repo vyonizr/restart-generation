@@ -34,7 +34,7 @@
   <canvas width={REPLAY_WIDTH} height={REPLAY_HEIGHT} aria-label="The battle, played back by the game" bind:this={canvas}
     class:clickable={replay.loaded && !page.overlay} onclick={() => { if (replay.loaded && !page.overlay) togglePlay(); }}></canvas>
   <div id="overlay" hidden={!page.overlay}>
-    <h2 class="bar">{replay.gone ? 'Replay not found or expired' : replay.unplayable ? "Can't play" : 'Replay'}</h2>
+    <h2 class="bar">{replay.gone ? 'Replay not found' : replay.unplayable ? "Can't play" : 'Replay'}</h2>
     <p id="status" role="status" hidden={!page.status}>{page.status}</p>
     <div id="pick" hidden={!page.pick}>
       <button id="pick-zip" bind:this={zipButton} onclick={() => zipInput.click()}>Choose .zip file</button>

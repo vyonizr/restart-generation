@@ -8,7 +8,8 @@
 //   --db FILE     seed this accounts file instead of data/dev/'s; its replays go beside it unless --replays-db names a file
 //
 // The seed owns the names in seed.json: each run puts those rows back to the file's values and leaves every other row alone.
-// Times in seed.json are offsets from the run ("-3d", "-23h55m"), so guests and replays never age out of their limits.
+// Times in seed.json are offsets from the run ("-3d", "-23h55m"), so guests never age out of their 24 hours. Dev_Hoarder has more
+// battles than an account keeps (docs/adr/0034), so its oldest leave its list and stay on its opponents'.
 const crypto = require('crypto');
 const fs = require('fs');
 const net = require('net');
@@ -91,20 +92,21 @@ function apply(seed, { accounts, replays: replayStore, discord, now = Date.now()
     accounts.setLinks(ids.get(a), ids.get(b), state, state === 'to' ? 'from' : state);
     friends++;
   }
-  const linked = names => names.filter(n => ids.has(n)).map(n => ids.get(n).id);
+  // The seats [{ account, seat }] of the seed accounts among a replay's players ({ name, seat, bot }), as a battle's replay keeps them.
+  const seated = players => players.filter(p => !p.bot && ids.has(p.name)).map(p => ({ account: ids.get(p.name).id, seat: p.seat }));
   for (const r of seed.replays) {
     const players = r.players.map(p => ({ name: p.name, hero: p.hero, seat: p.seat, bot: Boolean(p.bot) }));
-    replayStore.put({ id: r.id, created: now + offset(r.created), text: PLACEHOLDER_TEXT, accounts: linked(players.filter(p => !p.bot).map(p => p.name)),
+    replayStore.put({ id: r.id, created: now + offset(r.created), text: PLACEHOLDER_TEXT, seats: seated(players),
       meta: { ranked: r.ranked, environment: r.environment, players, result: r.result } });
   }
   const unplayed = [];
   for (const p of seed.played) {
-    const kept = replayStore.get(p.id, now);
+    const kept = replayStore.get(p.id);
     if (!kept) { unplayed.push(p); continue; }
     const { created, ...meta } = kept.meta;
-    replayStore.put({ id: p.id, created: now + offset(p.created), text: kept.text, accounts: linked(p.players.map(x => x.name)), meta });
+    replayStore.put({ id: p.id, created: now + offset(p.created), text: kept.text, seats: seated(meta.players), meta });
   }
-  return { accounts: ids.size, friends, replays: seed.replays.length + seed.played.length - unplayed.length, signIns, unplayed, linked };
+  return { accounts: ids.size, friends, replays: seed.replays.length + seed.played.length - unplayed.length, signIns, unplayed, seated };
 }
 
 // What seed.json must hold for apply() to give accounts the server itself could have made.
@@ -196,7 +198,7 @@ async function main(argv) {
       for (const p of done.unplayed) {
         console.log(`Playing ${p.id}: ${p.players.map(x => x.name).join(' against ')}…`);
         const { text, meta } = await play(p.players);
-        replayStore.put({ id: p.id, created: now + offset(p.created), text, meta, accounts: done.linked(p.players.map(x => x.name)) });
+        replayStore.put({ id: p.id, created: now + offset(p.created), text, meta, seats: done.seated(meta.players) });
       }
       done = apply(seed, { accounts, replays: replayStore, discord: mode.discord, now });
     }

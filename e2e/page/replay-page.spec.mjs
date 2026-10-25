@@ -3,7 +3,8 @@ import { test, expect, seed, factsLine } from '../fixtures.mjs';
 
 test('an unknown replay is gone, with a way to the game', async ({ page }) => {
   await page.goto('/replay/no-such-replay');
-  await expect(page.getByRole('heading', { name: 'Replay not found or expired' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Replay not found' })).toBeVisible();
+  await expect(page.getByText('Each player keeps their last 25 battles.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Play the game' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Replay controls' })).toBeHidden();
 });

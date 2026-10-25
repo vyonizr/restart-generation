@@ -172,7 +172,7 @@ assert.ok(store, 'no played replays: run `npm run seed -- --play` once (or the e
 const { played } = JSON.parse(fs.readFileSync(new URL('../../server/seed.json', import.meta.url), 'utf8'));
 const kept = replays.open(store), replayHoles = [], replayFights = [];
 for (const { id } of played) {
-  const text = kept.get(id, 0)?.text; // at any age
+  const text = kept.get(id)?.text;
   if (!text) continue;
   const g = new GameHost(files, { replay: text, warn: m => { throw new Error(m); } });
   g.boot();

@@ -382,7 +382,7 @@ async function result(table, waitMs) {
   return { winners: winner ? [winner] : [], players: table.players, ranks: null, guessed: seen ? `witness failed: ${seen.failed}` : 'no server copy' };
 }
 
-// The battle's replay (CONTEXT.md), for server/replays.js: the engine's replay text, the accounts that played, and what the replay
+// The battle's replay (CONTEXT.md), for server/replays.js: the engine's replay text, the accounts that played with their seats, and what the replay
 // page shows around it. `outcome` is result()'s, or null for a battle everyone left before it ended. Its marks come from the
 // witness's moments (docs/adr/0030), unless the witness failed.
 function replay(table, outcome) {
@@ -392,7 +392,7 @@ function replay(table, outcome) {
   return {
     created: table.now(),
     text: replayText(table.game, table.history.map((raw, i) => ({ t: table.times[i], raw }))),
-    accounts: players.filter(p => !p.bot).map(p => p.s.account.id),
+    seats: players.filter(p => !p.bot).map(p => ({ account: p.s.account.id, seat: p.team })),
     meta: {
       ranked: Boolean(table.ranked),
       environment: g.parseGame(table.game).environment,
