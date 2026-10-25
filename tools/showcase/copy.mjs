@@ -10,42 +10,42 @@
 
 export const SITE = 'Restart Generation';
 // The page footer's own words (PRODUCT.md), the last line of every card and post.
-export const DISCLAIMER = 'Unofficial fan revival. Not affiliated with RedLynx, Ubisoft or Nokia.';
+export const DISCLAIMER = 'Unofficial fan revival project. Not affiliated with RedLynx, Ubisoft or Nokia.';
 // After every caption, plainly, as ScummVM and OpenMW say it: no post promises the game itself.
-export const NEEDS = 'Bring your own copy: Windows standalone build.';
+export const NEEDS = 'Bring your own copy of Windows standalone build.';
 
 export const FEATURES = {
   browser: {
     headline: 'Play it in your browser',
-    caption: 'Play Reset Generation (2008) in your browser on Windows, macOS, Linux, Android or iOS.',
+    caption: 'Play Reset Generation (2008) in your browser on Windows, Linux, Android, macOS or iOS',
   },
   battle: {
     headline: 'Four players. One board.',
-    caption: 'Ranked battles for up to four players, with the whole battlefield on one screen.',
+    caption: 'Ranked battles for up to four players',
   },
   board: {
     headline: 'See the whole battlefield',
-    caption: 'Full board shows the whole battlefield; Classic keeps the original 240 × 320. Switch mid-battle.',
+    caption: 'Now supports full board view',
   },
   quickmatch: {
     headline: 'Ranked Quick Match',
-    caption: 'Pick a hero and join a ranked Quick Match for two to four players on a fan-run server.',
+    caption: 'Join a ranked Quick Matches for two to four players on a community-run server.',
   },
   rankings: {
     headline: 'Win fame. Climb the ranks.',
-    caption: 'Ranked wins earn fame and fame levels. The rankings show the top 10 and the players near you.',
+    caption: 'Ranked wins earn fame and fame levels',
   },
   rooms: {
-    headline: 'Friendly rooms, CPU seats',
-    caption: 'Make a room for friends and fill the empty seats with CPU or Expert players.',
+    headline: 'Supports fill-in bots',
+    caption: 'Make a room for friends and fill the empty seats with bots',
   },
   replay: {
-    headline: 'Rewatch every online battle',
-    caption: 'Each online battle gets a replay page with its heroes, knockouts and marks to jump to.',
+    headline: 'Supports Replays',
+    caption: 'Watch and learn how the opponent moves and learn from your mistakes',
   },
   footage: {
-    headline: 'Save any replay as MP4',
-    caption: 'Download a replay as an MP4: the battle alone, or with its title band and players.',
+    headline: 'Save replays',
+    caption: 'Download and keep the recording of your intense matches',
   },
   replays: {
     headline: 'Your last 25 battles',
