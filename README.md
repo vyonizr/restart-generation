@@ -70,7 +70,7 @@ To change the keys, open **Settings > Custom Keys** in the game.
 
 ### Your name
 
-The first time you go online, the game asks for a name and suggests a random one, such as `Guest123456`. You can sign in with Discord to keep your account. For more information, see [Guests and members](docs/HOSTING.md#guests-and-members).
+On a server without Discord sign-in, the Start screen shows the name you play online as, a random one such as `Guest123456` until you choose your own with **Set name**; **Change name** picks another later. If you go online without setting one, the game asks for it. On a server with Discord sign-in, you can sign in with Discord to keep your account. For more information, see [Guests and members](docs/HOSTING.md#guests-and-members).
 
 ### CPU players
 

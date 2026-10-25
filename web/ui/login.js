@@ -1,8 +1,7 @@
 // The player's online identity on a server without accounts, kept in this browser: a name, with no password (ADR 0009).
 // The name is a random GuestNNNNNN until the player sets one, which sets `named`. The server registers it on its first login.
-// The Arena login dialog sets the name; it appears at the first online login.
+// The name dialog sets the name: from Set name or Change name under Start, or at the first online login if it isn't set by then.
 import { page } from './page.svelte.js';
-import { focusOn } from './focus.js';
 
 const KEY = 'rg:guest';
 const saveGuest = guest => { try { localStorage.setItem(KEY, JSON.stringify(guest)); } catch {} };
@@ -35,14 +34,18 @@ export function cancelName() {
   h?.cancel();
 }
 
-// "Online as <name> · Change name" under Start, once the player has set a name.
-export const showOnlineName = () => { page.onlineName = guest.named ? guest.username : ''; };
-export function changeName() {
-  delete guest.named;
+// "Online as <name>" under Start: the name set, or the GuestNNNNNN one until then, with Set name or Change name beside it.
+export const showOnlineName = () => { page.onlineName = guest.username; page.onlineNamed = Boolean(guest.named); };
+// Set name or Change name under Start opens the name dialog before the game logs in, so the next login uses the name typed.
+// The line stays, so the dialog gives focus back to the button.
+export const changeName = () => { page.nameLogin = { value: guest.username, rename: true }; };
+export function renameTo(value) {
+  guest = { username: value.trim(), named: true };
   saveGuest(guest);
+  page.nameLogin = null;
   showOnlineName();
-  focusOn('start');
 }
+export const cancelRename = () => { page.nameLogin = null; };
 
 // What the SNAP client (web/snap.js) calls for the login screen.
 const ui = {

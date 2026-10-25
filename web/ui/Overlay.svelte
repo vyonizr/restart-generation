@@ -32,7 +32,7 @@
     onchange={() => { const files = [...folderInput.files]; folderInput.value = ''; chooseFolder(files); }}>
   <button id="start" hidden={!page.start} bind:this={startButton} use:focusTarget={'start'} onclick={pressStart}>Start</button>
   <p class="hint" id="accept" hidden={!page.start || !page.server?.adminName}>By playing online you accept the <a href="terms/" target="_blank" rel="noopener">Terms</a> and the <a href="privacy/" target="_blank" rel="noopener">Privacy policy</a>.</p>
-  <p class="hint" id="online-as" hidden={!page.onlineName}>Online as <b id="online-name">{page.onlineName}</b> · <button id="change-name" class="secondary" onclick={changeName}>Change name</button>{#if page.server?.replays}{' · '}<button id="online-replays" class="secondary" onclick={() => { page.replays = page.onlineName; }}>Replays</button>{/if}</p>
+  <p class="hint" id="online-as" hidden={!page.onlineName}>Online as <b id="online-name">{page.onlineName}</b> · <button id="change-name" class="secondary" onclick={changeName}>{page.onlineNamed ? 'Change name' : 'Set name'}</button>{#if page.server?.replays && page.onlineNamed}{' · '}<button id="online-replays" class="secondary" onclick={() => { page.replays = page.onlineName; }}>Replays</button>{/if}</p>
   <p class="hint touch-only who" id="who-touch" hidden={!page.who}><Who /></p>
   <p class="online-line touch-only" hidden={page.online === null}><Online icon /></p>
   <div id="recover" hidden={!page.recover}>

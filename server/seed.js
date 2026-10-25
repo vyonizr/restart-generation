@@ -204,7 +204,7 @@ async function main(argv) {
     }
     console.log(`Seeded ${files.accounts}: ${done.accounts} accounts, ${done.friends} friend pairs, ${done.replays} replays (${mode.discord ? 'Discord sign-in' : 'name-only'}).`);
     if (done.unplayed.length) console.log(`${done.unplayed.length} played replay${done.unplayed.length > 1 ? 's are' : ' is'} missing; \`npm run seed -- --play\` plays ${done.unplayed.length > 1 ? 'them' : 'it'} (needs RG_GAME).`);
-    if (!mode.discord) { console.log('To play as a seed account, choose Change name under Start and type its name, such as Dev_Ada.'); return; }
+    if (!mode.discord) { console.log('To play as a seed account, choose Set name (or Change name) under Start, type its name, such as Dev_Ada, and choose Save.'); return; }
     console.log('To play as a seed account, open the page in a private window, paste its line into the console, and reload:');
     for (const s of done.signIns) console.log(`  ${s.name.padEnd(15)} ${s.kind.padEnd(6)} localStorage.setItem('rg:account', '${JSON.stringify({ name: s.name, token: s.token })}')`);
   } finally {

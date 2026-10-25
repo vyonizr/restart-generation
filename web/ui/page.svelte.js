@@ -20,11 +20,12 @@ export const page = $state({
   notice: null,     // { text, actions: [{ label, run, secondary }] }: the line under the screen
   nameDialog: null, // { value, error }: the member's name, after Discord sends them back
   confirm: null,    // { title, text, yes, no }: a yes/no question over the game screen
-  nameLogin: null,  // { value }: the Arena login dialog, on a server without accounts
+  nameLogin: null,  // { value, rename }: the name dialog on a server without accounts, at an online login or, with rename, from Start
   notices: false,   // the Notices dialog is open (opened from the footer)
   replays: '',      // the name whose replays the Replays dialog lists, while it is open (docs/adr/0024)
   bots: null,       // { alone, focus }: the CPU question at a friendly Start; focus is 'none', 'cpu' or 'expert'
-  onlineName: '',   // "Online as <name>" under Start, once the player has set a name
+  onlineName: '',   // "Online as <name>" under Start, on a server without accounts: the name set, or the GuestNNNNNN one until then
+  onlineNamed: false, // whether the player has set that name, which turns Set name into Change name and shows Replays
   dialogs: 0,       // dialogs open; the game screen can't be reached while one is
   finish: 'soft',   // how the game screen is shown, 'soft' or 'sharp' (the Screen finish, finish.js)
   keys: { ...DEFAULT_KEYS }, // the player's custom keys, from the saved game's settings.cfg (keys.js)
