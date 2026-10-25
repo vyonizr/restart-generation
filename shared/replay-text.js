@@ -36,12 +36,13 @@ export const remaining = s => `${s >= 60 ? `${Math.floor(s / 60)}m ` : ''}${s % 
 
 // The file name of a replay's footage (CONTEXT.md "Footage"): restart-generation-2026-10-24-alice-vs-bob.mp4, the battle's date
 // as its page gives it (the visitor's own) and the seats' names in seat order, lowercase, with anything but letters and digits as
-// one dash; broadcast footage (`details`) ends in -details.mp4, so it never overwrites the battle alone.
-export function footageName(meta, details = false) {
+// one dash; footage at 2× (`doubleSpeed`) adds -2x, and broadcast footage (`details`) ends in -details.mp4, so neither overwrites
+// the battle alone at 1×.
+export function footageName(meta, details = false, doubleSpeed = false) {
   const names = [...meta.players].sort((a, b) => a.seat - b.seat)
     .map(p => p.name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || `seat-${p.seat}`);
   const d = new Date(meta.created), two = n => String(n).padStart(2, '0');
-  return `restart-generation-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${names.join('-vs-')}${details ? '-details' : ''}.mp4`;
+  return `restart-generation-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${names.join('-vs-')}${doubleSpeed ? '-2x' : ''}${details ? '-details' : ''}.mp4`;
 }
 
 const SUFFIX = ['th', 'st', 'nd', 'rd'];

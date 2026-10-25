@@ -161,13 +161,15 @@ export function toggleMute() {
 const confirmLeave = e => { e.preventDefault(); e.returnValue = ''; };
 
 // Renders the footage and saves it, as broadcast footage if `details` (CONTEXT.md), plain otherwise; resolves true once it is saved,
-// false if it was canceled or failed. Pressed before Watch, it starts the replay as Watch does (this press lets its sound play
-// later) and waits for the battle to be built, as the page's controls need it afterwards.
+// false if it was canceled or failed. It plays at the page's 2× and Skip idle as they are at the press. Pressed before Watch, it
+// starts the replay as Watch does (this press lets its sound play later) and waits for the battle to be built, as the page's
+// controls need it afterwards.
 export async function exportFootage(details) {
   const f = replay.footage;
   if (exporting || !replay.booted || replay.unplayable || f.status !== 'ready') return false;
   exporting = new AbortController();
   const { signal } = exporting;
+  const mode = { skipEmpty: replay.skipEmpty, doubleSpeed: replay.doubleSpeed };
   Object.assign(f, { status: 'rendering', progress: 0, left: null, error: '' });
   addEventListener('beforeunload', confirmLeave);
   if (touch) stayAwake();
@@ -184,12 +186,12 @@ export async function exportFootage(details) {
     taken = true;
     // The finish the page shows (stage.css): soft, except where the visitor asks for more contrast
     const soft = page.finish === 'soft' && !matchMedia('(prefers-contrast: more)').matches;
-    const blob = await renderFootage(game, { soft, details: details ? replay.meta : null, signal, progress: p => {
+    const blob = await renderFootage(game, { soft, mode, details: details ? replay.meta : null, signal, progress: p => {
       f.progress = p;
       f.left = p >= 0.05 ? Math.ceil((performance.now() - started) / 1000 / p * (1 - p)) : null;
       screen.paint(game); // the battle races by under the progress bar
     } });
-    save(blob, footageName(replay.meta, details));
+    save(blob, footageName(replay.meta, details, mode.doubleSpeed));
     f.status = 'ready';
     return true;
   } catch (e) {

@@ -1,9 +1,10 @@
 // Footage (CONTEXT.md, docs/adr/0028): a replay rendered to an MP4 file on the replay page. The engine runs on its own clock
 // (shared/emu/win32.js), so the page steps it as fast as it can instead of in real time, hands each frame to an H.264 encoder and each
 // block of sound to an AAC encoder (WebCodecs, through Mediabunny), and gets an exact 30 frames a second whatever the device does.
-// It always renders the whole replay as the original player first showed it: from the engine's first frame, at 1× with idle time
-// skipped, to one second after the replay ends, in the Screen finish the page shows (CONTEXT.md). Broadcast footage (CONTEXT.md)
-// adds the page's title band over the battle and its lower third under it, and holds the end for three seconds.
+// It always renders the whole replay: from the engine's first frame, at the page's 2× and Skip idle (`mode`) as the page plays them
+// (2× is the engine's own, which ends the seed's Bot battles in about two thirds of the time, its sound at its own pitch), to one
+// second after the replay ends, in the Screen finish the page shows (CONTEXT.md). Broadcast footage (CONTEXT.md) adds the page's
+// title band over the battle and its lower third under it, and holds the end for three seconds.
 // The replay page loads this module, and with it Mediabunny, in a chunk of its own after the page (replay.svelte.js).
 import { Output, Mp4OutputFormat, BufferTarget, VideoSampleSource, AudioSampleSource, VideoSample, AudioSample, Quality, canEncodeVideo, canEncodeAudio } from 'mediabunny';
 import { REPLAY_WIDTH, REPLAY_HEIGHT } from '../../../../shared/emu/host.js';
@@ -51,12 +52,13 @@ export async function canExportFootage() {
   } catch { return false; }
 }
 
-// Renders the replay of `game` (a GameHost started with one, shared/emu/host.js) and resolves with the MP4 as a Blob, in the soft
-// Screen finish if `soft`, as broadcast footage of the replay `details` describes (its meta, server/battle.js replay()) if given.
-// It boots the engine again, so the replay starts over, and once that boot has worked leaves it with the replay's battle built,
-// wherever it stopped: done, canceled through `signal` (rejects with its reason), or failed. Its sound is drained up to `game.time`
-// by the page's rule (audio.js). `progress(fraction)` is called each time the page gets the main thread back.
-export async function renderFootage(game, { soft, details, signal, progress }) {
+// Renders the replay of `game` (a GameHost started with one, shared/emu/host.js) and resolves with the MP4 as a Blob, played in
+// `mode` ({ skipEmpty, doubleSpeed }, as GameHost.setReplayMode takes it), in the soft Screen finish if `soft`, as broadcast footage
+// of the replay `details` describes (its meta, server/battle.js replay()) if given. It boots the engine again, so the replay starts
+// over, and once that boot has worked leaves it with the replay's battle built, wherever it stopped: done, canceled through
+// `signal` (rejects with its reason), or failed. Its sound is drained up to `game.time` by the page's rule (audio.js).
+// `progress(fraction)` is called each time the page gets the main thread back.
+export async function renderFootage(game, { soft, mode, details, signal, progress }) {
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: false }), target: new BufferTarget() });
   const video = new VideoSampleSource(VIDEO), audio = new AudioSampleSource(AUDIO);
   output.addVideoTrack(video, { frameRate: FPS });
@@ -75,7 +77,7 @@ export async function renderFootage(game, { soft, details, signal, progress }) {
       game.tick();
       if (!loaded && game.replayLoaded) {
         loaded = true;
-        game.setReplayMode({ skipEmpty: true, doubleSpeed: false });
+        game.setReplayMode(mode);
       }
       if (!loaded && game.time >= LOAD_LIMIT_MS) throw new Error("The game couldn't load this replay.");
       if (loaded && defeats?.frame(game, true)) bands.seats(defeats.shown);

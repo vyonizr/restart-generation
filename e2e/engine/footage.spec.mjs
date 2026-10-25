@@ -5,27 +5,29 @@ import { spawnSync } from 'node:child_process';
 import { Input, BlobSource, ALL_FORMATS } from 'mediabunny';
 import { test, expect, seed, playButton } from '../fixtures.mjs';
 
-// When the replay is over by the page's rule (replay-flow.js), at the engine's own 1× with idle time skipped, in seconds of engine
-// time: played with the engine itself, apart from the page and its encoders. In a Node of its own, because the engine's modules
-// loaded into the test runner break its loading of the server's (fixtures.mjs). Its battles all finish, so the rule's fallback for
-// one that never does doesn't come into it.
+// When the replay is over by the page's rule (replay-flow.js), played in `mode` as the page gives it to the engine once the battle
+// is built (the engine's own 1× with idle time skipped by default), in seconds of engine time: played with the engine itself, apart
+// from the page and its encoders. In a Node of its own, because the engine's modules loaded into the test runner break its loading
+// of the server's (fixtures.mjs). Its battles all finish, so the rule's fallback for one that never does doesn't come into it.
 const ENGINE_END = `
 import fs from 'node:fs';
 import { GameHost } from ${JSON.stringify(new URL('../../shared/emu/host.js', import.meta.url).href)};
 import { loadGame } from ${JSON.stringify(new URL('../../shared/game.mjs', import.meta.url).href)};
 const game = new GameHost(await loadGame(), { replay: fs.readFileSync(0, 'utf8'), warn: () => {} });
 game.boot();
-for (let tick = 0, pulled = 0; tick < 60000; tick++) {
+for (let tick = 0, pulled = 0, moded = false; tick < 60000; tick++) {
   game.tick();
   for (; pulled * 64 < game.time; pulled++) game.pullSound();
+  if (!moded && game.replayLoaded) { game.setReplayMode(JSON.parse(process.env.FOOTAGE_MODE)); moded = true; }
   if (game.replayLoaded && game.replayLength > 0 && game.replayTime >= game.replayLength && !game.replayAnimating && game.replayFinished) {
     process.stdout.write(String(game.time / 1000));
     process.exit(0);
   }
 }
 process.exit(1);`;
-function endOf(text) {
-  const run = spawnSync(process.execPath, ['--input-type=module', '-e', ENGINE_END], { input: text, encoding: 'utf8' });
+function endOf(text, mode = { skipEmpty: true, doubleSpeed: false }) {
+  const run = spawnSync(process.execPath, ['--input-type=module', '-e', ENGINE_END],
+    { input: text, encoding: 'utf8', env: { ...process.env, FOOTAGE_MODE: JSON.stringify(mode) } });
   if (run.status !== 0) throw new Error(`the replay never ended: ${run.stderr}`);
   return Number(run.stdout);
 }
@@ -37,14 +39,16 @@ async function tracksOf(file) {
   return { video: await input.getPrimaryVideoTrack(), audio: await input.getPrimaryAudioTrack() };
 }
 
-test('a played replay exports as the battle only: an MP4 of the whole battle at 30 fps, 1080 px tall, with sound', async ({ page, errors }, testInfo) => {
+test('a played replay exports as the battle only at the page\'s speed: an MP4 of the whole battle at 30 fps, 1080 px tall, with sound', async ({ page, errors }, testInfo) => {
   const { id } = seed.played[0];
   const { text } = await (await page.request.get(`replay/${id}/data`)).json();
   await page.goto(`/replay/${id}`);
   await page.getByRole('button', { name: 'Watch' }).click();
   const play = playButton(page);
   await expect(play).toHaveAccessibleName('Pause', { timeout: 30000 });
-  await page.getByRole('button', { name: 'Double speed' }).click(); // the page's own speed doesn't reach the footage
+  // The footage plays at the page's 2×. Skip idle is left on: the seed's Bots never wait long enough between moves for it to
+  // change when a played replay ends.
+  await page.getByRole('button', { name: 'Double speed' }).click();
 
   const saving = page.waitForEvent('download', { timeout: 150000 });
   await page.getByRole('button', { name: 'Download replay' }).click();
@@ -54,7 +58,7 @@ test('a played replay exports as the battle only: an MP4 of the whole battle at 
   const download = await saving;
   // It says so for 2.5 s, less than copying a long battle's file can take.
   await expect(page.getByRole('button', { name: 'Downloaded' })).toBeVisible();
-  expect(download.suggestedFilename()).toMatch(/^restart-generation-\d{4}-\d\d-\d\d-.+(?<!-details)\.mp4$/);
+  expect(download.suggestedFilename()).toMatch(/^restart-generation-\d{4}-\d\d-\d\d-.+-2x\.mp4$/);
   const file = testInfo.outputPath('footage.mp4');
   await download.saveAs(file);
 
@@ -71,8 +75,8 @@ test('a played replay exports as the battle only: an MP4 of the whole battle at 
   expect([await video.getDisplayWidth(), await video.getDisplayHeight()]).toEqual([1200, 1080]);
   expect((await video.computePacketStats()).averagePacketRate).toBeCloseTo(30, 1);
   expect(audio?.codec).toBe('aac');
-  // The whole battle and one second more.
-  const expected = endOf(text) + 1;
+  // The whole battle as the page played it, and one second more.
+  const expected = endOf(text, { skipEmpty: true, doubleSpeed: true }) + 1;
   expect(Math.abs(await video.computeDuration() - expected)).toBeLessThanOrEqual(1);
   expect(Math.abs(await audio.computeDuration() - expected)).toBeLessThanOrEqual(1);
   expect(errors).toEqual([]);
@@ -92,7 +96,7 @@ test('a replay exports as footage with details straight from Watch, and then wai
   await page.keyboard.press('Enter');
   await expect(page.getByRole('progressbar', { name: 'Download' })).toBeVisible();
   const download = await saving;
-  expect(download.suggestedFilename()).toMatch(/-details\.mp4$/);
+  expect(download.suggestedFilename()).toMatch(/(?<!-2x)-details\.mp4$/);
   const file = testInfo.outputPath('footage-details.mp4');
   await download.saveAs(file);
   await expect(page.getByRole('button', { name: 'Watch' })).toBeHidden();
