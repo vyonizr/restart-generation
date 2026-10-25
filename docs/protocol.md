@@ -173,7 +173,7 @@ A StatsRecord starts with the following fields, in order:
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `name` | String | Player name |
-| `fameLevel` | `s32` | Fame level |
+| `fameLevel` | `s32` | Fame level, 1 to 14: the client draws badge `fameLevel - 1` of its 14 and checks nothing ([re_casino.md](re/re_casino.md) §2.9). This server sends one level a 100 fame, up to 14 from 1300 fame on. The same value goes in a Profile's `fameLevel`. |
 | `unknown` | `s32` | Unknown; the server sends 0 |
 | `rank` | `s32` | Rank |
 | `totalMatches` | `s32` | Matches played |

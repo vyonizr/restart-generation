@@ -197,6 +197,8 @@ u32 n2, n2 * i32   ; +0x38 list: BELTS
 
 Labels from `FUN_10050a20` (stats page), `FUN_100506a0`, and `FUN_100d93e0` (ranking row = `rank  name  fameLevel-1  fame`).
 
+How the badge is chosen: the stats page (`FUN_10050a20` -> `FUN_10050860`) and every ranking row (`FUN_100d93e0` -> `FUN_100506a0`) write `fameLevel - 1` into the row's text, and the menu's text drawer reads that number back and draws it as a frame of `data/menus/gfx/fame.gfx`, which the menu loads once (`+0xd4`). Nothing between the record and the draw checks the number against the sheet. The sheet has 14 frames ([re_looks.md](re_looks.md)), so `fameLevel` 1 to 14 shows the 14 badges from the lowest up, and any other value shows the wrong picture: seen on the Rankings screen, levels 16 to 22 came out as small gem-like scraps instead of a badge. The client never works a level out from fame; the server decides both numbers, and the original server's rule left no trace in the client ([re_match.md](re_match.md) open question 3).
+
 ### 2.10 Achievements blob
 Vtable `1017aa00`, 50 u32 counters.
 - In the GET_ACHIEVEMENTS request: the first 48 bytes (12 × u32) raw (`FUN_10041f10`, size `FUN_10041e50` = 0x30).

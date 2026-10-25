@@ -16,7 +16,7 @@ A battle's look is its Game blob's `Environment` (`+0x120`, 0 to 4; [protocol.md
 
 ## The fame badges
 
-The game shows a player's fame level as a small badge (the profile's `fameLevel`, shown as the level less one; [re_casino.md](re_casino.md) §2.9). The badges are `data/menus/gfx/fame.gfx` in `menus.pak`, the path the engine names next to its `FAME`, `HIGHEST_FAME` and `NO_RANK_YET` strings: a `.gfx` of kind 1 ([re_info.md](re_info.md)), 40 × 16 pixels, 32-bit colors, with 14 frames, one per level from the lowest.
+The game shows a player's fame level as a small badge (the profile's `fameLevel`, shown as the level less one; [re_casino.md](re_casino.md) §2.9). The badges are `data/menus/gfx/fame.gfx` in `menus.pak`, the path the engine names next to its `FAME`, `HIGHEST_FAME` and `NO_RANK_YET` strings: a `.gfx` of kind 1 ([re_info.md](re_info.md)), 40 × 16 pixels, 32-bit colors, with 14 frames, one per level from the lowest. So the levels the game can show are 1 to 14; it doesn't check, and a higher level draws something that isn't a badge.
 
 They climb like military insignia, and from the second level on they have wings:
 

@@ -1,7 +1,7 @@
 // Self-check for the bot question at a friendly Start and for scoring a battle: node server/casino.test.js
 const assert = require('assert');
 for (const k of Object.keys(process.env)) if (k.startsWith('RG_')) delete process.env[k]; // the shell's .env mustn't change the result
-const { botChoice, fillsWithBots, finishMatch, abandonMatch } = require('./casino');
+const { botChoice, fillsWithBots, finishMatch, abandonMatch, fameLevel } = require('./casino');
 
 const room = n => ({ lobby: Array(n).fill({}) });
 assert.strictEqual(botChoice(undefined, true), 'gone');
@@ -18,6 +18,11 @@ assert.strictEqual(fillsWithBots(2, true, true), true);
 assert.strictEqual(fillsWithBots(3, false, true), false);
 assert.strictEqual(fillsWithBots(4, true, true), false);
 console.log('friendly bot choice ok');
+
+// The client has 14 fame badges and draws badge fameLevel - 1 without a check (docs/re/re_casino.md §2.9).
+const level = fame => fameLevel({ stats: { fame } });
+assert.deepStrictEqual([0, 99, 100, 1299, 1300, 2140, 1e6].map(level), [1, 1, 2, 13, 14, 14, 14]);
+console.log('fame levels ok');
 
 // The page recognizes the engine's Start (shared/snap.js) by the bytes this server reads.
 const { encode, T, u32 } = require('./mt');

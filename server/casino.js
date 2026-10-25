@@ -112,7 +112,10 @@ function keepReplay(host, outcome, api) {
   for (const p of host.players) if (!p.bot && p.s.web) api.replaySaved(p.s, id);
 }
 
-const fameLevel = acc => 1 + Math.floor(stats(acc).fame / 100);
+// One level a 100 fame (an invented rule, ADR 0002), at most the 14 badges the client has: it draws badge fameLevel - 1 unchecked,
+// so a higher level shows something that isn't a badge (docs/re/re_casino.md §2.9).
+const FAME_LEVELS = 14;
+const fameLevel = acc => Math.min(FAME_LEVELS, 1 + Math.floor(stats(acc).fame / 100));
 // The matchmaking screen reads fameLevel, heroType and random from every listed profile (FUN_100eb6d0);
 // a missing key crashes the client.
 const myProfile = s => ({ id: s.userId, name: s.name, fame: stats(s.account).fame, fameLevel: fameLevel(s.account), ...s.match });
@@ -385,7 +388,7 @@ function onMessage(s, msg, api) {
 }
 
 module.exports = {
-  botChoice, fillsWithBots, finishMatch, abandonMatch,
+  botChoice, fillsWithBots, finishMatch, abandonMatch, fameLevel,
   waiting: () => queue.length, // players waiting in the ranked Quick Match
   botQuestion: id => botChoice(friendly.get(id), canFillWithBots()),
   onPacket(s, data, api) {

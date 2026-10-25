@@ -30,6 +30,7 @@
     { "name": "Dev_Bjorn", "kind": "member", "discord": "28", "created": "-3d", "lastActive": "-3d", "wins": 0, "matches": 4 },
     { "name": "Dev_Chidi", "kind": "member", "discord": "29", "created": "-2d", "lastActive": "-1h", "wins": 0, "matches": 0 },
     { "name": "Dev_Hoarder", "kind": "member", "discord": "30", "created": "-60d", "lastActive": "-1d", "wins": 14, "matches": 38, "fill": 3 },
+    { "name": "Dev_Champion", "kind": "member", "discord": "31", "created": "-120d", "lastActive": "-30m", "wins": 164, "matches": 251 },
     { "name": "Guest900001", "kind": "guest", "created": "-6h", "lastActive": "-10m", "wins": 3, "matches": 5 },
     { "name": "Guest900002", "kind": "guest", "created": "-20h", "lastActive": "-2h", "wins": 0, "matches": 2 },
     { "name": "Guest900003", "kind": "guest", "created": "-1h", "lastActive": "-1h", "wins": 0, "matches": 0 },
