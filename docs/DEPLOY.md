@@ -2,7 +2,7 @@
 
 This guide is the whole procedure for a public server on one virtual private server (VPS): Docker, Caddy for HTTPS, and Discord sign-in. [On the internet (Caddy)](HOSTING.md#on-the-internet-caddy) in the hosting guide holds the short version for a host that is ready; this guide adds what comes before and after it.
 
-> **Caution:** This procedure was tested only on a PC with Docker Desktop, at `RG_DOMAIN=localhost`. Steps 1 and 2, a real certificate, the Discord sign-in round trip, the cron job, and the `chown` command haven't been tested on a VPS.
+> **Caution:** This procedure was tested only on a PC with Docker Desktop, at `RG_DOMAIN=localhost`. Steps 1 and 2, a real certificate, the Discord sign-in round trip, the cron jobs, and the `chown` command haven't been tested on a VPS.
 
 The steps leave out `RG_GAME_PATH`, so each player chooses their own copy of the game (see the architecture decision record [ADR 0001](adr/0001-players-bring-their-own-game-files.md)), and the server guesses battle results. Giving the server its own copy, and sending that copy with a download code, are separate decisions: see [Optional: send the game with a download code](#optional-send-the-game-with-a-download-code).
 
@@ -206,7 +206,7 @@ git pull
 RG_VERSION=$(git describe --tags --always) docker compose up -d --build
 ```
 
-Then repeat the checks in [step 6](#6-start-and-check-the-server). To free disk space, run `docker image prune -f`.
+Then repeat the checks in [step 6](#6-start-and-check-the-server). Each update leaves the previous image and build cache behind; the weekly prune job in [step 9](#9-run-the-server-day-to-day) removes them a week later, or run `docker system prune -f` to free the space now.
 
 To roll back, run the following commands:
 
@@ -224,6 +224,13 @@ If the schema changed between the two versions, also restore the backup from bef
 - View the logs: `docker compose logs -f --tail 100 rg`. Docker keeps only the newest 30 MB of each container's log (three 10 MB files, set in `compose.yaml`), and the server keeps `data/capture.log` under 20 MB, so the logs can't fill the disk.
 - Restart the server: `docker compose restart rg`. The server loads the battle templates only at start.
 - Stop everything: `docker compose down`. The data stays in `data/`, and the certificates stay in a volume.
+- Free disk space every week. Each update builds the image on the VPS and leaves the previous image and its build cache behind. Run `crontab -e` as the VPS user and add the following line, which every Sunday at 04:17 removes stopped containers, unused networks, untagged images, and build cache that are more than a week old:
+
+  ```cron
+  17 4 * * 0 docker system prune -f --filter "until=168h" 2>&1 | logger -t docker-prune
+  ```
+
+  It keeps running containers, the images they use, and every volume, so Caddy's certificates stay. Never add `--volumes`: Docker versions before 23 also remove unused named volumes with it, and losing `caddy_data` makes Caddy ask Let's Encrypt for the certificates again, which Let's Encrypt limits for one name. Rolling back still works, because a rollback rebuilds the image. Like the backup job, it runs `docker` as that user, so the user must be in the `docker` group. Run the command once by hand first, comparing `docker system df` before and after. The job's output goes to the system journal: read it with `journalctl -t docker-prune`.
 - Watch the outbound transfer your plan includes, in your host's dashboard. Without the game, each online player costs about 0.6 MB an hour, so 100 players online on average use about 45 GB a month. Some hosts shut the VPS down when the allowance runs out, until the next month; if usage passes half the allowance before mid-month, move to a bigger plan.
 - Delete an account: see [Delete an account](HOSTING.md#delete-an-account).
 

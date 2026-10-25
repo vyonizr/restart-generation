@@ -255,6 +255,8 @@ BIND=127.0.0.1
 
 Run `RG_VERSION=$(git describe --tags --always) docker compose -f compose.lan.yaml up -d --build` and open `http://localhost:8080/`. It keeps accounts and battle templates in `./data` the same way, and it only warns when there are no templates. The container serves plain HTTP, so the screen wake lock isn't available on another device unless you put HTTPS in front.
 
+Each `--build` leaves the previous image and its build cache behind, with either compose file. To free that space every week, add the prune job from [Run the server day to day](DEPLOY.md#9-run-the-server-day-to-day).
+
 ## Battle templates
 
 Online battles don't work without battle templates. The server hosts every battle from a battle template captured from the engine ([ADR 0006](adr/0006-capture-battle-templates-from-a-live-client.md)), stored as a pair of `NAME.game` and `NAME.snap` files, where `NAME` is the template's name, in `data/templates/`, in `data/battle-templates.zip`, or both. The templates stay out of the repository and the Docker image because they derive from the game (ADR 0001), so a fresh clone, a rebuilt container, or a new server has none until you restore or capture them.
