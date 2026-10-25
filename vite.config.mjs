@@ -44,7 +44,7 @@ export default defineConfig({
     rollupOptions: { input: Object.fromEntries([['index', 'index.html'], ['terms', 'terms/index.html'], ['privacy', 'privacy/index.html'], ['replay', 'replay/index.html']].map(([name, f]) => [name, fileURLToPath(new URL(`./web/${f}`, import.meta.url))])) },
   },
   server: {
-    // Exact paths: a plain '/snap' would also catch the page's own /snap.js.
-    proxy: Object.fromEntries(['^/(snap|status|bots|replays)$', '^/(auth|game)/', '^/replay/[\\w-]+/data$'].map(path => [path, gateway])),
+    // Exact paths, with or without a query (`/replays?name=`): a plain '/snap' would also catch the page's own /snap.js.
+    proxy: Object.fromEntries(['^/(snap|status|bots|replays)(\\?|$)', '^/(auth|game)/', '^/replay/[\\w-]+/data$'].map(path => [path, gateway])),
   },
 });
