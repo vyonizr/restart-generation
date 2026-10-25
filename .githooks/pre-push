@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuses a push to the public repository that tools/publish.mjs wouldn't have made, so this checkout's own history can't be pushed
+# there by mistake, and runs the legal check on what any other push sends. Turn it on once per clone with: npm run hooks
+exec node tools/publish-check.mjs "$@"

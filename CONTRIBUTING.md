@@ -11,7 +11,7 @@ npm install
 npm run hooks
 ```
 
-After that, git refuses a commit that adds what the rules forbid, or whose message doesn't follow the [commit message format](#write-commit-messages). `npm test` runs the same legal check, and so does GitHub on every pull request.
+After that, git refuses a commit that adds what the rules forbid, or whose message doesn't follow the [commit message format](#write-commit-messages), and a push to the public repository that `tools/publish.mjs` didn't make ([Publishing](docs/LEGAL.md#publishing)). `npm test` runs the same legal check, and so does GitHub on every pull request.
 
 ## How to work here
 

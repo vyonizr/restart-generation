@@ -2,9 +2,9 @@
 //   node tools/legal-check.mjs                 every tracked file, and every file that git would add
 //   node tools/legal-check.mjs --staged        only what is staged (the pre-commit hook)
 //   node tools/legal-check.mjs --history [rev] every file of every commit that rev reaches (default HEAD)
-//   node tools/legal-check.mjs --install-hook  make git run this before each commit here, and tools/commit-format.mjs on its
-//                                              message (core.hooksPath = .githooks)
-//   (rev may be a range, a..b: tools/publish.mjs checks only the commits it is about to push)
+//   node tools/legal-check.mjs --install-hook  make git run this before each commit here, tools/commit-format.mjs on its message,
+//                                              and tools/publish-check.mjs before each push (core.hooksPath = .githooks)
+//   (rev may be a range, a..b. checkHistory() takes any git rev-list arguments: tools/publish-check.mjs checks only what a push sends)
 // Exit code 1 if anything is refused. It cannot recognize a screenshot or a recording of the game; docs/LEGAL.md says what a
 // contributor must not add, and an exception goes in tools/legal-allow.json with its provenance.
 import fs from 'node:fs';
@@ -69,30 +69,39 @@ function checkFile(file, read, size) {
   return checkText(file, buf.toString('utf8'));
 }
 
+// Checks every file of every commit that `revs` (git rev-list arguments) select; each file version is read once.
+export function checkHistory(revs) {
+  const problems = [];
+  const commits = lines(git('rev-list', ...revs));
+  const seen = new Set(); // path@blob, so that a file that never changes is read once
+  for (const c of commits) {
+    for (const row of git('ls-tree', '-r', '-l', '-z', c).toString('utf8').split('\0').filter(Boolean)) {
+      const m = /^\d+ blob ([0-9a-f]+)\s+(\d+|-)\t(.*)$/.exec(row);
+      if (!m) continue;
+      const [, blob, size, file] = m, key = `${file}@${blob}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const bad = checkFile(file, () => git('cat-file', 'blob', blob), Number(size));
+      if (bad) problems.push(`${file} (in ${c.slice(0, 8)}) ${bad}`);
+    }
+  }
+  return { problems, files: seen.size, commits: commits.length };
+}
+
 function run(argv) {
   if (argv.includes('--install-hook')) {
     const r = spawnSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root });
-    console.log(r.status === 0 ? 'git will run tools/legal-check.mjs --staged before each commit, and tools/commit-format.mjs on its message.' : 'not a git checkout: nothing installed.');
+    console.log(r.status === 0 ? 'git will run tools/legal-check.mjs --staged before each commit, tools/commit-format.mjs on its message, and tools/publish-check.mjs before each push.' : 'not a git checkout: nothing installed.');
     return r.status === 0 ? 0 : 1;
   }
-  const problems = [];
+  let problems;
   if (argv.includes('--history')) {
     const rev = argv[argv.indexOf('--history') + 1]?.startsWith('--') ? 'HEAD' : argv[argv.indexOf('--history') + 1] || 'HEAD';
-    const commits = lines(git('rev-list', rev));
-    const seen = new Set(); // path@blob, so that a file that never changes is read once
-    for (const c of commits) {
-      for (const row of git('ls-tree', '-r', '-l', '-z', c).toString('utf8').split('\0').filter(Boolean)) {
-        const m = /^\d+ blob ([0-9a-f]+)\s+(\d+|-)\t(.*)$/.exec(row);
-        if (!m) continue;
-        const [, blob, size, file] = m, key = `${file}@${blob}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const bad = checkFile(file, () => git('cat-file', 'blob', blob), Number(size));
-        if (bad) problems.push(`${file} (in ${c.slice(0, 8)}) ${bad}`);
-      }
-    }
-    console.log(`checked ${seen.size} file versions in ${commits.length} commits`);
+    const result = checkHistory([rev]);
+    problems = result.problems;
+    console.log(`checked ${result.files} file versions in ${result.commits} commits`);
   } else {
+    problems = [];
     const staged = argv.includes('--staged');
     const files = staged
       ? lines(git('diff', '--cached', '--name-only', '--diff-filter=ACMR'))

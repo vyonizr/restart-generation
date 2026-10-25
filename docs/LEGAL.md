@@ -22,6 +22,7 @@ New images, video, audio, or fonts must be listed in `tools/legal-allow.json` wi
 
 - `npm run legal-check` refuses the file types, folders, unlisted media, decompiler output, disassembly, long hex strings, secrets, and local paths that the preceding rules name. `npm test` runs it.
 - `npm run hooks` makes git run it before every commit in your clone, together with the commit message check ([CONTRIBUTING.md](../CONTRIBUTING.md#write-commit-messages)). Run it once.
+- The same hooks check every push (`tools/publish-check.mjs`). A push to the public repository passes only if every commit it sends passes the checks of `tools/publish.mjs`, so a plain `git push` of `development` or any other source branch is refused: publish with `tools/publish.mjs` (see [Publishing](#publishing)). A push to any other repository gets the legal check on the commits it sends.
 - `.github/workflows/legal.yml` runs it on every push and pull request, over the whole history as well.
 - It can't recognize a screenshot or a recording. Rule 2 is on you.
 - `npm run e2e` keeps its traces and screenshots in `tmp/e2e/`, which git ignores, and `.github/workflows/e2e.yml` uploads only `tmp/e2e/page/`, from the tests that run without the engine ([ADR 0025](adr/0025-end-to-end-tests-run-in-playwright-with-the-engine-only-where-the-game-is.md)).

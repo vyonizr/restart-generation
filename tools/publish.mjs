@@ -15,15 +15,13 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { scrub, scrubbable, DROP } from './scrub-tree.mjs';
-import { badSubject } from './commit-format.mjs';
+import { USER, EMAIL, PUBLIC_REMOTE, checkPublished } from './publish-check.mjs';
 
-const USER = 'vyonizr';
-const EMAIL = `${USER}@users.noreply.github.com`;
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const opt = (name, fallback) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : fallback);
 const branch = opt('--branch', 'development');
-const remote = opt('--remote', `https://github.com/${USER}/restart-generation.git`);
+const remote = opt('--remote', PUBLIC_REMOTE);
 const PUBLIC = 'refs/public/main';
 
 const git = (args, { input, env, buffer } = {}) => {
@@ -138,29 +136,7 @@ const tip = rewritten.get(git(['rev-parse', branch]));
 const range = publicTip ? `${publicTip}..${tip}` : tip;
 const problems = [];
 if (publicTip && spawnSync('git', ['merge-base', '--is-ancestor', publicTip, tip], { cwd: root }).status !== 0) problems.push(`the result doesn't extend the public main ${publicTip.slice(0, 8)}`);
-const identities = new Set(list(git(['log', '--format=%an <%ae>%n%cn <%ce>', range])));
-if ([...identities].some(i => i !== `${USER} <${EMAIL}>`)) problems.push(`identities other than ${USER}: ${[...identities].join(', ')}`);
-const check = spawnSync(process.execPath, [path.join(root, 'tools', 'legal-check.mjs'), '--history', range], { cwd: root, encoding: 'utf8' });
-process.stdout.write(check.stdout); process.stderr.write(check.stderr);
-if (check.status !== 0) problems.push('the legal check refused something');
-// Nothing that the scrub rewrites may be left (the notes in docs/re, and the files that talk about the scrub, say it on purpose).
-const left = git(['log', '--format=%h', '-G', 'Browser port of the Java|recovered from lib/rg-signed|SNAPMobileClient\\.(processServerError|netBuffer)|ServerComm\'s listener|LoginScreen in the Java|Java applet did|resetgeneration\\.[a-z0-9-]+\\.[a-z]{2,}', range, '--', '.', ':!docs/re', ':!docs/adr/0018*', ':!docs/LEGAL.md', ':!tools'])
-  || git(['log', '--format=%h', '-G', 'screenshots of RedLynx|redlynx-(style|direction|ui)|nspired by RedLynx|Crimson', range, '--', '.', ':!docs/re', ':!tools']);
-if (left) problems.push(`scrubbed wording left in ${list(left).join(', ')}`);
-if (git(['log', '--format=%h', range, '--', ...DROP])) problems.push(`${DROP.join(', ')} still in the history`);
-// The source's real names, addresses and the original client's password keys must appear in no file and no message.
-const realKeys = [...new Set(git(['log', '-p', '--format=', '-G', '[0-9A-F]{64}', branch]).match(/(?<=')[0-9A-F]{64}(?=')/g) || [])];
-const realEmails = [...new Set(list(git(['log', '--format=%ae%n%ce', branch])))].filter(e => e !== EMAIL);
-const leaked = [...realEmails, ...realNames, ...realKeys].filter(s => git(['log', '--format=%h', '-S' + s, range, '--', '.']) || git(['log', '--format=%h', '-i', '--fixed-strings', '--grep=' + s, range]));
-if (leaked.length) problems.push(`${leaked.length} author name(s), address(es) or key(s) found in files or messages`);
-// Releases are numbered from Conventional Commits (ADR 0019). Only commits made after the format check arrived are held to it:
-// those whose first parent already has tools/commit-format.mjs. Merge commits are exempt, as in the hook.
-const misformatted = list(git(['log', '--format=%h%x09%P%x09%s', range])).map(line => line.split('\t')).filter(([, parents, subject]) => {
-  const [parent, ...more] = parents.split(' ').filter(Boolean);
-  if (!parent || more.length) return false;
-  return spawnSync('git', ['cat-file', '-e', `${parent}:tools/commit-format.mjs`], { cwd: root }).status === 0 && badSubject(subject);
-});
-for (const [id, , subject] of misformatted) problems.push(`${id}: ${badSubject(subject)}`);
+problems.push(...checkPublished([range], branch));
 
 console.log(`\n${fresh.length} new commit(s) for ${remote} main, from ${branch}:`);
 for (const line of list(git(['log', '--format=%h %s', range]))) console.log(`  ${line}`);
@@ -170,6 +146,7 @@ if (problems.length) {
   process.exit(1);
 }
 if (!argv.includes('--push')) { console.log('\nAll checks passed. Run again with --push to publish them.'); process.exit(0); }
-git(['push', '--quiet', remote, `${tip}:refs/heads/main`]);
+// The pre-push hook (tools/publish-check.mjs) would run the checks that just passed on the same commits again.
+git(['push', '--quiet', '--no-verify', remote, `${tip}:refs/heads/main`]);
 git(['update-ref', PUBLIC, tip]);
 console.log(`\nPushed: ${remote} main is now ${tip.slice(0, 8)}.`);

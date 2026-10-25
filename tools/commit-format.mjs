@@ -1,6 +1,6 @@
 // The commit subject format that releases are numbered from (ADR 0019, CONTRIBUTING.md): Conventional Commits.
 //   node tools/commit-format.mjs <message file>   the commit-msg hook (.githooks/commit-msg); exit code 1 refuses the commit
-// tools/publish.mjs imports badSubject to refuse publishing a commit that the hook would have refused.
+// tools/publish-check.mjs imports badSubject to refuse publishing a commit that the hook would have refused.
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
