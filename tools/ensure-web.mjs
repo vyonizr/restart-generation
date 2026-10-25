@@ -1,5 +1,5 @@
 // Run before the server starts: builds the page (web/dist) when it is missing, so a fresh clone needs only `npm install` and
-// `npm start` (ADR 0013). It never installs packages itself. Rebuild after changing web/ with `npm run build`.
+// `npm start` (ADR 0013). It never installs packages itself. Rebuild after changing web/ or shared/ with `npm run build`.
 // With --vite it only checks that Vite is installed (for `npm run dev:web`).
 import fs from 'node:fs';
 import path from 'node:path';

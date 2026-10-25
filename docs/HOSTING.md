@@ -4,7 +4,7 @@ This guide is for the admin: the person who runs a Restart Generation server for
 
 The server replaces Nokia's N-Gage Arena, which used the SNAP Mobile protocol, for the standalone build of Reset Generation (RedLynx, 2008). It restores login, stats, rankings, achievements, friends, ranked Quick Match (2-4 players), friendly rooms, and server-hosted battles. The browser client runs the original engine, the 32-bit Windows program `ResetGeneration-Win32-Web.dll`, unchanged in a JavaScript x86 emulator.
 
-For more information about how it works, see [the protocol](protocol.md), the [architecture decision records (ADRs)](adr/), the [reverse-engineering notes](re/) (including how to regenerate the analysis), [the emulator](../web/emu), and [the page](../web/ui) (Svelte components built by Vite, [ADR 0013](adr/0013-the-page-is-built-with-vite-and-svelte.md)).
+For more information about how it works, see [the protocol](protocol.md), the [architecture decision records (ADRs)](adr/), the [reverse-engineering notes](re/) (including how to regenerate the analysis), [the emulator](../shared/emu), and [the page](../web/src) (Svelte components built by Vite, [ADR 0013](adr/0013-the-page-is-built-with-vite-and-svelte.md)).
 
 ## Run the server with Node.js
 
@@ -16,14 +16,14 @@ To set up the server, do the following:
 2. Copy `.env.example` to `.env` in the repository root.
 3. In `.env`, set `RG_GAME` to the path of your game copy, the server copy.
 
-`RG_GAME` is the server copy of the game: either `ResetGeneration-Standalone.zip` or the extracted `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files). The server runs it for its witness and, unless it's `--public`, for bots. A server that isn't `--public` also sends it to every visitor, so that nobody chooses their own files; a `--public` server sends it only to visitors who come with its download code (see [Send the game with a download code](#send-the-game-with-a-download-code)). Send only a copy you own. The dev tools in `web/tools` read the game from `RG_GAME` too.
+`RG_GAME` is the server copy of the game: either `ResetGeneration-Standalone.zip` or the extracted `ResetGeneration` folder (the one with `ResetGeneration-Win32-Web.dll` and the `.pak` files). The server runs it for its witness and, unless it's `--public`, for bots. A server that isn't `--public` also sends it to every visitor, so that nobody chooses their own files; a `--public` server sends it only to visitors who come with its download code (see [Send the game with a download code](#send-the-game-with-a-download-code)). Send only a copy you own. The dev tools in `tools/emu` read the game from `RG_GAME` too.
 
 The server sends the game as one download, the game bundle, a few seconds after it starts: the files the engine runs from, compressed with gzip, about 28 MiB. The page keeps them in the browser's IndexedDB, so a browser downloads them once.
 
 Use the following npm scripts:
 
 - `npm start`, or `npm run start:lan` for `--lan`: starts the server. If `web/dist` is missing, it builds the page first, and if Vite isn't installed, it tells you to run `npm install`.
-- `npm run build`: rebuilds the page after you change anything in `web/`.
+- `npm run build`: rebuilds the page after you change anything in `web/` or `shared/`.
 - `npm run dev:web`: serves the page while a gateway runs. A style change swaps in place, and a script or component change reloads the page. It forwards `/snap`, `/status`, `/auth`, `/bots`, `/replays`, `/replay/ID/data`, and `/game` to port 8080 (or `HTTP_PORT`).
 - `npm run dev`, or `npm run dev:lan` for `--lan`: runs `npm run seed`, then starts a development server that restarts on file changes. It keeps its accounts and replays in `data/dev/`, apart from the files `npm start` uses ([ADR 0023](adr/0023-development-servers-load-seed-accounts.md)).
 - `npm run seed`: upserts the seed accounts from `server/seed.json` into `data/dev/`, with their friends, tokens, saved games, and replays. Stop the development server first, because it doesn't read accounts that change under it. Add `-- --lan` for the name-only files. Add `-- --play` to also play the seed's `played` battles between bots, for replays the engine can play. That needs `RG_GAME` and battle templates, and takes a few minutes for each battle. The other seed replays show their players and result, and about 10 seconds after **Watch** the page says they can't be played.

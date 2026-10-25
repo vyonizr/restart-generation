@@ -8,7 +8,7 @@ This reverses the product rule "plain HTML, CSS and JavaScript modules with no b
 
 Moves: `web/index.html` (markup, and the CSS as global styles keeping the `DESIGN.md` tokens), the UI parts of `web/main.js`, and `web/accountui.js`. `web/account.js` stays a plain class: it has no DOM, and nothing needed it to become a store.
 
-Stays plain modules, because Node imports them with no bundler (`server/bot.mjs`, `tools/tune.mjs`, `server/gateway.js` and `server/casino.test.js`): `web/emu/`, `web/snap.js`, `web/zip.js` and `web/tools/game.mjs`. The emulator's game loop and canvas drawing also stay as they are; Svelte code calls them.
+Stays plain modules, because Node imports them with no bundler (`server/bot.mjs`, `tools/tune.mjs`, `server/gateway.js` and `server/casino.test.js`): `web/emu/`, `web/snap.js`, `web/zip.js` and `web/tools/game.mjs`. The emulator's game loop and canvas drawing also stay as they are; Svelte code calls them. Changed by [ADR 0035](0035-the-page-lives-in-web-src-and-code-node-shares-lives-in-shared.md): these modules, and the others the server imports, live in `shared/`, and the page's source in `web/src`.
 
 ## Considered options
 

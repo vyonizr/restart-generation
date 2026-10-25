@@ -1,6 +1,7 @@
 // Self-check for the Docker image: node server/dockerfile.test.js
-// The final stage copies server/ whole but only some of web/, so every web/ module the server reaches, through its own imports and
-// theirs, must be in one of its COPY lines; a missing one only fails on the deployed server, when the server first imports it.
+// The final stage copies server/ and shared/ but only web/dist, so every module outside server/ that the server reaches, through its
+// own imports and theirs, must be in one of its COPY lines; a missing one only fails on the deployed server, when the server first
+// imports it. A server file that imports page code from web/ (ADR 0035) fails here too.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -24,19 +25,19 @@ const resolve = (from, spec) => {
   return null;
 };
 
-// Every web/ module reachable from the server's files, which the image takes whole.
+// Every module outside server/ reachable from the server's files, which the image takes whole.
 const serverFiles = fs.readdirSync(path.join(root, 'server')).filter(f => /\.(c?js|mjs)$/.test(f) && !/\.test\./.test(f)).map(f => path.join(root, 'server', f));
 const seen = new Set(), queue = [...serverFiles], missing = [];
 while (queue.length) {
   const file = queue.pop();
   for (const spec of specs(file)) {
     const target = resolve(file, spec);
-    if (!target || seen.has(target) || !rel(target).startsWith('web/')) continue;
+    if (!target || seen.has(target) || rel(target).startsWith('server/')) continue;
     seen.add(target);
     if (!inImage(rel(target))) missing.push(`${rel(target)} (imported by ${rel(file)})`);
     queue.push(target);
   }
 }
-assert.ok(seen.size > 0, 'found no web/ module the server imports: the import pattern no longer matches');
-assert.deepStrictEqual(missing, [], 'add these to the Dockerfile\'s final stage');
-console.log(`dockerfile ok (${seen.size} web modules)`);
+assert.ok(seen.size > 0, 'found no shared module the server imports: the import pattern no longer matches');
+assert.deepStrictEqual(missing, [], 'add these to the Dockerfile\'s final stage, or move them to shared/ (ADR 0035)');
+console.log(`dockerfile ok (${seen.size} shared modules)`);

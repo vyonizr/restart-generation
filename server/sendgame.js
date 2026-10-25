@@ -1,4 +1,4 @@
-// Sending the server copy to visitors (docs/adr/0031), as one compressed game bundle (web/bundle.js).
+// Sending the server copy to visitors (docs/adr/0031), as one compressed game bundle (shared/bundle.js).
 // A server that isn't public sends it to every visitor: GET /game/bundle. A public server sends it only for its download code
 // (CONTEXT.md), POST /game/bundle with the code as the body, within its limits, and answers everything else, a wrong code, an ended
 // one, a server with no code or over its limits, with the same bare 404, so nothing tells a visitor that it ever sends the game.
@@ -17,7 +17,7 @@ const HOUR = 3600e3, DAY = 24 * HOUR;
 // day. After `wrongPerNetworkHour` wrong codes from one network, or `wrongPerHour` from all of them, in the last hour, every code is
 // refused, the right one too, until the oldest of them is an hour old.
 const LIMITS = { days: 30, downloads: 20, perNetworkDay: 2, wrongPerNetworkHour: 10, wrongPerHour: 100 };
-const BUNDLE_FORMAT = 1; // part of the cache's name: a change to web/bundle.js's layout starts the cache over
+const BUNDLE_FORMAT = 1; // part of the cache's name: a change to shared/bundle.js's layout starts the cache over
 
 const gzip = promisify(zlib.gzip), brotli = promisify(zlib.brotliCompress);
 const digest = data => crypto.createHash('sha256').update(data).digest();
@@ -94,7 +94,7 @@ function createSender({ public: pub, file, cacheDir, ipOf, budget, now = Date.no
     // Makes the bundle from the server copy's files. A server that isn't public sends it as soon as its gzip is made, in seconds; a
     // public one also makes brotli, which takes two or three minutes the first time and is then kept in cacheDir.
     async setGame(files) {
-      const { packBundle } = await import('../web/bundle.js');
+      const { packBundle } = await import('../shared/bundle.js');
       const raw = await packBundle(files);
       bundle = { size: raw.length, gzip: await gzip(raw, { level: 9 }), br: null };
       log(`game bundle ready: ${(raw.length / 2 ** 20).toFixed(1)} MiB, ${(bundle.gzip.length / 2 ** 20).toFixed(1)} MiB with gzip`);

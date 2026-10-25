@@ -1,19 +1,22 @@
 {
   "_": "Exceptions to tools/legal-check.mjs (docs/LEGAL.md). Every entry says where the file comes from. A file that is not here and is not text is refused.",
   "media": {
-    "web/fonts/anton.woff2": "Anton, SIL Open Font License 1.1 (web/fonts/OFL-anton.txt)",
-    "web/fonts/raleway.woff2": "Raleway, SIL Open Font License 1.1 (web/fonts/OFL-raleway.txt)",
-    "web/fonts/roboto-mono.woff2": "Roboto Mono, SIL Open Font License 1.1 (web/fonts/OFL-robotomono.txt)",
+    "web/src/assets/fonts/anton.woff2": "Anton, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-anton.txt)",
+    "web/src/assets/fonts/raleway.woff2": "Raleway, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-raleway.txt)",
+    "web/src/assets/fonts/roboto-mono.woff2": "Roboto Mono, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-robotomono.txt)",
     "web/public/favicon.svg": "Drawn for this project: the letters RG in Anton on a dark square",
     "web/public/favicon.ico": "Made from favicon.svg",
     "web/public/icon-512.png": "Made from favicon.svg: the Discord application icon",
     "web/public/apple-touch-icon.png": "Made from favicon.svg",
     "web/public/wake.mp4": "Generated for this project: a few seconds of black video that keeps a phone awake (wake.js)",
-    "web/wake.mp4": "The same generated video, kept where the page's source expects it"
+    "web/fonts/anton.woff2": "Only in older commits: the same Anton font, before it moved to web/src/assets/fonts (ADR 0035)",
+    "web/fonts/raleway.woff2": "Only in older commits: the same Raleway font, before it moved to web/src/assets/fonts (ADR 0035)",
+    "web/fonts/roboto-mono.woff2": "Only in older commits: the same Roboto Mono font, before it moved to web/src/assets/fonts (ADR 0035)",
+    "web/wake.mp4": "Only in older commits: the same generated video, kept where the page's source expected it then"
   },
   "hex": {
     "server/snap.js": "Only in older commits: a table of 16 keys for the password scrambling of the original Java client. The tree no longer has it, and the published history holds a digest of each key instead (tools/scrub-tree.mjs). Interoperability constants, not code or content.",
-    "web/snap.js": "Only in older commits: the same key table, as in server/snap.js. The tree no longer has it (ADR 0018)."
+    "web/snap.js": "Only in older commits: the same key table, as in server/snap.js, before the file moved to shared/snap.js (ADR 0018, 0035)."
   },
   "samples": {
     "tools/legal-check.test.mjs": "Holds samples of what the check refuses (pseudocode, a secret, a local path), to test that it does"

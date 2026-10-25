@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { checkPath, checkText } from './legal-check.mjs';
 
 // What may be committed.
-for (const ok of ['web/emu/host.js', 'server/casino.js', 'docs/re/re_match.md', 'web/fonts/anton.woff2', 'web/public/favicon.svg', '.env.example', 'tools/re/ghidra/DecompileAll.java']) {
+for (const ok of ['shared/emu/host.js', 'server/casino.js', 'docs/re/re_match.md', 'web/src/assets/fonts/anton.woff2', 'web/public/favicon.svg', '.env.example', 'tools/re/ghidra/DecompileAll.java']) {
   assert.strictEqual(checkPath(ok), null, ok);
 }
 // What may not: the game's own files and platform packages, local material, secrets files, unlisted media.

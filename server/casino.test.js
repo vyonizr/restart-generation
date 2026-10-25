@@ -19,9 +19,9 @@ assert.strictEqual(fillsWithBots(3, false, true), false);
 assert.strictEqual(fillsWithBots(4, true, true), false);
 console.log('friendly bot choice ok');
 
-// The page recognizes the engine's Start (web/snap.js) by the bytes this server reads.
+// The page recognizes the engine's Start (shared/snap.js) by the bytes this server reads.
 const { encode, T, u32 } = require('./mt');
-import('../web/snap.js').then(({ startRoom }) => {
+import('../shared/snap.js').then(({ startRoom }) => {
   const start = id => encode(T.CASINO, Buffer.concat([Buffer.from([0, 0x1c]), u32(id)]));
   assert.strictEqual(startRoom(start(1002)), 1002);
   assert.strictEqual(startRoom(start(0xdeadbeef)), 0xdeadbeef);
@@ -31,7 +31,7 @@ import('../web/snap.js').then(({ startRoom }) => {
 });
 
 // The page holds a Start while it asks, and sends the answer first.
-import('../web/snap.js').then(async ({ SnapClient }) => {
+import('../shared/snap.js').then(async ({ SnapClient }) => {
   // answers: what each question gets, in order; undefined leaves that question open until the room changes.
   const run = async (choices, answers = []) => {
     const sent = [], asked = [], c = new SnapClient({ ui: {} });

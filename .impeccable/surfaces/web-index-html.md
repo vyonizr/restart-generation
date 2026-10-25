@@ -1,13 +1,13 @@
 ---
 version: 1
 slug: "web-index-html"
-primary_target: "web/ui/App.svelte"
-related_targets: ["web/ui/styles.css", "web/ui/Overlay.svelte", "web/ui/Pad.svelte", "web/ui/Footer.svelte", "web/index.html"]
+primary_target: "web/src/App.svelte"
+related_targets: ["web/src/styles/app.css", "web/src/lib/game/Overlay.svelte", "web/src/lib/input/Pad.svelte", "web/src/lib/legal/Footer.svelte", "web/index.html"]
 ---
 
 # Surface brief: the page
 
-The page is built from `web/index.html` (the shell), `web/ui/styles.css` (the CSS and the `DESIGN.md` tokens), and the Svelte components in `web/ui` ([architecture decision record (ADR) 0013](../../docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)). `App.svelte` lays it out. This brief kept its `web-index-html` name from before the move.
+The page is built from `web/index.html` (the shell), `web/src/styles/app.css` (the CSS and the `DESIGN.md` tokens), and the Svelte components in `web/src` ([architecture decision record (ADR) 0013](../../docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)). `App.svelte` lays it out. This brief kept its `web-index-html` name from before the move.
 
 Mode: **Experience**. The game leads; the frame (header, hero, footer) recedes.
 

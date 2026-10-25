@@ -1,4 +1,4 @@
-// The Board view's default (CONTEXT.md, web/ui/board.js): the Full board on a desktop, Classic on a phone, and the player's saved
+// The Board view's default (CONTEXT.md, web/src/lib/game/board.js): the Full board on a desktop, Classic on a phone, and the player's saved
 // choice over either.
 import { test, expect } from '../fixtures.mjs';
 

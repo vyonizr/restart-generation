@@ -19,7 +19,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import aiProfiles from '../server/aiprofiles.js';
-import { loadGame } from '../web/tools/game.mjs';
+import { loadGame } from '../shared/game.mjs';
 
 // Low priority, and one lane by default: a tuning run takes the CPU nobody else wants.
 try { os.setPriority(os.constants.priority.PRIORITY_LOW); } catch { /* not allowed here; run at normal priority */ }

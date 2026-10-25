@@ -3,8 +3,8 @@
 // Worker data: { text } (server/replay.js); posts { turn, ranks } or { failed }. Needs RG_GAME.
 // Offsets: the replay logic and battlefield (docs/re/re_replay.md), the stats list and rank (docs/re/re_witness.md).
 import { workerData, parentPort } from 'worker_threads';
-import { loadGame } from '../web/tools/game.mjs';
-import { GameHost } from '../web/emu/host.js';
+import { loadGame } from '../shared/game.mjs';
+import { GameHost } from '../shared/emu/host.js';
 
 const MAX_TICKS = 60000;
 const game = new GameHost(await loadGame(), { replay: workerData.text, warn: () => {} });

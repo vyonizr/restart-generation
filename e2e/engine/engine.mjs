@@ -1,5 +1,5 @@
 // What the engine tests share. The engine draws to a canvas the tests don't look at (docs/adr/0025: no pixels), so they wait on its
-// own clock, window.rgStats.time (web/ui/game.js), which runs as fast as the device lets it, never on the wall clock.
+// own clock, window.rgStats.time (web/src/lib/game/game.js), which runs as fast as the device lets it, never on the wall clock.
 import { expect } from '../fixtures.mjs';
 
 // Opens the game page and presses Start once the engine is ready.

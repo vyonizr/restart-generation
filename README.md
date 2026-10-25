@@ -133,7 +133,7 @@ This rule works only on a private network. If Windows shows your network as publ
 
 - [Run a server](docs/HOSTING.md): Docker, Discord sign-in, battle templates, account deletion, and the original Java client.
 - [Deploy to a virtual private server (VPS)](docs/DEPLOY.md): the whole procedure for a public server.
-- How it works: [the protocol](docs/protocol.md), the [architecture decision records (ADRs)](docs/adr/), [notes on the original game](docs/re/), [the emulator](web/emu), and [the page](web/ui).
+- How it works: [the protocol](docs/protocol.md), the [architecture decision records (ADRs)](docs/adr/), [notes on the original game](docs/re/), [the emulator](shared/emu), and [the page](web/src).
 - [Contributing](CONTRIBUTING.md): how to help, and what you can't commit.
 
 ## Legal

@@ -8,10 +8,10 @@
 //      { ranks: { table, ranks: { seat: rank } } }, { failed: { table, cause } },
 //      and { grown } after each end: how many bytes this worker grew since its boot.
 import { parentPort } from 'worker_threads';
-import { loadGame } from '../web/tools/game.mjs';
-import { GameHost, NEVER_BUSY } from '../web/emu/host.js';
-import { IMAGE_BASE, ORIGINAL_BASE } from '../web/emu/machine.js';
-import { ECX } from '../web/emu/cpu.js';
+import { loadGame } from '../shared/game.mjs';
+import { GameHost, NEVER_BUSY } from '../shared/emu/host.js';
+import { IMAGE_BASE, ORIGINAL_BASE } from '../shared/emu/machine.js';
+import { ECX } from '../shared/emu/cpu.js';
 
 // Engine functions (docs/re/re_witness.md).
 const FN = {

@@ -1,7 +1,7 @@
-// Builds the page (ADR 0013): web/index.html and the Svelte components under web/ui are bundled into web/dist, which the gateway
-// serves and a static host takes as it is, with the Terms and the Privacy policy beside it as terms/ and privacy/ (docs/adr/0021),
-// and the replay page as replay/, which the gateway serves at /replay/<id>.
-// The emulator, the SNAP client and the other plain modules stay as they are, so Node can import them without this build.
+// Builds the page (ADR 0013, 0035): the HTML entries in web/ and the Svelte app under web/src are bundled into web/dist, which the
+// gateway serves and a static host takes as it is, with the Terms and the Privacy policy beside it as terms/ and privacy/
+// (docs/adr/0021), and the replay page as replay/, which the gateway serves at /replay/<id>.
+// The emulator, the SNAP client and the other modules in shared/ stay plain, so Node can import them without this build.
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -36,7 +36,7 @@ const replayPage = () => ({
 export default defineConfig({
   root: 'web',
   base: './', // relative links, so a static host can serve the page from any folder
-  plugins: [svelte({ configFile: false }), licenses(), replayPage()],
+  plugins: [svelte({ configFile: '../svelte.config.mjs' }), licenses(), replayPage()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -44,6 +44,8 @@ export default defineConfig({
     rollupOptions: { input: Object.fromEntries([['index', 'index.html'], ['terms', 'terms/index.html'], ['privacy', 'privacy/index.html'], ['replay', 'replay/index.html']].map(([name, f]) => [name, fileURLToPath(new URL(`./web/${f}`, import.meta.url))])) },
   },
   server: {
+    // The page imports shared/, which is outside Vite's root (ADR 0035).
+    fs: { allow: ['web', 'shared'].map(d => fileURLToPath(new URL(`./${d}`, import.meta.url))) },
     // Exact paths, with or without a query (`/replays?name=`): a plain '/snap' would also catch the page's own /snap.js.
     proxy: Object.fromEntries(['^/(snap|status|bots|replays)(\\?|$)', '^/(auth|game)/', '^/replay/[\\w-]+/data$'].map(path => [path, gateway])),
   },

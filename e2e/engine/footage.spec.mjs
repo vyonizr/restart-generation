@@ -5,14 +5,14 @@ import { spawnSync } from 'node:child_process';
 import { Input, BlobSource, ALL_FORMATS } from 'mediabunny';
 import { test, expect, seed, playButton } from '../fixtures.mjs';
 
-// When the replay is over by the page's rule (replayflow.js), at the engine's own 1× with idle time skipped, in seconds of engine
+// When the replay is over by the page's rule (replay-flow.js), at the engine's own 1× with idle time skipped, in seconds of engine
 // time: played with the engine itself, apart from the page and its encoders. In a Node of its own, because the engine's modules
 // loaded into the test runner break its loading of the server's (fixtures.mjs). Its battles all finish, so the rule's fallback for
 // one that never does doesn't come into it.
 const ENGINE_END = `
 import fs from 'node:fs';
-import { GameHost } from ${JSON.stringify(new URL('../../web/emu/host.js', import.meta.url).href)};
-import { loadGame } from ${JSON.stringify(new URL('../../web/tools/game.mjs', import.meta.url).href)};
+import { GameHost } from ${JSON.stringify(new URL('../../shared/emu/host.js', import.meta.url).href)};
+import { loadGame } from ${JSON.stringify(new URL('../../shared/game.mjs', import.meta.url).href)};
 const game = new GameHost(await loadGame(), { replay: fs.readFileSync(0, 'utf8'), warn: () => {} });
 game.boot();
 for (let tick = 0, pulled = 0; tick < 60000; tick++) {

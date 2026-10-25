@@ -2,7 +2,7 @@
 // console errors a page logged, and the seed (server/seed.json) the tests take their expectations from.
 import { test as base, expect } from '@playwright/test';
 import { createRequire } from 'node:module';
-import { shortDay } from '../web/replay-text.js';
+import { shortDay } from '../shared/replay-text.js';
 
 const require = createRequire(import.meta.url);
 const { tokenOf, offset } = require('../server/seed.js');
@@ -46,13 +46,13 @@ export const asPublicServer = page => page.route('**/status', async route => {
   await route.fulfill({ response, json: { ...(await response.json()), ...PUBLIC } });
 });
 
-// What a replay page's title band says about the replay the server keeps under `id` (web/ui/ReplayBroadcast.svelte): the day it
+// What a replay page's title band says about the replay the server keeps under `id` (web/src/lib/replay/ReplayBroadcast.svelte): the day it
 // was kept and the kind of match.
 export async function factsLine(page, id) {
   const { meta } = await (await page.request.get(`replay/${id}/data`)).json();
   return `${shortDay(meta.created)} - ${meta.ranked ? 'Ranked' : 'Friendly'} match`;
 }
 
-// The replay's play button (web/ui/ReplayControls.svelte), named for what a press does; Previous moment comes before it when the
+// The replay's play button (web/src/lib/replay/ReplayControls.svelte), named for what a press does; Previous moment comes before it when the
 // replay has marks.
 export const playButton = page => page.getByRole('group', { name: 'Replay controls' }).getByRole('button', { name: /^(Play|Pause|Watch again)$/ });

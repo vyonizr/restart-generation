@@ -6,7 +6,7 @@ It contains no files from Reset Generation, and nothing derived from them. Reset
 
 What the page carries from others is in the following sections. The texts are the licenses as their authors published them.
 
-## Fonts (web/fonts)
+## Fonts (web/src/assets/fonts)
 
 Anton, Raleway, and Roboto Mono are licensed under the SIL Open Font License, Version 1.1. Each font is used unmodified, as a web font file.
 

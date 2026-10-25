@@ -2,7 +2,7 @@
 
 Our notes on what the engine does with its screen size, and on the parts of it that the **Full board** (CONTEXT.md "Board view") relies on: changing the size while the engine runs, the battle view's own large-screen mode with its **curtain**, the battle UI states a host can read, and the image container the curtain is stored in. [ADR 0017](../adr/0017-a-battle-gets-the-full-board-through-engine-hooks.md) and the browser client's hooks are built from this note. Written in our own words ([legal notes](../LEGAL.md)). Addresses are Windows virtual addresses. `app` is the app object that the global at `0x101b828c` points to, and `bv` is the battle view, `[app+0x9c]`.
 
-Everything here was observed by running the engine in the emulator (`GameHost` from `web/emu/host.js`), unless it is marked static (read, not run) or [INFERENCE]. A tick is one engine frame, about 33 ms of game time. Tick numbers are from a 4-player Arcade battle that starts at tick 720 and that the player leaves through the battle menu's Exit, which ends it at tick 1456. The measurements are in `.scratch/full-board/research/full-board-spike.md` and `.scratch/full-board/research/full-board-curtain.md`.
+Everything here was observed by running the engine in the emulator (`GameHost` from `shared/emu/host.js`), unless it is marked static (read, not run) or [INFERENCE]. A tick is one engine frame, about 33 ms of game time. Tick numbers are from a 4-player Arcade battle that starts at tick 720 and that the player leaves through the battle menu's Exit, which ends it at tick 1456. The measurements are in `.scratch/full-board/research/full-board-spike.md` and `.scratch/full-board/research/full-board-curtain.md`.
 
 ## The screen size
 
@@ -43,7 +43,7 @@ Writing the surface's `+0x18` and `+0x1c` changes the size the engine draws at, 
 
 With this scheme the menus before and after a battle were pixel-identical to a stock 240 × 320 engine, and the battle was pixel-identical to a stock engine booted at 420 × 378, over two Arcade battles in a row.
 
-A battle left at 240 × 320 with the pitch at 420 is not quite stock, though: observed with `web/tools/wide-test.mjs`, a 12 × 8 pixel marker at the screen's right edge, partway through the first Arcade battle, differed from a stock engine's. With the pitch set back to 240 for that battle it was pixel-identical. So the Full board's host (ADR 0017) keeps the pitch at 240 everywhere but in a Full board battle: it sets 420 when it widens at `FUN_10028f20` and 240 again only after the tick in which the battle ended. The snapshot of the battle's end is taken inside that tick, at 420, so it is a crop as described below, not garbled.
+A battle left at 240 × 320 with the pitch at 420 is not quite stock, though: observed with `tools/emu/wide-test.mjs`, a 12 × 8 pixel marker at the screen's right edge, partway through the first Arcade battle, differed from a stock engine's. With the pitch set back to 240 for that battle it was pixel-identical. So the Full board's host (ADR 0017) keeps the pitch at 240 everywhere but in a Full board battle: it sets 420 when it widens at `FUN_10028f20` and 240 again only after the tick in which the battle ended. The snapshot of the battle's end is taken inside that tick, at 420, so it is a crop as described below, not garbled.
 
 What goes wrong otherwise:
 
@@ -117,7 +117,7 @@ Observed over the same fight, by guest instructions per engine function and per 
 - **Its last 7 draws** each pass over every pixel of the picture again (`FUN_100825b0`), moving each channel 9 levels toward the same channel of the second picture, `[+8]`, unless it is within 9 of it: a cross-fade back to the screen's colors over the same display-sized loop, 92.5 % of those ticks on the Full board.
 - **In the large-screen mode, every curtain frame** also sets the alpha byte of each pixel of the 240 × 320 offscreen (`FUN_10052bb0`), about 0.46 M instructions a tick, during a rescue as well as a fight. It is 90 % of a Full board rescue tick and half of a fight's middle tick. It doesn't run at 240 × 320.
 
-`web/emu/fast.js` does the loops of `FUN_100824a0`, `FUN_100825b0`, `FUN_10052bb0` and `FUN_1009e0d0` in JavaScript ([re_render.md](re_render.md)), with the same frames. With them, a Full board fight tick takes about 0.02 M guest instructions in its intro and ending and 0.03 M in its middle, and at a 6× CPU slowdown in Chromium, played one tick per frame as the page does, the intro, the middle and the ending keep real time (0.99, 1.00 and 1.00), against 0.16, 0.97 and 0.26 before. The first tick's load remains, a freeze of about 0.8 s at that slowdown, as a rescue's does.
+`shared/emu/fast.js` does the loops of `FUN_100824a0`, `FUN_100825b0`, `FUN_10052bb0` and `FUN_1009e0d0` in JavaScript ([re_render.md](re_render.md)), with the same frames. With them, a Full board fight tick takes about 0.02 M guest instructions in its intro and ending and 0.03 M in its middle, and at a 6× CPU slowdown in Chromium, played one tick per frame as the page does, the intro, the middle and the ending keep real time (0.99, 1.00 and 1.00), against 0.16, 0.97 and 0.26 before. The first tick's load remains, a freeze of about 0.8 s at that slowdown, as a rescue's does.
 
 ### The fades
 
@@ -183,7 +183,7 @@ While the battle menu or a story dialog is up, a switch to the Full board lays t
 
 ## The `.gfx` image container
 
-The curtain is stored as `data/gameplay/ui/animframe.gfx` in `gameplay.pak` (its entry's path hash is `0x3053e862`; `web/pak.js` describes the `.pak` container and its hash). In the copy we read, the file is 91,148 bytes: a 420 × 378 run-length image with one frame.
+The curtain is stored as `data/gameplay/ui/animframe.gfx` in `gameplay.pak` (its entry's path hash is `0x3053e862`; `shared/pak.js` describes the `.pak` container and its hash). In the copy we read, the file is 91,148 bytes: a 420 × 378 run-length image with one frame.
 
 A `.gfx` file starts with a 40-byte header of little-endian fields:
 

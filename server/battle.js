@@ -10,7 +10,7 @@ const zlib = require('zlib');
 const { T, frames } = require('./mt');
 const gm = require('./gamemsg');
 const g = require('./gameblob');
-const { zipEntries } = require('../web/zip.js');
+const { zipEntries } = require('../shared/zip.js');
 const defaultWitness = require('./witness');
 const { encode: replayText, marks: replayMarks } = require('./replay');
 
@@ -57,7 +57,7 @@ function nextMonsterKindAt(battlefield, rngAt) {
 // The .game and .snap files in a zip, by file name, whatever folder holds them: a zip of the templates folder and a zip
 // of its files both work, and so do the backslash paths Windows PowerShell's Compress-Archive writes. Stored and deflated
 // entries (what Windows and zip tools write); ZIP64 isn't supported.
-// web/zip.js's zipEntries reads the file list synchronously, because the server checks its templates before it starts listening.
+// shared/zip.js's zipEntries reads the file list synchronously, because the server checks its templates before it starts listening.
 function templateFilesInZip(bytes) {
   const files = new Map();
   for (const { name, method, data } of zipEntries(bytes)) {

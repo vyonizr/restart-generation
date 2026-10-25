@@ -2,7 +2,7 @@
 // otherwise the server keeps the name-only login of ADR 0009 and none of this runs.
 const crypto = require('crypto');
 const path = require('path');
-const { VALID_NAME } = require('../web/snap-ids.js');
+const { VALID_NAME } = require('../shared/snap-ids.js');
 
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;

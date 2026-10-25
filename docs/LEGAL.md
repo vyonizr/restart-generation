@@ -40,7 +40,7 @@ We say so plainly so that nobody has to find it out:
 A `--public` server keeps players' personal data and lets strangers talk to each other, so it publishes its **Terms** (`/terms`) and its **Privacy policy** (`/privacy`), which name its admin ([ADR 0021](adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)):
 
 - `RG_ADMIN_NAME` (your legal name), `RG_HOSTING` (who stores the data for you), and `RG_CONTACT` (an email address or an https address where players and rights holders write) are required. A `--public` server won't start without all three.
-- The Privacy policy describes what the code keeps, logs, and backs up. A commit that changes any of that changes `web/ui/Privacy.svelte` too, and its date.
+- The Privacy policy describes what the code keeps, logs, and backs up. A commit that changes any of that changes `web/src/lib/legal/Privacy.svelte` too, and its date.
 - Run the server as the policy says: `compose.yaml`'s log limits, nightly backups, and one backup copy off the server ([Terms and Privacy policy](HOSTING.md#terms-and-privacy-policy)).
 - In the Discord application, link the two pages as its Privacy Policy and Terms of Service addresses.
 - No advertising, no donation links, and no payments on the server or its page: its Terms say so.
@@ -78,7 +78,7 @@ To publish, do the following:
 
 Other local branches aren't published. Some of them hold reference screenshots of third-party websites and must never be published.
 
-The Notices dialog links to the [source repository](https://github.com/vyonizr/restart-generation), as the GNU General Public License asks. If the repository moves, change `SOURCE` in `web/ui/NoticesDialog.svelte`.
+The Notices dialog links to the [source repository](https://github.com/vyonizr/restart-generation), as the GNU General Public License asks. If the repository moves, change `SOURCE` in `web/src/lib/legal/NoticesDialog.svelte`.
 
 ## Keep this page current
 

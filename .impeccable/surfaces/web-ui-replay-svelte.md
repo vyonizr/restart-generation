@@ -1,13 +1,13 @@
 ---
 version: 1
 slug: "web-ui-replay-svelte"
-primary_target: "web/ui/Replay.svelte"
-related_targets: ["web/ui/ReplayBroadcast.svelte","web/ui/ReplayScreen.svelte","web/ui/ReplayControls.svelte","web/ui/ReplayKeys.svelte","web/ui/replay.css","web/ui/replay.svelte.js","web/replay/index.html"]
+primary_target: "web/src/lib/replay/Replay.svelte"
+related_targets: ["web/src/lib/replay/ReplayBroadcast.svelte","web/src/lib/replay/ReplayScreen.svelte","web/src/lib/replay/ReplayControls.svelte","web/src/lib/replay/ReplayKeys.svelte","web/src/styles/replay.css","web/src/lib/replay/replay.svelte.js","web/replay/index.html"]
 ---
 
 # Surface brief: the replay page
 
-The replay page, `/replay/<id>`, plays one online battle again in the engine's own replay player (CONTEXT.md "Replay", ADR 0022). It is built from `web/replay/index.html`, `web/ui/replay.js`, `web/ui/Replay.svelte` and the `Replay*` components, `web/ui/replay.svelte.js`, and `web/ui/replay.css` on the shared `web/ui/stage.css`. The game page's notice line offers it after each battle (`web/ui/replaynotice.js`).
+The replay page, `/replay/<id>`, plays one online battle again in the engine's own replay player (CONTEXT.md "Replay", ADR 0022). It is built from `web/replay/index.html`, `web/src/replay.js`, `web/src/lib/replay/Replay.svelte` and the `Replay*` components, `web/src/lib/replay/replay.svelte.js`, and `web/src/styles/replay.css` on the shared `web/src/styles/stage.css`. The game page's notice line offers it after each battle (`web/src/lib/replay/replay-notice.js`). This brief kept its `web-ui-replay-svelte` name from before the move to `web/src` (ADR 0035).
 
 Mode: **Experience**. The battle leads; the frame recedes.
 

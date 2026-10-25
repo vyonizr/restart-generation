@@ -67,7 +67,7 @@ const dump = ({ accounts, replays: r }) => ({
   assert.deepStrictEqual(wiped(), ['Guest900004']);
 
   // The page shows a seed member's custom keys, read from the saved game's settings.cfg the seed wrote.
-  const { customKeys, DEFAULT_KEYS } = await import('../web/ui/keys.js');
+  const { customKeys, DEFAULT_KEYS } = await import('../web/src/lib/input/keys.js');
   const keysOf = name => customKeys(new Uint8Array(db.accounts.saves(db.accounts.byName(name)).find(f => f.name === 'settings.cfg').data));
   assert.deepStrictEqual(keysOf('Dev_Ada'), { select: 90, back: 88, up: 87, down: 83, left: 65, right: 68, chat: 84 });
   assert.deepStrictEqual(keysOf('Dev_Bo'), DEFAULT_KEYS);

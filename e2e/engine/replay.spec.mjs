@@ -1,8 +1,8 @@
 // Replays (CONTEXT.md) played back by the engine on their page: the seed's played battles, which Bots really played
 // (global-setup.mjs keeps them in data/e2e/), and a seed placeholder, which the engine can't build.
 import { test, expect, seed, factsLine, playButton } from '../fixtures.mjs';
-import { markLabel } from '../../web/replay-text.js';
-import { markTarget } from '../../web/ui/replayflow.js';
+import { markLabel } from '../../shared/replay-text.js';
+import { markTarget } from '../../web/src/lib/replay/replay-flow.js';
 
 const seconds = text => { const [m, s] = text.split(' of ')[0].split(':'); return +m * 60 + +s; };
 

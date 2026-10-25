@@ -1,6 +1,6 @@
 # Playing a battle back: the engine's replay player
 
-Our notes on the replay player inside the engine, the one the original website used to show a finished Arena battle, and on what a server must hand it. Replays (`server/replay.js`, `web/ui/replay.js`, [ADR 0022](../adr/0022-replays-send-a-battles-game-blob-to-anyone-with-the-link.md)) are built from this note. Written in our own words ([legal notes](../LEGAL.md)). Addresses are Windows virtual addresses; "the logic" is a `ServerBattleLogic` and its battlefield is the BattleFieldLogic at `logic+0x14` ([re_rules.md](re_rules.md)).
+Our notes on the replay player inside the engine, the one the original website used to show a finished Arena battle, and on what a server must hand it. Replays (`server/replay.js`, `web/src/replay.js`, [ADR 0022](../adr/0022-replays-send-a-battles-game-blob-to-anyone-with-the-link.md)) are built from this note. Written in our own words ([legal notes](../LEGAL.md)). Addresses are Windows virtual addresses; "the logic" is a `ServerBattleLogic` and its battlefield is the BattleFieldLogic at `logic+0x14` ([re_rules.md](re_rules.md)).
 
 Everything here was observed by running the engine in the emulator in player mode on battles that bots played on the relay, unless it is marked static (read, not run) or [INFERENCE]. The measurements are in `.scratch/match-replays/research/replay-feasibility.md`.
 

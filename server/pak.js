@@ -1,6 +1,6 @@
-// Reads and rewrites one entry of a Reset Generation .pak in memory, synchronously (the layout and the path hash: web/pak.js).
+// Reads and rewrites one entry of a Reset Generation .pak in memory, synchronously (the layout and the path hash: shared/pak.js).
 const zlib = require('zlib');
-const { pathHash: hash, pakEntry: find } = require('../web/pak.js');
+const { pathHash: hash, pakEntry: find } = require('../shared/pak.js');
 
 // The bytes of `path` in the pak, or null if it has no such entry.
 function read(pak, path) {

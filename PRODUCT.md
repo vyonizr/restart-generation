@@ -20,7 +20,7 @@ The game itself, not a remake or a port: the original engine runs unmodified, an
 
 ## Operating Context
 
-The page is a single static page, built from `web/` into `web/dist` ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md)), that is served in one of these ways:
+The page is a single static page, built from `web/` and `shared/` into `web/dist` ([ADR 0013](docs/adr/0013-the-page-is-built-with-vite-and-svelte.md), [ADR 0035](docs/adr/0035-the-page-lives-in-web-src-and-code-node-shares-lives-in-shared.md)), that is served in one of these ways:
 
 - **By a game server that sends the game:** a server that isn't `--public`, with its server copy in `RG_GAME`, sends it to every visitor; a `--public` one only to a visitor whose link carries its download code ([ADR 0031](docs/adr/0031-the-server-sends-its-copy-only-to-a-download-code.md)). The page keeps the files in the browser's IndexedDB, and the player goes straight to **Start**. Nothing on the page shows or asks for the code.
 - **By a static host, or a game server that doesn't send the game to this visitor:** each player first chooses their own `.zip` or folder. The page keeps the files in the browser's IndexedDB, so a player chooses them once per browser, and the files never leave the player's computer.

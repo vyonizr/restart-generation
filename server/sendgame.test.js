@@ -17,7 +17,7 @@ const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.
 const TEXT = Buffer.from('made-up text, not the game. '.repeat(40));
 const BIN = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]);
 
-// A .pak (web/pak.js) holding data/a.txt deflated and data/b.bin stored.
+// A .pak (shared/pak.js) holding data/a.txt deflated and data/b.bin stored.
 function makePak(pathHash) {
   const bodies = [[pathHash('data/a.txt'), zlib.deflateSync(TEXT), TEXT.length, 1], [pathHash('data/b.bin'), BIN, BIN.length, 0]];
   const head = 8 + 17 * bodies.length, out = Buffer.alloc(head + bodies.reduce((n, b) => n + b[1].length, 0));
@@ -68,8 +68,8 @@ async function gateway(env, args = []) {
 }
 
 (async () => {
-  const { pathHash, pakRead } = await import('../web/pak.js');
-  const { unpackBundle, GAME_FILES } = await import('../web/bundle.js');
+  const { pathHash, pakRead } = await import('../shared/pak.js');
+  const { unpackBundle, GAME_FILES } = await import('../shared/bundle.js');
   const PAK = makePak(pathHash);
   // Every file the engine runs from, made up: each .pak our small one, the rest a few bytes; and one file the engine doesn't use.
   const GAME = Object.fromEntries([...GAME_FILES, 'unused.jar'].map(n => [n, new Uint8Array(n.endsWith('.pak') ? PAK : BIN)]));

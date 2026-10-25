@@ -3,7 +3,7 @@
 // One codec function per type runs in both directions, so parse and write can't drift apart.
 // Field names come from the XML loaders: mission FUN_1003fd50, level FUN_1003f7c0, rules FUN_1003de20.
 
-const { HERO_TYPES } = require('../web/heroes.js');
+const { HERO_TYPES } = require('../shared/heroes.js');
 
 // Stream in read mode (buf given) or write mode. Each method reads into o[k] or writes o[k].
 function stream(buf) {

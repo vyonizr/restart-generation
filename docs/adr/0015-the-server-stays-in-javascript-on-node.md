@@ -10,7 +10,7 @@ We asked whether the gateway in `server/` (SNAP, CasinoSystem, the battle relay,
 
 ## Consequences
 
-- The browser client and the server share `web/emu`, `web/snap.js` and `web/zip.js` as plain modules that Node imports with no bundler, so the client and server can't drift apart on the SNAP protocol.
+- The browser client and the server share `web/emu`, `web/snap.js` and `web/zip.js` as plain modules that Node imports with no bundler, so the client and server can't drift apart on the SNAP protocol. Changed by [ADR 0035](0035-the-page-lives-in-web-src-and-code-node-shares-lives-in-shared.md): they live in `shared/`.
 - The server still runs with no installed packages; `node:sqlite` is the only database (ADR 0010).
 - A bot's 350 to 410 MB is the emulated engine's cost and would remain in any language that runs the same emulator.
 - Revisit if measurements show the gateway's own CPU limiting a public server at the expected load, or if the server has to run as several instances, which ADR 0010 already treats as a separate decision.

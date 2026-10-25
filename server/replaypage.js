@@ -1,7 +1,7 @@
 // The replay page's head as a chat app reads it when a player shares the link: chat apps don't run the page, so the server writes
 // the players, heroes, kind of match, environment and day into the built page (web/replay/index.html). Text only: the only
 // picture a replay has is the game's (docs/LEGAL.md).
-const { replayTitle, replayDescription } = require('../web/replay-text.js');
+const { replayTitle, replayDescription } = require('../shared/replay-text.js');
 
 const ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const escape = s => String(s).replace(/[&<>"']/g, c => ENTITIES[c]);

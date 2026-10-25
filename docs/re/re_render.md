@@ -1,6 +1,6 @@
 # Hot loops: sprites, tile grid edges, scene objects, the curved band, line blends, sprung points, and the fight's picture effects
 
-Our notes on the engine routines that took the largest share of a battle's emulated instructions, written in our own words (see [LEGAL.md](../LEGAL.md)). [`web/emu/fast.js`](../../web/emu/fast.js) replaces their hot loops with JavaScript built from this note. Offsets are from the object in ECX ("this") unless stated. Stack slots are given as `[esp+n]` at the instruction named, after the routine's own pushes.
+Our notes on the engine routines that took the largest share of a battle's emulated instructions, written in our own words (see [LEGAL.md](../LEGAL.md)). [`shared/emu/fast.js`](../../shared/emu/fast.js) replaces their hot loops with JavaScript built from this note. Offsets are from the object in ECX ("this") unless stated. Stack slots are given as `[esp+n]` at the instruction named, after the routine's own pushes.
 
 ## The sprite object
 

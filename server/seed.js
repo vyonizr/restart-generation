@@ -21,7 +21,7 @@ const { pathToFileURL } = require('url');
 const store = require('./store');
 const replays = require('./replays');
 const { modeFrom, dataFiles, MEMBER_TOKEN_MS } = require('./auth');
-const { VALID_NAME } = require('../web/snap-ids.js');
+const { VALID_NAME } = require('../shared/snap-ids.js');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const PLACEHOLDER_TEXT = 'QUJD'; // not a replay the engine can play; see --play

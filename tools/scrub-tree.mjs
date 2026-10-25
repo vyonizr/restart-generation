@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 // [pattern, replacement]. Every pattern is specific, so that it can't match anything else.
 const EOL = '\\r?\\n';
 export const RULES = [
-  // web/snap.js
+  // shared/snap.js
   [new RegExp(`// Browser port of the Java SNAP Mobile client[^\\n]*${EOL}// com\\.nokia\\.sm\\.net\\.ServerComm\\)\\.[^\\n]*${EOL}// POST to the gateway\\.[^\\n]*${EOL}// NativeSNAPMobileEventListener callbacks between ticks, as the Java client did\\.`),
     "// The browser's SNAP Mobile client, as this server speaks the protocol (docs/protocol.md): every request is one HTTP POST, and\n// events arrive through the long-poll command. It implements the functions the engine's networking interface calls and runs the\n// engine's event callbacks between ticks."],
   [/\/\/ Password scrambling of ServerComm \(class i\): rotr\(b, k & 7\) \^ k with a key chosen by K\./, '// Password scrambling: rotr(b, k & 7) ^ k with a key chosen by K (server/snap.js).'],
@@ -35,7 +35,7 @@ export const RULES = [
   [/, but it's a port of the Java client's SNAP code, so the engine sees/, ' from docs/protocol.md, so the engine sees'],
   // an example domain that held the game's name
   [/\bresetgeneration\.[a-z0-9-]+\.[a-z]{2,}/g, 'play.example.com'],
-  // The original client's password keys (64 uppercase hex digits in quotes, in older server/snap.js and web/snap.js): each becomes a
+  // The original client's password keys (64 uppercase hex digits in quotes, in older server/snap.js and shared/snap.js): each becomes a
   // digest of itself, so that old commits still unscramble what they scramble but no longer match an original client.
   [/'[0-9A-F]{64}'/g, m => `'${crypto.createHash('sha256').update(m.slice(1, -1)).digest('hex').toUpperCase()}'`],
   // design and branch wording that points at the rights holder's site

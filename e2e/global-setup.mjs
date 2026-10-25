@@ -26,15 +26,17 @@ const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.
 // browser context, more than the 30 an address may make in an hour.
 const discord = url => ({ RG_DISCORD_CLIENT_ID: 'e2e', RG_DISCORD_CLIENT_SECRET: 'e2e', RG_PUBLIC_URL: url, RG_GUESTS_PER_IP_HOUR: '100000' });
 
-// The newest file under web/ (but its build output and tools) against the last build, so an unchanged page isn't built again.
+// The newest page source (web/ but its build output, shared/, the build's config) against the last build, so an unchanged page
+// isn't built again.
 function buildPage() {
   const built = path.join(root, 'web', 'dist', 'index.html');
   const newest = dir => fs.readdirSync(dir, { withFileTypes: true }).reduce((t, e) => {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) return ['dist', 'tools'].includes(e.name) && dir.endsWith('web') ? t : Math.max(t, newest(p));
+    if (e.isDirectory()) return e.name === 'dist' && dir.endsWith('web') ? t : Math.max(t, newest(p));
     return Math.max(t, fs.statSync(p).mtimeMs);
   }, 0);
-  const sources = Math.max(newest(path.join(root, 'web')), fs.statSync(path.join(root, 'vite.config.mjs')).mtimeMs, fs.statSync(path.join(root, 'package-lock.json')).mtimeMs);
+  const configs = ['vite.config.mjs', 'svelte.config.mjs', 'package-lock.json'].map(f => fs.statSync(path.join(root, f)).mtimeMs);
+  const sources = Math.max(newest(path.join(root, 'web')), newest(path.join(root, 'shared')), ...configs);
   if (fs.existsSync(built) && fs.statSync(built).mtimeMs >= sources) return;
   console.log('e2e: building the page (web/dist)…');
   const r = spawnSync(process.execPath, [path.join(root, 'node_modules', 'vite', 'bin', 'vite.js'), 'build'], { cwd: root, stdio: 'inherit' });

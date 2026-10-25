@@ -1,22 +1,21 @@
-# The page is built in a first stage (ADR 0013), so the final image holds no node_modules.
+# The page is built in a first stage (ADR 0013, 0035), so the final image holds no node_modules.
 FROM node:22-alpine AS page
 WORKDIR /app
-COPY package.json package-lock.json vite.config.mjs LICENSE THIRD_PARTY_NOTICES.md ./
+COPY package.json package-lock.json vite.config.mjs svelte.config.mjs LICENSE THIRD_PARTY_NOTICES.md ./
 # vite.config.mjs takes the gateway's HTTP port from server/ports.js.
 COPY server/ports.js server/
 RUN npm ci
 COPY web web
+COPY shared shared
 RUN npm run build
 
 FROM node:22-alpine
 WORKDIR /app
 COPY package.json LICENSE THIRD_PARTY_NOTICES.md ./
 COPY server server
-# The plain modules the server imports (the bot engine, the game loader, the game bundle), and the built page.
-# server/dockerfile.test.js checks that this list holds every web/ module the server reaches.
-COPY web/package.json web/snap.js web/snap-ids.js web/zip.js web/pak.js web/bundle.js web/replay-text.js web/heroes.js web/
-COPY web/emu web/emu
-COPY web/tools web/tools
+# The plain modules the server imports (the bot engine, the game loader, the game bundle; ADR 0035), and the built page.
+# server/dockerfile.test.js checks that every module the server reaches outside server/ is copied here.
+COPY shared shared
 COPY --from=page /app/web/dist web/dist
 USER node
 EXPOSE 8080 8976

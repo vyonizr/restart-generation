@@ -1,6 +1,6 @@
 # The info menu: its sheet, its text, and its pictures
 
-Our notes on how the engine's **info menu** (CONTEXT.md) is stored and drawn, and on the files the page's **guide** reads from the player's copy to show the same content ([ADR 0033](../adr/0033-the-guide-reads-the-info-menu-from-the-players-copy.md)). Written in our own words ([legal notes](../LEGAL.md)): it describes layouts and rules, and holds none of the game's text or pictures. Checked on one copy of the Windows standalone build, partly by reading the engine and partly by running it in `web/emu`.
+Our notes on how the engine's **info menu** (CONTEXT.md) is stored and drawn, and on the files the page's **guide** reads from the player's copy to show the same content ([ADR 0033](../adr/0033-the-guide-reads-the-info-menu-from-the-players-copy.md)). Written in our own words ([legal notes](../LEGAL.md)): it describes layouts and rules, and holds none of the game's text or pictures. Checked on one copy of the Windows standalone build, partly by reading the engine and partly by running it in `shared/emu`.
 
 ## The sheet
 
@@ -15,7 +15,7 @@ The file holds a `<database>` of sheet variables and several `<sheet>` blocks, e
 
 ### The heroes' rows
 
-Every hero row's description is the variable `$<TYPE>_DESCR`, where `<TYPE>` is the hero's engine identifier, the same as its `<text>`. The sheet declares those variables with a placeholder. When the menu opens, `FUN_10045620` sets each of them, for each hero type in the engine's own order (`FUN_100941c0`, the order of `HERO_TYPES` in `web/heroes.js`), to an image spec and a text key: the portrait is frame *i* of `data/menus/gfx/heroes.gfx`, where *i* is the hero's place in that order, drawn with palette 5, and the sentence is the text key `DESC_<TYPE>`.
+Every hero row's description is the variable `$<TYPE>_DESCR`, where `<TYPE>` is the hero's engine identifier, the same as its `<text>`. The sheet declares those variables with a placeholder. When the menu opens, `FUN_10045620` sets each of them, for each hero type in the engine's own order (`FUN_100941c0`, the order of `HERO_TYPES` in `shared/heroes.js`), to an image spec and a text key: the portrait is frame *i* of `data/menus/gfx/heroes.gfx`, where *i* is the hero's place in that order, drawn with palette 5, and the sentence is the text key `DESC_<TYPE>`.
 
 The engine's hero order can't be read from the game's data: `heroes.xml` and the sheet list the heroes in two other orders, and the one file in the same order, `hero_selection_cfg.xml`, is read by name. `heroes.gfx` has one more frame, after the ten portraits, which the info menu doesn't use.
 

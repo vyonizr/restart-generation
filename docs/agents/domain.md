@@ -21,6 +21,7 @@ This repository has a single context. Its domain documentation looks like the fo
 │   ├── 0001-players-bring-their-own-game-files.md
 │   └── 0002-replacement-arena-server-for-unmodified-clients.md
 ├── server/
+├── shared/
 └── web/
 ```
 

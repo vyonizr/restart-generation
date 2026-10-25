@@ -198,7 +198,7 @@ function startWithBots(c, players, level, api) {
   }, e => { api.log(e.stack); fail([]); });
 }
 
-// What the page does when a member presses Start in room c (web/snap.js): 'gone' drops the Start because the
+// What the page does when a member presses Start in room c (shared/snap.js): 'gone' drops the Start because the
 // room can't start, 'ask' puts the bot question (no, CPU or Expert) to the player when 2 or 3 people are listed, 'level'
 // asks a player alone which level fills the seats, and 'go' sends the Start on.
 function botChoice(c, canFill) {

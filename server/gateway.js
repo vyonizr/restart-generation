@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { FRAME, readFrames, frame, parseRequest, ok, err, b64 } = require('./snap');
-const { CMD, EVENT, REPLY, GAME_CLASS, PRESENCE_PREFIX, VALID_NAME, ROOM_MAX_USERS } = require('../web/snap-ids.js');
+const { CMD, EVENT, REPLY, GAME_CLASS, PRESENCE_PREFIX, VALID_NAME, ROOM_MAX_USERS } = require('../shared/snap-ids.js');
 const { PORT, HTTP_PORT } = require('./ports');
 const gameServer = require('./casino');
 const bots = require('./bots');
@@ -154,7 +154,7 @@ const api = {
   },
   // The only game-data event the client reads.
   send(s, data, from = '0') { pushEvent(s, `${EVENT.GAME_PACKET_TARGET}|${from}|${data.toString('base64')}`); },
-  // Tells a browser that its battle's replay is kept, under this id (web/snap.js).
+  // Tells a browser that its battle's replay is kept, under this id (shared/snap.js).
   replaySaved(s, id) { if (sessions.get(s.sid) === s) pushEvent(s, `${EVENT.REPLAY_SAVED}|${id}`); },
 };
 
@@ -371,7 +371,7 @@ const WEB_DIR = path.join(__dirname, '..', 'web');
 const DIST_DIR = path.join(WEB_DIR, 'dist');
 // RG_GAME, the server copy: the ResetGeneration folder or the standalone .zip. A server that isn't public sends it to every visitor;
 // a public one only for its download code (docs/adr/0031). Without it, the page asks players for their own files.
-if (process.env.RG_GAME) import('../web/tools/game.mjs').then(m => m.loadGame()).then(f => {
+if (process.env.RG_GAME) import('../shared/game.mjs').then(m => m.loadGame()).then(f => {
   require('./aiprofiles').apply(f); // a bot-ai.json key the game's XML doesn't have stops the server here
   log(`server copy from ${process.env.RG_GAME}, sent ${MODE.public ? 'only for the download code (npm run download-code)' : 'to every visitor'}`);
   return sender.setGame(f);

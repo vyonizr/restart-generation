@@ -2,9 +2,9 @@
 // with the browser client's SNAP code. It steers the menus by key presses into a ranked Quick Match with a
 // random hero and waits there; the server seats it at a friendly table and stops it after the battle.
 import { workerData, parentPort } from 'worker_threads';
-import { loadGame } from '../web/tools/game.mjs';
-import { GameHost, VK, UNLOCKS, NEVER_BUSY } from '../web/emu/host.js';
-import { SnapClient } from '../web/snap.js';
+import { loadGame } from '../shared/game.mjs';
+import { GameHost, VK, UNLOCKS, NEVER_BUSY } from '../shared/emu/host.js';
+import { SnapClient } from '../shared/snap.js';
 import aiProfiles from './aiprofiles.js';
 
 // deltas, hero, report and speed are for tools/selfplay.mjs: AI profile changes to run instead of server/bot-ai.json,
