@@ -1,7 +1,7 @@
 // How a replay (CONTEXT.md) is named in words: on its page (web/ui/Replay.svelte) and in the link preview the server writes into
 // that page's head (server/replaypage.js). `meta` is what the server keeps beside the replay text (server/battle.js replay()).
 
-// A hero's engine identifier (server/gameblob.js HERO_IDS) as words: LEVEL_50_ELF is Level 50 Elf.
+// A hero's engine identifier (web/heroes.js) as words: LEVEL_50_ELF is Level 50 Elf.
 export const heroName = type => String(type ?? '').toLowerCase().split('_').filter(Boolean)
   .map(w => w[0].toUpperCase() + w.slice(1)).join(' ') || 'an unknown hero';
 

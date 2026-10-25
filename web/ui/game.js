@@ -20,8 +20,41 @@ import { replaySaved, battleJoined } from './replaynotice.js';
 import { startOnlineCount, serverStatus } from './online.js';
 import { frameView, FRAMES } from './board.js';
 import { loadCurtain } from './curtain.js';
+import { focusOn } from './focus.js';
+import { readGuide } from '../guide.js';
 
 let screen; // the game screen, which paints the engine's frame (screen.js)
+
+// The language code the page passes the engine, which the guide follows too when the saved game has no settings file.
+const LANGUAGE = (navigator.language || 'en').slice(0, 2);
+// The files the guide reads (docs/adr/0033), with the latest settings.cfg the engine wrote, once the copy is loaded; and the guide last
+// read from them, which holds until the engine writes new settings, the language and keys it follows.
+let guideFiles = null, guide = null, guideSettings = null;
+let opening = false;
+
+function currentGuide() {
+  if (!guide || guideSettings !== guideFiles['settings.cfg']) {
+    guideSettings = guideFiles['settings.cfg'];
+    guide = readGuide(guideFiles, LANGUAGE).catch(e => { guide = null; throw e; });
+  }
+  return guide;
+}
+
+// Opens the Guide dialog with the info menu in the language and with the keys the engine uses now. Nothing while another dialog is
+// open, or for a copy whose info menu can't be read. During play the game screen takes focus first, so it gets it back on close.
+export async function openGuide() {
+  if (!guideFiles || opening || page.dialogs) return;
+  opening = true;
+  try {
+    if (page.playing) focusOn('screen');
+    page.guide = await currentGuide();
+    if (!page.guide) page.guidable = false;
+  } catch (e) {
+    console.warn('guide:', e);
+  } finally {
+    opening = false;
+  }
+}
 
 // The canvas takes the frame of the view the game screen is in now (board.js); the painter centers the engine's screen in it.
 function fitCanvas(canvas) {
@@ -73,7 +106,7 @@ async function main(canvas) {
   // Every story and hero is open only on a server that isn't public (ADR 0007); elsewhere they are earned.
   const patches = [...(server?.unlockAll ? UNLOCKS : []), ...(bots ? LONE_START : [])];
   window.rgPatches = patches.map(p => p.what); // exposed for debugging, like rgStats
-  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: (navigator.language || 'en').slice(0, 2), snap: snap.methods(), patches, board: true });
+  const game = new GameHost(files, { log: s => console.debug('[rg]', s), language: LANGUAGE, snap: snap.methods(), patches, board: true });
   snap.attach(game);
   try {
     game.boot(); // its first step allocates the emulator's memory, so game.m is unset if that fails
@@ -85,6 +118,8 @@ async function main(canvas) {
   page.boardable = game.board;
   fitCanvas(canvas);
   if (game.board) loadCurtain(files, REPLAY_WIDTH, REPLAY_HEIGHT).then(c => screen.setCurtain(c), e => console.warn('curtain:', e));
+  guideFiles = { ...files };
+  currentGuide().then(g => { page.guidable = Boolean(g); }, e => console.warn('guide:', e));
   page.status = 'Ready';
   page.start = true;
   if (!accounts) showOnlineName();
@@ -107,10 +142,11 @@ async function main(canvas) {
   const held = new Set();
   const input = []; // applied at the start of each tick
   const presses = createPresses(game, input);
-  // Keys go to the game wherever focus is on the page, except in a dialog or the overlay's buttons.
+  // Keys go to the game wherever focus is on the page, except in a dialog, the overlay's buttons, and the buttons under the screen.
+  const PAGE_KEYS = '.login, #overlay, .finish, .board, .guide-open';
   addEventListener('keydown', e => {
     const k = javaKey(e);
-    if (!k || e.target.closest?.('.login, #overlay, .finish, .board')) return;
+    if (!k || e.target.closest?.(PAGE_KEYS)) return;
     e.preventDefault();
     if (held.has(e.code)) return;      // the Java listener ignored auto-repeat too
     held.add(e.code);
@@ -119,7 +155,7 @@ async function main(canvas) {
   });
   addEventListener('keyup', e => {
     const k = javaKey(e);
-    if (!k || e.target.closest?.('.login, #overlay, .finish, .board')) return;
+    if (!k || e.target.closest?.(PAGE_KEYS)) return;
     e.preventDefault();
     if (!held.delete(e.code)) return; // its press never reached the game
     const loc = e.location === 2 ? 3 : e.location === 1 ? 2 : 1;
@@ -134,7 +170,7 @@ async function main(canvas) {
   const saveNow = () => {
     for (const f of game.dirtyFiles()) {
       store.set(f.name, f.data); track(f.name, f.data);
-      if (f.name.toLowerCase() === 'settings.cfg') page.keys = customKeys(f.data);
+      if (f.name.toLowerCase() === 'settings.cfg') { page.keys = customKeys(f.data); guideFiles['settings.cfg'] = f.data; }
     }
   };
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });

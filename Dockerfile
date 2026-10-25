@@ -14,7 +14,7 @@ COPY package.json LICENSE THIRD_PARTY_NOTICES.md ./
 COPY server server
 # The plain modules the server imports (the bot engine, the game loader, the game bundle), and the built page.
 # server/dockerfile.test.js checks that this list holds every web/ module the server reaches.
-COPY web/package.json web/snap.js web/snap-ids.js web/zip.js web/pak.js web/bundle.js web/replay-text.js web/
+COPY web/package.json web/snap.js web/snap-ids.js web/zip.js web/pak.js web/bundle.js web/replay-text.js web/heroes.js web/
 COPY web/emu web/emu
 COPY web/tools web/tools
 COPY --from=page /app/web/dist web/dist

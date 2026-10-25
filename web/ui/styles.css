@@ -67,13 +67,49 @@
 .online-line { align-items: center; justify-content: center; gap: 6px; font: 500 13px/1 var(--mono); color: var(--light-2); }
 .online-line svg { width: 16px; height: 16px; fill: none; stroke: var(--light-3); stroke-width: 1.4; stroke-linecap: square; }
 
-.sub-online { grid-column: 2; }
-/* Two toggles at the right end: the row is at least wide enough for them on both sides of the centered count, so the count stays
-   under the screen's middle when the screen is narrower than that. */
+/* The online count on its own line, centered; under it Guide at the left end and the two toggles at the right end. The row is at
+   least wide enough for both ends when the screen is narrower than that. */
+.sub-online { grid-column: 1 / -1; margin-bottom: 8px; }
 .sub { width: max(calc(var(--screen-h) * var(--screen-w) / var(--screen-h-px)), min(100%, 560px)); }
-.sub-end { grid-column: 3; justify-self: end; display: inline-flex; gap: 8px; }
+.sub-start { grid-row: 2; grid-column: 1; justify-self: start; }
+.sub-end { grid-row: 2; grid-column: 3; justify-self: end; display: inline-flex; gap: 8px; }
+/* Guide is as wide as Soft screen (App.svelte measures it) and as tall as the toggles, with its label centered. */
+.sub .guide-open { display: inline-flex; align-items: center; justify-content: center; font-size: 13px; padding: 4px 8px; white-space: nowrap; }
 /* The Full board toggle's mark is the Full board's own shape, 10 × 9, filled while it is on. */
 .sub .finish.board::before { width: 10px; height: 9px; }
+
+/* The guide (GuideDialog.svelte, docs/adr/0033): over the page like the notices, as large as the page allows, with the game's own words
+   and pictures in a panel that scrolls. Its shade is an element, not a shadow, so that it takes the taps meant for what is under it. */
+.guide-shade { position: fixed; inset: 0; z-index: 10; background: rgb(0 0 0 / 65%); }
+#guide { position: fixed; z-index: 11; width: min(800px, calc(100vw - 32px)); height: min(720px, calc(100dvh - 32px)); max-height: none;
+  grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 16px; overflow: hidden; }
+.guide-tabs { display: flex; flex-wrap: wrap; gap: 4px 28px; border-bottom: 1px solid var(--ink-3); }
+#guide .guide-tabs [role=tab] { position: relative; padding: 4px 0 12px; border: 0; background: none; font: 400 17px/1 var(--display);
+  text-transform: uppercase; letter-spacing: .01em; color: var(--light-3); transition: color .2s; }
+#guide .guide-tabs [role=tab]:hover, #guide .guide-tabs [role=tab][aria-selected=true] { color: #fff; background: none; }
+/* The chosen tab carries the title's crimson bar, sitting on the rule under the tabs. */
+.guide-tabs [role=tab][aria-selected=true]::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; background: var(--red); }
+.guide-panel { min-height: 0; margin-right: -12px; padding: 4px 12px 8px 0; overflow-y: auto; overscroll-behavior: contain; }
+.guide-panel:focus-visible { outline-offset: -2px; }
+#guide .guide-panel h3 { font: 400 22px/.9 var(--display); text-transform: uppercase; letter-spacing: .01em; color: #fff; text-wrap: balance; }
+#guide .guide-panel p { font: 15px/1.7 var(--body); color: var(--light-2); white-space: pre-line; }
+/* The instructions: one reading column, a heading with more room above it than under it, and each picture on a plate a step down the
+   ink ramp. */
+.guide-read { max-width: 64ch; }
+#guide .guide-read h3 { margin: 32px 0 12px; }
+#guide .guide-read h3:first-child { margin-top: 4px; }
+#guide .guide-read p { margin: 0 0 14px; }
+.guide-plate { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: fit-content; padding: 12px; background: var(--ink-1); margin: 0 0 14px; }
+.guide-pic { display: block; image-rendering: pixelated; }
+/* The heroes and the items: a picture on its plate beside a title and a sentence, in two columns where they fit. */
+.guide-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); align-items: start; gap: 24px 32px; margin: 0; padding: 0; list-style: none; }
+.guide-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 16px; }
+.guide-list .guide-plate { min-width: 92px; margin: 0; padding: 8px; }
+#guide .guide-list h3 { font-size: 20px; margin: 4px 0 6px; }
+@media (max-width: 599px) {
+  #guide { width: calc(100vw - 16px); height: calc(100dvh - 16px); padding: 20px 16px 16px; }
+  .guide-tabs { gap: 4px 20px; }
+}
 
 .pad, .touch-only { display: none; }
 .typing, .wake { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
@@ -87,9 +123,12 @@
 
 /* Touch devices: no header, and the touch pad under the game screen, both as wide as fits the height */
 @media (hover: none) and (pointer: coarse) {
-  /* --cross: the D-pad's side. It is also capped so the D-pad, a 24px gap, Select and Back (a cell each, 16px apart) fit the width. */
-  :root { --cross: min(clamp(116px, 24.5dvh, 240px), calc(60vw - 40px)); --cell: calc((var(--cross) - 8px) / 3); --side: calc(var(--cell) * 2 + 16px); --chrome: 30px; --w: min(100%, (100dvh - var(--chrome) - var(--cross)) * 3 / 4); }
-  .page[data-frame=full] { --w: min(100%, (100dvh - var(--chrome) - var(--cross)) * 420 / 378); }
+  /* --cross: the D-pad's side. It is also capped so the D-pad, a 24px gap, Select and Back (a cell each, 16px apart) fit the width.
+     --pad-h: the pad's height, which the screen leaves room for: the D-pad's, and a row more for the Guide's book. */
+  :root { --cross: min(clamp(116px, 24.5dvh, 240px), calc(60vw - 40px)); --cell: calc((var(--cross) - 8px) / 3); --side: calc(var(--cell) * 2 + 16px); --chrome: 30px; }
+  .page { --pad-h: var(--cross); --w: min(100%, (100dvh - var(--chrome) - var(--pad-h)) * 3 / 4); }
+  .page[data-frame=full] { --w: min(100%, (100dvh - var(--chrome) - var(--pad-h)) * 420 / 378); }
+  .page[data-guide] { --pad-h: calc(var(--cross) + 48px); }
   header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
   .page { grid-template-rows: 1fr auto; }
   .touch-only { display: inline; }
@@ -127,6 +166,10 @@
   .side-r #type { grid-row: 2; } .side-r #fullscreen { grid-row: 3; }
   .side-r #board { grid-row: 3; grid-column: 1; justify-self: end; }
   .side-r #finish { grid-row: 2; grid-column: 1; justify-self: end; }
+  /* The Guide's book: a fourth row of quiet icons, under Full board, so the pad grows by a 44px icon and its 4px gap. */
+  .pad.guide { height: var(--pad-h); grid-template: "c r" var(--cross) ". r" 48px / var(--cross) var(--side); row-gap: 0; }
+  .pad.guide .side-r { grid-template-rows: repeat(3, var(--cell)) 44px; }
+  .side-r #guide-book { grid-row: 4; grid-column: 1; justify-self: end; }
 
   /* Fullscreen pins the page to the viewport, so the footer would take room that the screen and the pad were sized to fill and push
      the pad up under the screen. The page grows past the viewport and scrolls instead, as it does outside fullscreen. */

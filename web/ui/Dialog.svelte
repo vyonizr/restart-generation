@@ -9,10 +9,11 @@
   let { tag = 'div', id, titleId, focus, oncancel, onsubmit, children } = $props();
   let box;
 
-  // Tab and Shift+Tab wrap around the dialog's controls; focus that is somewhere else comes back in.
+  // Tab and Shift+Tab wrap around the dialog's controls; focus that is somewhere else comes back in. A control taken out of the tab
+  // order, such as an unchosen tab of a tab list, doesn't count.
   function trap(e) {
     if (e.key !== 'Tab') return;
-    const items = [...box.querySelectorAll('button, input, a[href], [tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled && !el.closest('[hidden]'));
+    const items = [...box.querySelectorAll('button, input, a[href], [tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled && el.tabIndex >= 0 && !el.closest('[hidden]'));
     if (!items.length) return;
     const first = items[0], last = items[items.length - 1], at = document.activeElement;
     if (!box.contains(at) || (e.shiftKey ? at === first : at === last)) { e.preventDefault(); (e.shiftKey && box.contains(at) ? last : first).focus(); }

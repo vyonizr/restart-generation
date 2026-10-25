@@ -3,6 +3,8 @@
 // One codec function per type runs in both directions, so parse and write can't drift apart.
 // Field names come from the XML loaders: mission FUN_1003fd50, level FUN_1003f7c0, rules FUN_1003de20.
 
+const { HERO_TYPES } = require('../web/heroes.js');
+
 // Stream in read mode (buf given) or write mode. Each method reads into o[k] or writes o[k].
 function stream(buf) {
   const R = !!buf;
@@ -163,8 +165,7 @@ function rngFields(s, r) {
   for (let i = 0; i < 11; i++) s.u32(r.state, i);
 }
 
-const HERO_IDS = { HEDGEHOG: 0, PLUMBER: 1, CYBORG: 2, LEVEL_50_ELF: 3, BABE_GUNNER: 4, MONSTER_TRAINER: 5,
-  SCIFI_KNIGHT: 6, NINJA: 7, DR_LOVEBOMBER: 8, AGGRESSOR: 9 };
+const HERO_IDS = Object.fromEntries(HERO_TYPES.map((type, id) => [type, id]));
 
 // RNG draw FUN_100f2ff0: s[i] = rotl(s[i] + s[j], 13); i, j step down mod 11.
 function rngNext(r) {

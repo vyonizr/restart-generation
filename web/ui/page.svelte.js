@@ -32,6 +32,8 @@ export const page = $state({
   board: 'full',    // the Board view the player chose, 'full' or 'classic'; its default depends on the device (board.js)
   battle: null,     // the Board view of the battle on now, or null outside a battle
   boardable: true,  // this copy of the engine can show the Full board (until booting it says otherwise)
+  guidable: false,  // this copy's info menu can be read, so the page offers the guide (docs/adr/0033)
+  guide: null,      // the guide's content (web/guide.js) while the Guide dialog is open
 });
 
 // What the touch pad and the gamepad drive once the game runs: { game, input, audio, presses }. Raw, so the emulator and its

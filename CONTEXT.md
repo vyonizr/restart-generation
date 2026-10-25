@@ -142,6 +142,14 @@ _Avoid_: keybinds, key mapping, hotkeys, controls
 A game controller that the browser reads on the device the player plays on.
 _Avoid_: controller, joypad, joystick
 
+**Info menu**:
+The engine's own menu that explains how to play and describes the heroes and items, with an About page. Players rarely find it.
+_Avoid_: help screen, info screen, manual
+
+**Guide**:
+The page's dialog that shows the info menu's content, as the player's copy holds it and in the game's language. It is read in the browser from that copy and never kept anywhere else, so a visitor without a copy has no guide.
+_Avoid_: Info (that is the engine's menu), help, manual, wiki, tutorial
+
 ### Game content
 
 **Open progression**:
@@ -241,6 +249,10 @@ _Avoid_: slot, player number, team
 **Environment**:
 The look of a battle's playfield: space, clouds and grass, speedball, soccer, or racetrack.
 _Avoid_: stage, theme, skin
+
+**Item**:
+A pickup that appears on the battlefield during a battle; the game's own word. The guide's items tab also lists creatures and board pieces, because the info menu does.
+_Avoid_: power-up, pickup (in player-facing text), object
 
 **Witness**:
 The engine the server runs from its server copy to follow every battle's orders and learn each battle's real result. It is neither a player nor an observer, and no player sees it.
