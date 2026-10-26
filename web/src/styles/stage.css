@@ -8,6 +8,11 @@
   color: transparent; -webkit-text-stroke: 1px rgb(255 255 255 / 12%); white-space: nowrap; pointer-events: none; user-select: none; }
 main { position: relative; min-height: 0; display: grid; place-content: center; justify-items: center; gap: 18px; padding: 0 48px 24px; }
 
+/* Each seat's color in the battle (docs/re/re_rules.md), and a darker shade of it for the seat's number on it; our own shades. The
+   replay's lower third and its footage with details (footage.js) and the game page's rejoin card show them. */
+:root { --seat-1: #f0c42e; --seat-1-ink: #4d3900; --seat-2: #e2403f; --seat-2-ink: #4f0b0d;
+  --seat-3: #4fb84a; --seat-3-ink: #103a0e; --seat-4: #3f8be0; --seat-4-ink: #0b2547; }
+
 /* The engine draws the frame; the page only frames and scales it */
 .screen { position: relative; height: var(--screen-h); aspect-ratio: var(--screen-w) / var(--screen-h-px); container-type: size;
   overflow: hidden; background: #000 radial-gradient(rgb(255 255 255 / 16%) 1px, transparent 1.5px) 0 0 / 8px 8px;

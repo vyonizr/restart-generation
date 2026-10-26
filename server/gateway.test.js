@@ -1,8 +1,8 @@
-// Self-check for idle session expiry and LAN addresses: node server/gateway.test.js
+// Self-check for idle session expiry, LAN addresses, logins, polls and POST /seat: node server/gateway.test.js
 const assert = require('assert');
 for (const k of Object.keys(process.env)) if (k.startsWith('RG_')) delete process.env[k]; // the shell's .env mustn't change the result
 process.env.RG_DB = ':memory:';
-const { staleSessions, lanAddresses, handle, processRequest } = require('./gateway');
+const { staleSessions, lanAddresses, handle, processRequest, seatRequest, db } = require('./gateway');
 
 const now = 100000;
 const sessions = new Map([['a', { name: 'gone', lastSeen: now - 46000 }], ['b', { name: 'here', lastSeen: now - 44000 }]]);
@@ -56,3 +56,14 @@ assert.deepStrictEqual(copies.slice(0, 2), [null, null]); // the copies it repla
 pollCopy();
 assert.strictEqual(copies[3], copies[2]);
 console.log('gateway poll resends ok');
+
+// POST /seat (docs/adr/0038) asks with the login's credentials. Without Discord the name is the whole identity: Alice's name shows
+// the seat she holds. A name nobody holds, or no name, shows nothing, and the question registers no name.
+require('./battle.fixture').heldSeat(db.byName('Alice'));
+const { held } = seatRequest({ name: 'Alice' });
+assert.deepStrictEqual([held.seat, held.seats.map(s => s.name)], [1, ['Alice', 'Other']]);
+assert.deepStrictEqual(seatRequest({ name: 'Nobody' }), {});
+assert.strictEqual(db.byName('Nobody'), null);
+assert.deepStrictEqual(seatRequest(null), {});
+assert.deepStrictEqual(seatRequest({ name: ['Alice'] }), {});
+console.log('gateway seat ok');

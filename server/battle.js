@@ -24,6 +24,8 @@ const RELAXED_MS = 180000;        // forced end this long after a phase starts i
 const RELAXED_CANNON_MS = 60000;  // same for phase 5, where a shot count the server can't know stalls the table
 const BOT_IDLE_MS = 15000;        // a live bot acts about 4 s into a phase; a bot silent this long is defeated
 const SUSPECT_MS = 30000;         // a person who sat out the previous phase, or was skipped in phase 4, is presumed defeated this far into a phase
+// How long a person's seat is held after their session leaves a running battle (CONTEXT.md "Rejoin window", docs/adr/0038).
+const REJOIN_WINDOW_MS = 120000;
 const ORDERS = new Set([gm.TYPE.MOVE_UNIT, gm.TYPE.FIRE_CANNON, gm.TYPE.PLACE_TILE, gm.TYPE.ATTACK,
   gm.TYPE.POINT, gm.TYPE.SPECIAL_SKILL]);
 
@@ -187,18 +189,52 @@ function sendMsg(table, p, m, api) {
 function broadcast(table, m, api, except) {
   const raw = gm.write(m);
   if (m.reliable !== 0) record(table, raw);
-  for (const p of table.players) if (p !== except && p.state === 'playing') sendMsg(table, p, m, api);
+  for (const p of table.players) if (p !== except && listens(p)) sendMsg(table, p, m, api);
 }
 const serverMsg = (table, type, body) => ({ seq: ++table.seq, type, sender: 0, recipients: [0],
   turn: table.turn, phase: table.phase, body });
 const alive = table => table.players.filter(p => p.state === 'playing' && !table.losers.includes(p));
+// A seat the relay sends battle messages to: playing, with its session there (not held), and past step 4 if it is rejoining.
+// What a rejoining seat misses before step 4 is in the history step 4 sends.
+const listens = p => p.state === 'playing' && p.away === null && p.rejoining === null;
+// The seats held for their absent players (docs/adr/0038), only while the battle runs: once it ends, every hold is released.
+// `away` is when the seat's session left; a held seat stays a stopped player for the others (see `leave`).
+const held = table => (table.started && !table.finished ? table.players.filter(p => p.away !== null) : []);
+// What is left of a seat's rejoin window, in ms: of a held seat's, or of one being taken back, which is held again from then if
+// the new session leaves before step 4; a seat still in play has the whole window ahead of it.
+const windowLeft = (table, p) => {
+  const since = p.away ?? p.rejoining;
+  return since === null ? REJOIN_WINDOW_MS : Math.max(0, REJOIN_WINDOW_MS - (table.now() - since));
+};
+// The seat account `acc` has in this running battle and hasn't lost, or null: held for it, or still in play. POST /seat counts both,
+// because the page asks before its own login, and after a reload the old session stays seated until that login ends it.
+const seatOf = (table, acc) => (table.started && !table.finished && table.players.find(p => !p.bot && p.s.account?.id === acc.id
+  && (p.away !== null || (p.state === 'playing' && !table.losers.includes(p))))) || null;
 
-// Handshake step 1, after the SEAT_TAKE response (lobby FUN_100ebed0 waits for this).
+const step1 = table => ({ seq: 1, type: gm.TYPE.INIT, body: initBody(Buffer.concat([table.game, i32(1)])) });
+
+// Handshake step 1, after the SEAT_TAKE response (lobby FUN_100ebed0 waits for this). A session whose account holds a seat here
+// takes that seat back (a rejoin, docs/adr/0038), whoever else fills the table: its index, team and hero stay, and its JoinInfo
+// gets steps 3 and 4 (onRejoinInfo). `rejoining` keeps when the seat was first held, in case this session leaves before step 4.
 function seat(table, s, api) {
+  const back = s.account && held(table).find(p => p.s.account?.id === s.account.id);
+  if (back) {
+    report(table, api, `${s.name} takes seat ${back.team} back`);
+    Object.assign(back, { s, rejoining: back.away, away: null });
+    return sendMsg(table, back, step1(table), api);
+  }
   if (table.players.some(p => p.s === s) || table.players.length >= table.seats) return;
-  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, PHASE.TILE_PLACEMENT), skipped: 0, fired5: 0, bot: Boolean(s.account?.bot) };
+  const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, PHASE.TILE_PLACEMENT), skipped: 0, fired5: 0, bot: Boolean(s.account?.bot),
+    away: null, rejoining: null };
   table.players.push(p);
-  sendMsg(table, p, { seq: 1, type: gm.TYPE.INIT, body: initBody(Buffer.concat([table.game, i32(1)])) }, api);
+  sendMsg(table, p, step1(table), api);
+}
+
+// Handshake steps 3 and 4: the seat's index and team, then the snapshot taken before anyone joined and every reliable message since.
+function catchUp(table, p, api) {
+  sendMsg(table, p, { seq: 2, type: gm.TYPE.INIT, body: initBody(Buffer.concat([i32(p.index), i32(p.team)])) }, api);
+  sendMsg(table, p, { seq: 3, type: gm.TYPE.INIT,
+    body: initBody(Buffer.concat([table.snap, i32(table.history.length), ...table.history])) }, api);
 }
 
 function onJoinInfo(table, p, body, api) {
@@ -206,10 +242,7 @@ function onJoinInfo(table, p, body, api) {
   p.hero = info.hero.type;
   // Step 3: index and team are the next free seat number (FUN_10023f40, FUN_10024c60 hand out the lowest).
   p.index = p.team = table.freeSeats.shift();
-  sendMsg(table, p, { seq: 2, type: gm.TYPE.INIT, body: initBody(Buffer.concat([i32(p.index), i32(p.team)])) }, api);
-  // Step 4: snapshot taken before anyone joined, then every reliable message since.
-  sendMsg(table, p, { seq: 3, type: gm.TYPE.INIT,
-    body: initBody(Buffer.concat([table.snap, i32(table.history.length), ...table.history])) }, api);
+  catchUp(table, p, api);
   p.state = 'playing';
   api.log(`${p.s.name} joined the battle as player ${p.index} (${info.hero.type})`);
   // Step 5: PlayerJoined to everyone (FUN_1000f290). Type 3 = remote player; each client turns its own
@@ -219,6 +252,19 @@ function onJoinInfo(table, p, body, api) {
     i32(p.index), i32(p.team), u8(1),
     g.writeString(info.name), i32(heroId), i32(-1), u8(info.random), g.writeHero(info.hero), i32(3)])), api);
   maybeBegin(table, api);
+}
+
+// A rejoin's JoinInfo (docs/protocol.md "Rejoin"): steps 3 and 4 with the seat's own index and team, and its engine replays the
+// history to where the battle stands. No step 5: the seat's PlayerJoined is in that history, and a second one would give the seat a
+// new Commander in every engine. Its hero is the one it joined with; the JoinInfo's is ignored. From here it is an ordinary seat.
+// Its silence counts afresh from the next turn: it couldn't act while it was away, and it doesn't in the phase it lands in, so the
+// silence rules would otherwise end its next tile phase the moment the others had placed (a whole turn silent), or 30 s in
+// (presumed defeated for the cannon phase it missed). So it counts as having acted through this turn's cannon phase.
+function onRejoinInfo(table, p, api) {
+  catchUp(table, p, api);
+  p.rejoining = null;
+  p.seen = step(table.turn, PHASE.CANNONS); p.fired5 = table.turn; p.skipped = 0;
+  report(table, api, `${p.s.name} rejoined as player ${p.index} with ${table.history.length} messages`);
 }
 
 function maybeBegin(table, api) {
@@ -257,7 +303,9 @@ function endTurn(table, api, why) {
   return enterPhase(table, turn + 1, PHASE.TILE_PLACEMENT);
 }
 
-// (turn, phase) as one ascending number; p.seen is the step of the team's last order or EndTurnRequest.
+// (turn, phase) as one ascending number; p.seen is the step of the team's last order or EndTurnRequest, or the later step a rejoin
+// credits it with (onRejoinInfo). It never goes back: an EndTurnRequest a rejoined engine sends in the phase it lands in mustn't undo
+// that credit.
 const step = (turn, phase) => turn * 10 + phase;
 // Clients stop sending after their castle or princess is captured, and nothing they send shows it (docs/re/re_rules.md
 // section 5). A witness reports each defeat (see `defeated`); without one, or for a stopped player, whom no engine sees
@@ -289,7 +337,7 @@ const endIfAllDone = (table, api) => {
 };
 
 function onEndTurnRequest(table, p, m, api) {
-  p.seen = step(table.turn, table.phase);
+  p.seen = Math.max(p.seen, step(table.turn, table.phase));
   if (m.turn !== table.turn || m.phase !== table.phase) return report(table, api, `dropped seat ${p.team}'s end-turn request for (${m.turn}, ${m.phase})`);
   if (table.phase === PHASE.PLAYER_TURNS) {
     if (table.ended4.has(p.team)) return report(table, api, `dropped seat ${p.team}'s end-turn request: its turn already ended or was skipped`);
@@ -304,7 +352,9 @@ function onEndTurnRequest(table, p, m, api) {
 
 function onGame(table, p, data, api) {
   const m = gm.unpack(data);
+  if (p.state === 'left') return; // a seat given up (`quit`) while its session lingers: nothing it sends counts
   if (p.state === 'joining') { if (m.type === gm.TYPE.INIT) onJoinInfo(table, p, m.body, api); return; }
+  if (p.rejoining !== null) { if (m.type === gm.TYPE.INIT) onRejoinInfo(table, p, api); return; }
   if (m.type === gm.TYPE.END_TURN_REQUEST) return onEndTurnRequest(table, p, m, api); // never acked or forwarded
   // Clients are authoritative about the game state: follow them if they are ahead.
   if (m.turn > table.turn || (m.turn === table.turn && m.phase > table.phase)) {
@@ -319,10 +369,10 @@ function onGame(table, p, data, api) {
     if (m.body.readInt32LE(0) === 3) m.body = i32(2); // sync errors are reported as disconnects
     lose(table, p, api);
   }
-  if (ORDERS.has(m.type)) { table.lastOrderTeam = p.team; p.seen = step(table.turn, table.phase); }
+  if (ORDERS.has(m.type)) { table.lastOrderTeam = p.team; p.seen = Math.max(p.seen, step(table.turn, table.phase)); }
   // Forward unchanged to the other players (v16), keeping the client's own seq and sender.
   if (m.reliable) record(table, gm.write(m));
-  for (const o of table.players) if (o !== p && o.state === 'playing') sendMsg(table, o, m, api);
+  for (const o of table.players) if (o !== p && listens(o)) sendMsg(table, o, m, api);
   if (table.phase === PHASE.TILE_PLACEMENT && m.type === gm.TYPE.PLACE_TILE) { table.done.add(p.team); endIfAllDone(table, api); }
   // Clients never request the end of phase 5 after their last shot: the original host ended it once no
   // shots were left (FUN_1000e430), one FireCannon per shot.
@@ -354,16 +404,38 @@ function defeated(table, seat, api) {
   lose(table, p, api);
 }
 
-// A player left the table room: tell the others he disconnected (sender = leaver, as the original did).
+// A player's session left the table room. In a running battle, a person's seat is held for the rejoin window (docs/adr/0038):
+// nothing is sent, and the others see a stopped player until the seat is taken back (`seat`), given up (`quit`), or drops out
+// when the window runs out (`tick`). A rejoin that hadn't reached step 4 holds it again from when it was first held. A bot's
+// seat isn't held: the others are told at once that it disconnected.
 function leave(table, p, api) {
   if (p.state === 'playing' && table.started && !table.finished && !table.losers.includes(p)) {
-    const m = { seq: p.lastSeq + 1, type: gm.TYPE.END_GAME, sender: p.index, recipients: [0],
-      turn: table.turn, phase: table.phase, body: i32(2) };
-    lose(table, p, api);
-    p.state = 'left';
-    broadcast(table, m, api);
+    if (p.bot) return dropOut(table, p, 2, api);
+    p.away = p.rejoining ?? table.now();
+    p.rejoining = null;
+    return report(table, api, `seat ${p.team} is held for ${p.s.name}`);
   }
   p.state = 'left';
+}
+
+// The seat leaves the battle for good: the others get EndGame with `reason` (2 a disconnect, 0 a player who left through the
+// game's menus) as the seat's own message, sender = the seat, numbered past its last one, as the original did. With sender 0
+// every client would believe it won.
+function dropOut(table, p, reason, api) {
+  const m = { seq: p.lastSeq + 1, type: gm.TYPE.END_GAME, sender: p.index, recipients: [0],
+    turn: table.turn, phase: table.phase, body: i32(reason) };
+  lose(table, p, api);
+  p.state = 'left';
+  p.away = null;
+  broadcast(table, m, api);
+}
+
+// The player gave their seat up (POST /seat), held or still in play (`seatOf`): EndGame reason 0, so the others see a player who
+// left, not one who disconnected. The battle counts as a defeat for them. A session still seated there gets nothing more.
+function quit(table, p, api) {
+  if (seatOf(table, p.s.account) !== p) return;
+  report(table, api, `${p.s.name} gave seat ${p.team} up`);
+  dropOut(table, p, 0, api);
 }
 
 // The result once the battle is over: { winners, players, ranks, guessed }. With a witness that waits up to `waitMs` for its ranks,
@@ -406,7 +478,16 @@ function replay(table, outcome) {
 // The table is gone or its result is in: the witness stops following it.
 const forget = table => table.witness?.forget(table);
 
+// Every second (casino.js): held seats whose rejoin window ran out drop out as a disconnect (EndGame reason 2), then the battle
+// moves on. Returns the seats that dropped out.
 function tick(table, api) {
+  const out = held(table).filter(p => windowLeft(table, p) === 0);
+  for (const p of out) { report(table, api, `seat ${p.team}'s rejoin window ran out`); dropOut(table, p, 2, api); }
+  advance(table, api);
+  return out;
+}
+
+function advance(table, api) {
   if (!table.started) return maybeBegin(table, api);
   if ((table.phase === PHASE.TILE_PLACEMENT || table.phase === PHASE.CANNONS) && !table.finished && alive(table).length && allDone(table)) return endIfAllDone(table, api);
   const limit = table.forceAfter[table.phase] ?? -1;
@@ -422,4 +503,4 @@ function tick(table, api) {
   }
 }
 
-module.exports = { PHASE, seatCounts, loadTemplates, createTable, seat, onGame, leave, result, replay, forget, tick };
+module.exports = { PHASE, REJOIN_WINDOW_MS, seatCounts, loadTemplates, createTable, seat, onGame, leave, quit, held, seatOf, windowLeft, result, replay, forget, tick };
