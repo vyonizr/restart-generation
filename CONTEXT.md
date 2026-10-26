@@ -262,6 +262,14 @@ _Avoid_: stage, theme, skin
 A pickup that appears on the battlefield during a battle; the game's own word. The guide's items tab also lists creatures and board pieces, because the info menu does.
 _Avoid_: power-up, pickup (in player-facing text), object
 
+**Chicken**:
+A monster that a monster box sometimes summons in place of another. On turns when chickens lay, each one that moves leaves an egg behind.
+_Avoid_: hen
+
+**Egg**:
+An item that a chicken leaves on the battlefield. A hero who picks it up can throw it at a cell, and any hero, monster, or princess there is hurt; that is an egg hitting a hero (or monster, or princess), never a player.
+_Avoid_: projectile, egg attack
+
 **Witness**:
 The engine the server runs from its server copy to follow every battle's orders and learn each battle's real result. It is neither a player nor an observer, and no player sees it.
 _Avoid_: referee, oracle, observer
