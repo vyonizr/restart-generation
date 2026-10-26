@@ -1,6 +1,7 @@
 // Made-up battle templates for tests, so the battle tests run without data/templates (which come from the game and
 // stay out of the repository). They hold only what the server reads: one castle per seat, the phase time limits,
 // the cannon rule, and the snapshot's copy of the Game's RNG. The rest is zeros and empty lists, no game data.
+// Also a running battle with a held seat, for the tests of POST /seat.
 const g = require('./gameblob');
 
 const LIMIT_MS = 20000; // phase time limit in tile placement, player turns and cannons (docs/protocol.md "Battle")
@@ -37,4 +38,26 @@ function template(seats, name) {
 // Two templates per player count, so a table's choice of template is exercised too.
 const templates = () => [2, 3, 4].flatMap(n => [template(n, `made_up_${n}p_a`), template(n, `made_up_${n}p_b`)]);
 
-module.exports = { template, templates };
+// A running ranked battle, made through the casino as the gateway does, in which account `acc` holds seat 1 against 'Other':
+// its session left the table room (docs/adr/0038). Nothing is sent anywhere.
+function heldSeat(acc) {
+  const casino = require('./casino'), battle = require('./battle'), gm = require('./gamemsg'), { T } = require('./mt');
+  const rooms = new Map();
+  const api = { log() {}, capture() {}, templates: templates(), witness: { available: () => false }, rooms, send() {},
+    createRoom: (name, max) => { const room = { id: name, name, max, members: new Set() }; rooms.set(name, room); return room; } };
+  const players = [acc, { id: -1, name: 'Other' }].map(account => ({ name: account.name, userId: String(account.id), account }));
+  casino.startTable(players, T.RANKED_CASINO, api);
+  const [room] = rooms.values(), table = room.battle;
+  table.freeSeats.sort((x, y) => x - y);
+  for (const s of players) {
+    room.members.add(s); s.room = room;
+    battle.seat(table, s, api);
+    const info = g.writeJoinInfo({ type: 0, slot: -1, aiType: 0, color: -1, name: s.name, random: 0, hero: g.parseGame(table.game).heroes[0] });
+    const length = Buffer.alloc(4); length.writeInt32LE(info.length);
+    battle.onGame(table, table.players.at(-1), gm.pack({ seq: 1, type: gm.TYPE.INIT, body: Buffer.concat([length, info]) }), api);
+  }
+  room.members.delete(players[0]); players[0].room = null;
+  casino.onLeave(players[0], room, api);
+}
+
+module.exports = { template, templates, heldSeat };

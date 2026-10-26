@@ -9,6 +9,69 @@
 
 #online-as button { font-size: 13px; padding: 4px 8px; }
 
+/* A held seat (Rejoin.svelte, docs/adr/0038). The card covers the screen in ink-0, so the menus the page drives stay out of sight. Its
+   sizes follow the screen's (container units), so it fits a 320 × 568 phone's screen as well as a desktop's. */
+.rejoin-card { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 3cqh; padding: 6cqi; overflow-y: auto;
+  text-align: center; background: var(--ink-0); }
+.rejoin-card h2 { font-size: min(13cqi, 60px); }
+.rejoin-card h2.bar::after { margin-inline: auto; }
+.rejoin-kind { margin-bottom: -1.5cqh; font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .06em; color: var(--light-3); }
+/* The seats: one row for two; for three or four, two columns placed as the castles stand (1 2 over 4 3, or 1 2 over 3), as the replay's
+   lower third does on a narrow view. A name is at most 15 characters with no spaces, so it never wraps: it is cut with an ellipsis, and
+   the whole name is in its tooltip and in the screen-reader line. */
+.rejoin-seats { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 10px 24px; width: fit-content; max-width: min(100%, 380px);
+  margin: 0; padding: 0; list-style: none; }
+.rejoin-seats li:nth-child(3):nth-last-child(2) { order: 1; }
+.rejoin-seats[data-seats='3'] li:last-child { grid-column: 1 / -1; justify-self: center; }
+.rejoin-seats li { display: flex; align-items: center; gap: 8px; min-width: 0; font: 400 18px/1 var(--display); text-transform: uppercase; color: var(--light-2); }
+.rejoin-seats b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.rejoin-seats span { display: grid; place-items: center; flex: none; width: 28px; height: 28px; font-size: 17px; background: var(--seat); color: var(--seat-ink); }
+.rejoin-seats .seat-1 { --seat: var(--seat-1); --seat-ink: var(--seat-1-ink); }
+.rejoin-seats .seat-2 { --seat: var(--seat-2); --seat-ink: var(--seat-2-ink); }
+.rejoin-seats .seat-3 { --seat: var(--seat-3); --seat-ink: var(--seat-3-ink); }
+.rejoin-seats .seat-4 { --seat: var(--seat-4); --seat-ink: var(--seat-4-ink); }
+.rejoin-seats li[data-you] { color: #fff; }
+.rejoin-seats li[data-you] span { outline: 2px solid #fff; outline-offset: 3px; }
+/* Dropped out: the player's seat as the replay's defeated seat, its color kept only as an outline */
+.rejoin-seats li[data-hollow] { color: var(--light-3); }
+.rejoin-seats li[data-hollow] span { background: transparent; color: var(--seat); box-shadow: inset 0 0 0 2px var(--seat); outline: none; }
+.rejoin-time { display: flex; align-items: center; gap: 12px; }
+.rejoin-time b, .rejoin-clock { font: 500 16px/1 var(--mono); font-variant-numeric: tabular-nums; color: #fff; }
+.rejoin-time b { min-width: 4ch; text-align: right; }
+.rejoin-meter { width: min(260px, 56cqi); height: 6px; background: var(--ink-3); }
+.rejoin-meter span { display: block; height: 100%; background: var(--red); transition: width 1s linear; }
+/* Rejoin at Start's size where the screen has the room, Leave under it and OK at a dialog's */
+.rejoin-actions { display: grid; justify-items: center; gap: 12px; }
+#rejoin-go { font-size: clamp(24px, 9cqi, 34px); padding: clamp(12px, 4cqh, 18px) clamp(32px, 14cqi, 56px); }
+#rejoin-leave, #rejoin-ok { font-size: 18px; padding: 12px 20px; }
+/* The drive's steps: done ones checked in crimson, the one now blinking, the ones to come at 45% */
+.rejoin-steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; text-align: left; font: 400 20px/1 var(--display); text-transform: uppercase; }
+.rejoin-steps li { display: flex; align-items: center; gap: 12px; color: var(--light-3); transition: color .2s, opacity .2s; }
+.rejoin-steps li::before { content: ''; flex: none; width: 12px; height: 12px; border: 2px solid currentColor; }
+.rejoin-steps li[data-state=done]::before { background: var(--red); border-color: var(--red); }
+.rejoin-steps li[data-state=now] { color: #fff; }
+.rejoin-steps li[data-state=now]::before { animation: rejoin-blink .8s steps(2) infinite; }
+.rejoin-steps li[data-state=next] { opacity: .45; }
+@keyframes rejoin-blink { 50% { background: #fff; } }
+/* When the drive gives up: a strip at the screen's foot with where to go, the clock and Leave, the meter along its foot; the player
+   plays above it. */
+.rejoin-strip { position: absolute; inset: auto 0 0; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px 12px;
+  padding: 12px 14px; background: var(--ink-0); border-top: 4px solid var(--red); }
+.rejoin-strip p { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font: 13px/1 var(--body); color: var(--light-3); }
+.rejoin-strip kbd { height: 26px; font-size: 12px; white-space: nowrap; }
+.rejoin-strip button { font-size: 13px; padding: 6px 12px; }
+.rejoin-strip .rejoin-meter { grid-column: 1 / -1; width: 100%; height: 4px; }
+/* On a phone's screen the keys take a row of their own, over the clock and Leave, so the strip covers less of the game */
+@container (max-width: 360px) {
+  .rejoin-strip { grid-template-columns: 1fr auto; gap: 8px; padding: 8px 10px; }
+  .rejoin-strip p { grid-column: 1 / -1; flex-wrap: nowrap; }
+  .rejoin-strip kbd { height: 24px; padding: 0 6px; font-size: 11px; }
+}
+/* "Back in": over the battle for a moment, then gone (rejoin.js closes it as the fade ends) */
+.rejoin-flash { position: absolute; left: 50%; top: 50%; translate: -50% -50%; padding: 14px 28px; background: var(--red); pointer-events: none;
+  font: 400 9cqi/.9 var(--display); text-transform: uppercase; white-space: nowrap; animation: rejoin-out 2.4s forwards; }
+@keyframes rejoin-out { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
 /* Your replays (ReplaysDialog.svelte, docs/adr/0024, 0034): over the page, like the notices, because 25 battles are too long for the
    screen. One line per replay, ruled off from the next: when, the kind of match, the environment and hero, the result, the buttons. */
 #replays { position: fixed; z-index: 10; width: min(560px, 92vw); max-height: calc(100dvh - 32px); grid-template-rows: auto auto minmax(0, 1fr) auto;

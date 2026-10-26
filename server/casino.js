@@ -34,8 +34,10 @@ function hexdump(buf) {
   return rows.join('\n');
 }
 // Room joins, leaves and unknown packets. At 10 MB the file becomes capture.log.1, so a long-running server keeps at most 20 MB.
+// api.capture replaces the file (tests pass one that keeps nothing).
 const CAPTURE_MAX = 10 * 1024 * 1024;
-function record(line) {
+function record(api, line) {
+  if (api.capture) return api.capture(line);
   try { if (fs.statSync(CAPTURE).size > CAPTURE_MAX) fs.renameSync(CAPTURE, `${CAPTURE}.1`); } catch { /* not there yet */ }
   fs.appendFileSync(CAPTURE, `${new Date().toISOString()} ${line}\n`);
 }
@@ -68,12 +70,13 @@ const ranked = new Set();    // sessions inside the ranked casino
 const queue = [];            // sessions waiting for a ranked match
 let nextTable = 1;
 const tables = new Set();    // SNAP rooms hosting a battle
+const dropped = new Map();   // account id -> the seat it last dropped out of (seatView), kept until its next POST /seat
 
 // Clients compute the result locally and upload nothing, so the server scores the witness's result, or its own guess
 // (battle.result): +10 fame for each winner, and a match for every player.
 async function finishMatch(host, api) {
   if (host.finished) return;
-  host.finished = true;
+  host.finished = true; // seats still held are released (battle.held): their players come back to Arena as after any battle
   const outcome = await battle.result(host, WITNESS_WAIT_MS);
   const { winners, players, guessed } = outcome;
   battle.forget(host);
@@ -92,8 +95,8 @@ async function finishMatch(host, api) {
   }
 }
 
-// Everyone left the table room before the battle ended: its witness lets go, and a battle that began still gets its replay,
-// without a result.
+// Everyone left the table room before the battle ended, and no seat is held in it: its witness lets go, and a battle that began
+// still gets its replay, without a result.
 function abandonMatch(host, api) {
   if (host.finished) return;
   host.finished = true;
@@ -162,6 +165,7 @@ function startTable(players, casinoType, api) {
   // The client leaves CasinoSystem and joins this SNAP room by name (FUN_100cdd00, FUN_1010fd80).
   const room = api.createRoom(table.name, size);
   room.battle = host;
+  room.table = table; // what MATCHED_UP sends again to a player who comes back to a held seat (sendBack)
   host.ranked = casinoType === T.RANKED_CASINO;
   tables.add(room);
   api.log(`matched ${players.map(p => p.name).join(', ')} into ${table.name}`);
@@ -179,6 +183,71 @@ function startTable(players, casinoType, api) {
 // Unlocking shows MATCHMAKING_FAILED in the lobby (FUN_100469c0).
 function lockPlayer(s, lock, api) {
   send(s, api, T.CASINO, Buffer.concat([header(REQUEST, lock ? A.LOCK_PLAYER : A.UNLOCK_PLAYER), u32(0)]));
+}
+
+// Rejoin (docs/adr/0038). The table room and seat of `acc` in a running battle, held for it or still in play (battle.seatOf), or
+// null. An account has one at most: every MATCHMAKING it sends while the seat is held leads back to it.
+function seatIn(acc) {
+  for (const room of tables) {
+    const p = battle.seatOf(room.battle, acc);
+    if (p) return { room, p };
+  }
+  return null;
+}
+
+// A seat as POST /seat shows it: the kind of match, the seat's own number, and every seat with its player, by seat number.
+const seatView = (host, p) => ({ ranked: Boolean(host.ranked), seat: p.team,
+  seats: host.players.filter(o => o.team).sort((x, y) => x.team - y.team).map(o => ({ seat: o.team, name: o.s.name, bot: o.bot })) });
+
+// The way back to a held seat. The engine takes its old table only once it has asked for a match: its MATCHMAKING gets an empty
+// lobby, then LOCK and MATCHED_UP for the held table, on the casino type it asked on, the only one its engine handles then
+// (docs/protocol.md "Rejoin"). It is never queued nor listed in a friendly lobby; its SEAT_TAKE then takes the seat (battle.seat).
+function sendBack(s, type, room, api) {
+  send(s, api, type, response(A.MATCHMAKING, u8(0)));
+  ranked.delete(s);
+  lockPlayer(s, true, api);
+  send(s, api, type, event(A.MATCHED_UP, s.userId, tableDescriptor(room.table)));
+  api.log(`${s.name} goes back to a held seat in ${room.name}`);
+}
+
+// A table room stays while a person's seat is held in it, even empty, and so do its bots: a battle of one person and bots would
+// otherwise end during the window. Once none is held, bots left without a person have no one to play for, and an empty room's
+// battle is abandoned and the room deleted from the gateway's rooms, which keeps it until then (keepsRoom).
+function letGo(room, api) {
+  if (battle.held(room.battle).length) return;
+  if (![...room.members].some(m => !m.account.bot)) for (const m of room.members) bots.stop(m);
+  // A finished battle's witness lets go once the result is in (finishMatch); an abandoned one's, when everyone has left.
+  if (room.members.size) return;
+  tables.delete(room);
+  api.rooms.delete(room.id);
+  abandonMatch(room.battle, api);
+}
+
+// POST /seat for an account (docs/protocol.md "Browser endpoints"): its seat in a running battle with the time left, else the seat it
+// last dropped out of, told once, else nothing. A seat still in play counts: the page asks before its own login, and after a reload
+// the old session stays seated until that login ends it. `leave` gives the seat up (EndGame reason 0) and forgets one that dropped out.
+function seatAnswer(acc, leave, api) {
+  const own = seatIn(acc);
+  if (leave) {
+    dropped.delete(acc.id);
+    if (own) { battle.quit(own.room.battle, own.p, api); letGo(own.room, api); }
+    return {};
+  }
+  if (own) return { held: { ...seatView(own.room.battle, own.p), leftMs: battle.windowLeft(own.room.battle, own.p) } };
+  const gone = dropped.get(acc.id);
+  dropped.delete(acc.id);
+  return gone ? { dropped: gone } : {};
+}
+
+// Every second: the ranked queue is matched, and each table moves on. A held seat whose window ran out drops out, and its
+// account is told so at its next POST /seat.
+function tick(api) {
+  matchmake(api);
+  for (const room of tables) {
+    const out = battle.tick(room.battle, api);
+    for (const p of out) dropped.set(p.s.account.id, seatView(room.battle, p));
+    if (out.length) letGo(room, api);
+  }
 }
 
 // A friendly start with the bot switch on: bots fill every empty seat up to four. The players wait on
@@ -319,6 +388,8 @@ function onCasino(s, type, kind, action, body, api) {
       const [heroType, next] = readStr(body, 0);
       const [random] = readStr(body, next);
       s.match = { heroType, random };
+      const back = seatIn(s.account);
+      if (back && back.p.away !== null) return sendBack(s, type, back.room, api);
       if (type === T.FRIENDLY_CASINO) { // friendly lobby: list players, the start is up to them
         const c = [...friendly.values()].find(o => o.members.has(s));
         if (!c) return reply(u8(0));
@@ -382,11 +453,11 @@ function onMessage(s, msg, api) {
       if (onCasino(s, type, body[0], body[1], body.subarray(2), api) !== false) return;
   }
   api.log(`unhandled MT type 0x${type.toString(16)} from ${s.name}, ${body.length} bytes`);
-  record(`${s.name} room=${s.room?.name} MT type=0x${type.toString(16)} len=${body.length}\n${hexdump(body)}\n`);
+  record(api, `${s.name} room=${s.room?.name} MT type=0x${type.toString(16)} len=${body.length}\n${hexdump(body)}\n`);
 }
 
 module.exports = {
-  botChoice, fillsWithBots, finishMatch, abandonMatch, fameLevel,
+  botChoice, fillsWithBots, finishMatch, abandonMatch, fameLevel, startTable, seatAnswer, tick,
   waiting: () => queue.length, // players waiting in the ranked Quick Match
   botQuestion: id => botChoice(friendly.get(id), canFillWithBots()),
   onPacket(s, data, api) {
@@ -394,23 +465,23 @@ module.exports = {
     for (const msg of s.mtRead(data)) onMessage(s, msg, api);
   },
   onJoin(s, room, api) {
-    record(`${s.name} joined ${room.id} "${room.name}"`);
+    record(api, `${s.name} joined ${room.id} "${room.name}"`);
     s.mtRead = createReader();
     // The client's socket stays "connecting" and drops all sends until it receives a packet
     // in the room (LAB_1010ff60). Delay it: Java drops event 117 until joinGameRoom returns.
     setTimeout(() => s.room === room && send(s, api, T.PING, u32(20000)), 500);
   },
   onLeave(s, room, api) {
-    record(`${s.name} left ${room.id} "${room.name}"`);
+    record(api, `${s.name} left ${room.id} "${room.name}"`);
     if (room.name === 'CasinoSystem') leaveCasino(s, api);
-    const p = room.battle?.players.find(o => o.s === s);
+    if (!room.battle) return;
+    const p = room.battle.players.find(o => o.s === s);
     if (p) battle.leave(room.battle, p, api);
-    // Bots left alone at a table have no one to play for.
-    if (room.battle && ![...room.members].some(m => !m.account.bot)) for (const m of room.members) bots.stop(m);
-    // A finished battle's witness lets go once the result is in (finishMatch); an abandoned one's, when everyone has left.
-    if (room.members.size === 0) { tables.delete(room); if (room.battle) abandonMatch(room.battle, api); }
+    letGo(room, api);
   },
+  // Whether the gateway keeps an empty room: a table room where a person's seat is held. letGo deletes it once none is.
+  keepsRoom: room => Boolean(room.battle && battle.held(room.battle).length),
   start(api) {
-    setInterval(() => { matchmake(api); for (const room of tables) battle.tick(room.battle, api); }, 1000);
+    setInterval(tick, 1000, api);
   },
 };

@@ -1,9 +1,10 @@
-// The gamepad (CONTEXT.md): one pad presses Start, answers the CPU players box and plays the game, with the keys the touch pad
-// presses. It is read once per animation frame from the moment the page opens, and it never vibrates.
+// The gamepad (CONTEXT.md): one pad presses Start, answers the CPU players box and the rejoin card and plays the game, with the keys
+// the touch pad presses. It is read once per animation frame from the moment the page opens, and it never vibrates.
 import { VK } from '../../../../shared/emu/host.js';
 import { page, padSession } from '../page.svelte.js';
 import { javaKey, padKey } from './keys.js';
 import { botQuestion } from '../game/bots.js';
+import { rejoinPad } from '../game/rejoin.js';
 import { touch } from '../device.js';
 import { stayAwake, needsVideo } from '../game/wake.js';
 import { soundContext } from '../game/audio.js';
@@ -57,12 +58,12 @@ export function dismissDisconnected() {
   if (page.notice?.text === DISCONNECTED) page.notice = null;
 }
 
-// Sends a press to whatever takes input now: the CPU players box, Start, or the game.
+// Sends a press to whatever takes input now: the CPU players box, the rejoin card, Start, or the game.
 function press(control) {
   wake();
   page.input = 'gamepad';
   dismissDisconnected();
-  if (botQuestion.pad(control)) return;
+  if (botQuestion.pad(control) || rejoinPad(control)) return;
   if (page.start) {
     if (!page.dialogs && (control === 'select' || control === 'menu')) pressStart();
     return;

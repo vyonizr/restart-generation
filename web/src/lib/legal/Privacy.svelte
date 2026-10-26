@@ -15,7 +15,7 @@
   ]);
 </script>
 
-<DocPage title="Privacy policy" ghost="Privacy" changed="25 October 2026" {toc} {server}>
+<DocPage title="Privacy policy" ghost="Privacy" changed="27 October 2026" {toc} {server}>
   <p class="lede">This page says what this Restart Generation server keeps about you when you play online, why, for how long, and how to have it removed. It keeps only what online play needs. It sells nothing, shows no ads, and runs no analytics.</p>
 
   <section id="who">
@@ -59,6 +59,7 @@
       <li>{#if replays}Chat in a battle goes to the other players, and stays in the battle's replay for as long as the replay is kept. {:else}Chat in a battle goes to the players it's for. The server doesn't store it. {/if}The message with a friend request goes to the player it's for, and the server doesn't store it.</li>
       <li>Room names are shown to everyone in the lobby while the room is open.</li>
       <li>Your IP address limits how often one network can make some requests{#if discord}, such as creating guest accounts{/if}. The server keeps it in memory for at most a day, and never writes it down.</li>
+      <li>When your page loses a running battle, the server holds your seat for two minutes so you can rejoin. If the two minutes run out, it remembers in memory that your seat dropped out, so your page can tell you, and forgets it once it has, or when the server restarts. It never writes it down.</li>
     </ul>
   </section>
 

@@ -211,7 +211,7 @@ One step of the cycle a battle repeats: tile placement (all players at once), th
 _Avoid_: round, stage
 
 **Defeated player**:
-A player who can no longer win the battle: another player's hero rescued their princess, or they left the battle or dropped out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
+A player who can no longer win the battle: another player's hero rescued their princess, or they left the battle or dropped out. A player drops out when their rejoin window runs out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
 _Avoid_: eliminated player, knocked-out player, captured castle
 
 **Princess rescued**:
@@ -221,6 +221,18 @@ _Avoid_: princess captured, castle captured, princess stolen (that is the revers
 **Stopped player**:
 A player whose page or bot sends nothing more while the battle goes on for the others, who still give them their turns: a sleeping phone, a hidden tab, a hung bot. The server can't tell a stopped player from a defeated one, because both are silent.
 _Avoid_: stalled client, frozen page, stopped page
+
+**Absent player**:
+A player whose page lost its place in a running battle, by a reload, a crash, or a phone asleep too long, while the server still holds their seat. The others see a stopped player: their turns end by themselves, and nobody waits for them. A player who leaves the battle through the game's own menus isn't absent: they have left.
+_Avoid_: disconnected player, away player, stopped player (that is how the others see them)
+
+**Rejoin**:
+An absent player taking their held seat back and playing on from where the battle has got to since they left. Ranked, friendly, and relaxed matches all allow it, and time lost while absent isn't given back. Offered a rejoin, the player may leave instead: they have then left the battle, at once. Resending a request after a short network drop, within the same page, isn't a rejoin.
+_Avoid_: reconnect, resume, return
+
+**Rejoin window**:
+How long the server holds an absent player's seat, about two minutes. When it runs out, the player drops out and is defeated. It can't be undone.
+_Avoid_: grace period, timeout
 
 **Phase time limit**:
 The countdown each player sees during a phase; when it runs out, the phase ends for that player.
@@ -249,6 +261,14 @@ _Avoid_: stage, theme, skin
 **Item**:
 A pickup that appears on the battlefield during a battle; the game's own word. The guide's items tab also lists creatures and board pieces, because the info menu does.
 _Avoid_: power-up, pickup (in player-facing text), object
+
+**Chicken**:
+A monster that a monster box sometimes summons in place of another. On turns when chickens lay, each one that moves leaves an egg behind.
+_Avoid_: hen
+
+**Egg**:
+An item that a chicken leaves on the battlefield. A hero who picks it up can throw it at a cell, and any hero, monster, or princess there is hurt; that is an egg hitting a hero (or monster, or princess), never a player.
+_Avoid_: projectile, egg attack
 
 **Witness**:
 The engine the server runs from its server copy to follow every battle's orders and learn each battle's real result. It is neither a player nor an observer, and no player sees it.

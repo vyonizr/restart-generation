@@ -131,8 +131,10 @@ function leaveRoom(s) {
   room.members.delete(s);
   s.room = null;
   if (!room.permanent) for (const m of room.members) pushEvent(m, `107|${s.userId}|${s.userId}`);
-  if (room.members.size === 0 && !room.permanent) rooms.delete(room.id);
   gameServer.onLeave?.(s, room, api);
+  // An empty room goes, unless the game server keeps it: a table room where a seat is held for its absent player (docs/adr/0038),
+  // which the game server deletes itself once it lets go.
+  if (room.members.size === 0 && !room.permanent && !gameServer.keepsRoom?.(room)) rooms.delete(room.id);
 }
 
 function joinRoom(s, room) {
@@ -157,6 +159,15 @@ const api = {
   // Tells a browser that its battle's replay is kept, under this id (shared/snap.js).
   replaySaved(s, id) { if (sessions.get(s.sid) === s) pushEvent(s, `${EVENT.REPLAY_SAVED}|${id}`); },
 };
+
+// POST /seat (docs/adr/0038): whether the account holds a seat in a running battle, or, with `leave`, gives it up. It asks with the
+// login's credentials, so nobody else can see or give up a member's seat: the name and on a Discord server its token. A name
+// nobody holds or a refused token gets {}, as a name that holds nothing does, and nothing is registered.
+function seatRequest(body) {
+  const name = typeof body?.name === 'string' ? body.name : '';
+  const acc = !name ? null : auth.enabled ? auth.login(name, typeof body.token === 'string' ? body.token : '') : db.byName(name);
+  return acc ? gameServer.seatAnswer(acc, body.leave === true, api) : {};
+}
 
 function handle(req, s, send) {
   const p = req.params;
@@ -306,7 +317,7 @@ function processRequest(text, addr, reply, web = false) {
 const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, list]) =>
   list.filter(a => a.family === 'IPv4' && !a.internal).map(a => [name, a.address]));
 
-module.exports = { staleSessions, lanAddresses, handle, processRequest, db };
+module.exports = { staleSessions, lanAddresses, handle, processRequest, seatRequest, db };
 if (require.main !== module) return; // tests import the module without starting the servers
 
 // A public server publishes Terms and a Privacy policy that name who runs it, who stores its data for them, and where players and
@@ -390,6 +401,18 @@ const httpServer = http.createServer((req, res) => {
   if (url === '/bots') { // whether the page shows the bot switch
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
     return res.end(JSON.stringify({ available: bots.available() }));
+  }
+  if (url === '/seat' && req.method === 'POST') { // the page's question before Start, and its Leave (seatRequest)
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', c => { body += c; if (body.length > 4096) req.destroy(); });
+    req.on('end', () => {
+      let asked = null;
+      try { asked = JSON.parse(body); } catch { /* answered as a name that holds nothing */ }
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify(seatRequest(asked)));
+    });
+    return;
   }
   if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
     // The admin's name and hosting provider fill in the Terms and the Privacy policy, which only a public server publishes: the page

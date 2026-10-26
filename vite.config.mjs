@@ -47,6 +47,6 @@ export default defineConfig({
     // The page imports shared/, which is outside Vite's root (ADR 0035).
     fs: { allow: ['web', 'shared'].map(d => fileURLToPath(new URL(`./${d}`, import.meta.url))) },
     // Exact paths, with or without a query (`/replays?name=`): a plain '/snap' would also catch the page's own /snap.js.
-    proxy: Object.fromEntries(['^/(snap|status|bots|replays)(\\?|$)', '^/(auth|game)/', '^/replay/[\\w-]+/data$'].map(path => [path, gateway])),
+    proxy: Object.fromEntries(['^/(snap|status|bots|replays|seat)(\\?|$)', '^/(auth|game)/', '^/replay/[\\w-]+/data$'].map(path => [path, gateway])),
   },
 });

@@ -6,6 +6,7 @@ export const page = $state({
   overlay: true,    // the overlay covers the game screen until Start, and again after a failure
   pick: false,      // asking the player for their game files
   start: false,     // the Start button is ready
+  rejoin: null,     // a held seat (docs/adr/0038): { stage, ranked, seat, seats: [{ seat, name, bot }], left (s), step } (rejoin.js)
   recover: false,   // a failure: offer Reload
   forgettable: false, // and, if the stored copy may be at fault, a different copy
   unsent: false,    // Quit couldn't upload a member's latest saved game: offer Try again or Quit anyway

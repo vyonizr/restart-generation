@@ -26,6 +26,11 @@ export const UNLOCKS = [
 // battlefield's "busy" check, waits for its visual events, which only a local player's battle screen plays back. Without
 // this, a bot's AI (FUN_100b1f00) waits forever and a witness's battle is never finished (docs/re/re_witness.md).
 export const NEVER_BUSY = { what: 'battlefield never busy', va: 0x1000f610, from: '8b813c010000', to: '32c0c3' }; // xor al, al; ret
+// Every engine gets this one, whatever its caller's patches. Adding a battlefield effect (FUN_1002ea10) also copies it into every
+// free entry of the battle view's effect list, which never shrinks, and each set entry draws the whole list: an egg's splat late
+// in a battle was drawn 4,096 times a frame. The add now skips the free entries and only appends, as it also does; frames and
+// sound stay identical (docs/re/re_render.md "The battle view's effects").
+const EFFECT_ONCE = { what: 'a battle effect added once', va: 0x1002ea2b, from: '33c03bc8894424107e79', to: '33c03bc889442410eb79' }; // jle -> jmp
 
 // The Full board (CONTEXT.md "Board view", docs/adr/0017, docs/re/re_screen.md): during a battle the engine's screen is the replay
 // player's size, so the whole battlefield is on it. The engine is booted at that size, which fixes the frame buffer's size, and is
@@ -93,7 +98,7 @@ export class GameHost {
     m.cpu.jit = this.jit;
     for (const [name, data] of Object.entries(this.files)) if (!name.endsWith('.dll') && !name.endsWith('.dylib')) m.vfs.put(`${HOME}\\${name}`, data);
     m.loadDll(this.files['ResetGeneration-Win32-Web.dll']);
-    for (const p of this.patches) {
+    for (const p of [EFFECT_ONCE, ...this.patches]) {
       if (bytesAt(m, p.va, p.from.length / 2) !== p.from) { this.warn(`engine patch skipped (${p.what}): unexpected bytes at ${p.va.toString(16)}`); continue; }
       m.cpu.m8.set(p.to.match(/../g).map(h => parseInt(h, 16)), m.addr(p.va));
     }

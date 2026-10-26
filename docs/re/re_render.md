@@ -162,6 +162,20 @@ In a battle the image's `+0x50` was `FUN_1009e940` (see [The run-length image](#
 
 The cache keeps a list of nodes from newest (the cache's `+0x14`) to oldest (`+0x10`). A node's `+0x00` points at the next older node and `+0x04` at the next newer one, 0 at either end. `obj`'s node is its `+0x44` (`FUN_100533a0` returns it). Unless the node is 0 or already the newest, the routine unlinks it (pointing its neighbors at each other, and making its newer neighbor the oldest when it was the oldest), then puts it in front: its newer link becomes 0, its older link the old newest node, whose newer link becomes the node, and the cache's `+0x14` becomes the node.
 
+## The battle view's effects
+
+The battle view keeps a list of short effects drawn on the battlefield, such as an egg's splat on the hero it hits. The list is at `+0x31c` of the battle view (the object `FUN_1002c1a0` draws): `+0x31c` is the count, and `+0x320` the array of 0x1c-byte entries. An entry's `+0x00` is its image, 0 when the entry is free, `+0x04` and `+0x08` its cell (x, then y), and `+0x0c`, `+0x10` and `+0x14` three more values from the caller; `+0x18` starts at 0.
+
+`FUN_1002ea10(image, x, y, a, b, c)`, a thiscall on the battle view that pops its six arguments (`ret 0x18`), adds an effect. It walks the whole list and writes the new effect into every free entry it finds, not only the first. Then it grows the list by one entry (`FUN_1002d7b0`) and writes the effect there as well. A list with n free entries therefore holds n + 1 copies of the new effect afterwards, and the list is one entry longer after every call, whatever was free. The egg's hit (`FUN_10034bb0`, the battle view's handler of event 0x72) adds its splat this way; six other places in the battle UI call it too.
+
+In its per-frame draw, `FUN_1002c1a0` queues one call of `FUN_1002b7a0` with the renderer's virtual method `+0x0c` for each entry that isn't free, at the depth 10 × the entry's y + 18. Each `FUN_1002b7a0(renderer, view)` call draws every entry that isn't free through the renderer's virtual method `+0x14`, centered on its cell and 5 pixels up. A frame with k entries set thus makes k² draws.
+
+The list never shrinks, while entries become free again once their effects end (every entry was free at each egg hit we saw; we didn't trace what frees them), so a battle's later effects find many free entries. In a 4-player battle we replayed, the list held 35, 58 and 63 entries at three egg hits, all of them free, so the splat was set 36, 59 and 64 times and drawn 1,296, 3,481 and 4,096 times a frame for the 15 ticks it plays. The splat's image is a sprite (see [The sprite object](#the-sprite-object)) that no fast path draws, which made those ticks cost 13 to 39 million guest instructions each, against about 0.1 million for the battle's other ticks.
+
+### The revival's change
+
+The engine is patched in memory (`EFFECT_ONCE` in `shared/emu/host.js`) so that `FUN_1002ea10` skips the walk: the jump at `0x1002ea33`, taken when the list is empty, is always taken. The new effect is then written only into the entry the list grows by. The list grows exactly as before and its last entry is the same, so effects are drawn in the same order with the latest on top; only the extra copies in free entries are gone. Over the whole replay above, every frame and every sound block were identical with and without the patch, on Classic and on the Full board, and the egg hits' ticks fell to about 0.1 million guest instructions.
+
 ## The run-length image
 
 A second kind of image, with the vtable `0x10182a88`. Its frames are palette-indexed runs. Offsets are from the image, which holds the following fields:

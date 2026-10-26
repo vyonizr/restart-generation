@@ -215,6 +215,8 @@ The following table lists the verified flows. Byte strings are hexadecimal bytes
 
 Matching also sends the request `LOCK_PLAYER_IN_GAME` (`00 1d u32 0` on `0x11`) before `MATCHED_UP`, so the lobby shows its game-starting notice (`GAME_STARTING`) and the player can't back out.
 
+A player whose account holds a seat in a running battle is never queued: their `MATCHMAKING` leads back to that battle's table ([Rejoin](#rejoin)).
+
 ## Friends
 
 The friend list lives in the SNAP layer. `C=302` returns rows `id|name|status` (`to` = request sent, `from` = request received, `both` = friend). The client shows every listed friend as offline until it gets event 307 with availability `available`, `unavailable`, or `away` (any other value breaks its menu). The engine never sends `setPresence`, so the server pushes 307 to a player's friends at login and logout. It also sends a player who logs in the presence of their online friends about 1 s after its `C=302` reply (sooner, and the client overwrites it). Requests use `C=306` to `C=309`, and events 308, 309, and 311 (the server sends 311 for a removal).
@@ -283,9 +285,26 @@ After the `SEAT_TAKE` response, the server and each player exchange the followin
 2. Client sends InitGameData: its JoinInfo (`s32 type, s32 slot, s32, s32, String name, u8 random, Hero`).
 3. Server sends InitGameData: `s32 index, s32 team`. `index` and `team` are equal: a seat picked at random among the table's free seats, so a player's castle, color (the client uses `(team - 1) % 6`), and place in the turn order vary from battle to battle.
 4. Server sends InitGameData: the pre-join snapshot (starts `0xdeadbeef`), `u32 n`, then the `n` reliable messages sent so far.
-5. Server sends PlayerJoined for the new player to everyone.
+5. Server sends PlayerJoined for the new player to everyone. A [rejoin](#rejoin) skips this step.
 
 When every seat is filled, or 40 s have passed with at least two players, the server sends BattleBegin. The battle starts in turn 1, phase 2.
+
+### Rejoin
+
+A person's seat outlives their session ([ADR 0038](adr/0038-a-battle-seat-outlives-its-session.md)). When a player's session leaves the table room in a running battle (the 45 s idle logout, a new login of the same account, or any other room leave) and the player hasn't lost or left, the server sends nothing and holds the seat for the rejoin window, 2 minutes. The others see a stopped player: the silence rules and the forced end end its turns, and nothing is sent to the seat. A bot's seat isn't held. A table room with a held seat stays, even with no members, and so do its bots.
+
+A new session of the same account takes the seat back through Quick Match. The following steps were measured with the engine:
+
+1. Its engine asks for a match: `MATCHMAKING` on `0x12`, or on `0x13` from a friendly room. The server doesn't queue it or list it in a friendly lobby. It answers with an empty lobby (`01 09 RB u8 0`), then sends `LOCK_PLAYER_IN_GAME` and `MATCHED_UP` with the held table's TableDescriptor, on the casino type the request came on. The engine acts on `MATCHED_UP` only in the casino it has entered and only after it has asked for a match. Sent before it enters a casino, `MATCHED_UP` makes it leave CasinoSystem and stall on the Online menu; sent after it enters but before `MATCHMAKING`, the engine joins the table room but never takes its seat; sent on the other casino type, it's ignored. A friendly seat that comes back through Quick Match stays friendly: the result is scored by the table, not by the casino type.
+2. It joins the table room and sends `SEAT_TAKE`. The server gives the held seat to this session and sends step 1 of the join handshake.
+3. On its JoinInfo, the server sends step 3 with the seat's old index and team, and step 4 with the pre-join snapshot and the whole history. The engine replays the history to where the battle stands; a person's engine needs the page to replay it quietly ([re_rejoin.md](re/re_rejoin.md)). The seat's own PlayerJoined is in that history, and the engine turns it into its local player, as at a first join. The server sends no new PlayerJoined: every engine and the witness would give the seat a new Commander and reset part of its state. The seat keeps the hero it first joined with, whatever the JoinInfo says.
+4. Until step 4, the server sends the session no battle messages, which reach it in the history instead, but it answers its PINGs as always: the engine closes the table connection about 10 s after a PING goes unanswered. After step 4, the seat plays on as before. Sequence numbers need nothing: the engine continues its own from its orders in the history. The silence rules count the seat as having acted through the current turn's cannon phase: it couldn't act while it was away and doesn't in the phase it lands in, so without this credit its next phase 2 would end the moment the others had placed.
+
+A held seat ends in one of three ways:
+
+- The rejoin window runs out. The server sends EndGame reason 2 for the seat, and remembers for the account that the seat dropped out until [`POST /seat`](#browser-endpoints) asks.
+- The player gives the seat up with `POST /seat`. The server sends EndGame reason 0, as when a player leaves through the game's menus, so the others see a player who left, not one who disconnected.
+- The battle ends. The result stands, and the seat is free: a player who comes back arrives in Arena as after any battle.
 
 ### During the battle
 
@@ -295,9 +314,9 @@ When every seat is filled, or 40 s have passed with at least two players, the se
   - A bot that has sent nothing 15 s into phase 2 or 5 is done, because a defeated bot sends nothing.
   - A person is presumed defeated, and not waited for, once they have sent nothing for a whole turn. The same applies 30 s into a phase if they sat out the previous phase 2 or 5 (no order, or cannon shots still owed), or if the clients skipped them in this turn's phase 4.
   - Without a witness, a defeat still costs one phase that runs to its forced end: the first phase in which nothing shows the defeat. That phase lasts 50 s, or in a relaxed match 60 s in phase 5 and 3 minutes in the other phases.
-- In phase 4, the server never skips or ends a turn on silence. It can't tell a defeated player, whom the clients skip, from a stopped player (a phone that sleeps, a hidden tab, a hung bot), whom the clients still wait for. Instead, it follows the clients to phase 5 on their first shot, and a stopped player's turn waits for the forced end. In phase 4, a leaver, or a player the witness sees defeated, who held the last turn moves the server to phase 5 at once, as it did the clients.
+- In phase 4, the server never skips or ends a turn on silence. It can't tell a defeated player, whom the clients skip, from a stopped player (a phone that sleeps, a hidden tab, a hung bot, an absent player whose seat is held), whom the clients still wait for. Instead, it follows the clients to phase 5 on their first shot, and a stopped player's turn waits for the forced end. In phase 4, a player who quits or drops out, or a player the witness sees defeated, who held the last turn moves the server to phase 5 at once, as it did the clients.
 - Each interactive phase has its phase time limit in the Game blob (20 s in the captured battle templates). The server forces the end with EndTurn 30 s after the limit. The server logs why it ended each phase or turn (every player acted, silence, the forced end, or following the clients) and every EndTurnRequest it dropped.
-- A player who drops out is reported to the others as EndGame reason 2 with the leaver as sender. EndGame with sender 0 would make every client believe it won.
+- A seat that drops out is reported to the others as EndGame with the seat as sender, numbered past its last message: reason 2 when a bot's session leaves the table room or a held seat's rejoin window runs out, and reason 0 when its player gives a held seat up ([Rejoin](#rejoin)). EndGame with sender 0 would make every client believe it won.
 - Clients decide the winner themselves and upload nothing. When the battle ends, each client sends `SEAT_LEAVE` on `0x15` and logs in to CasinoSystem again. On the first one, the server scores every player the witness ranks first, waiting up to 5 s for a witness that is still catching up. Without the witness's ranks, it guesses: the last player standing, else the player who made the final move.
 
 ### Battle templates
@@ -314,6 +333,7 @@ Besides SNAP at `POST /snap`, the HTTP server answers the following requests, wh
 | --- | --- |
 | `GET /status` | A JSON object with the fields in the following table. |
 | `GET /bots` | `{ available }`: whether the server can run bots. |
+| `POST /seat` | Whether the player holds a seat in a running battle ([Rejoin](#rejoin)), or, with `leave`, gives it up. See the reply after the `GET /status` fields. |
 | `GET /replay/ID` | The replay page ([CONTEXT.md](../CONTEXT.md) "Replay"), with the battle's players, heroes, kind of match, environment and day in its head for link previews; HTTP `404 Not Found` with the same page, which says the replay is gone, when no replay `ID` is kept. |
 | `GET /replay/ID/data` | `{ text, meta }`: the engine's replay text ([re_replay.md](re/re_replay.md)) and what the page shows around it, or HTTP `404 Not Found` with `{ error: "gone" }`. `meta` holds `ranked`, `environment`, `players` (`{ name, hero, seat, bot }`), `result` (`{ winners, ranks, guessed }`, or null), `created`, and, when the witness saw any, `marks` ([ADR 0030](adr/0030-replay-marks-are-worked-out-by-the-witness-when-the-replay-is-saved.md)): `[{ at, moments: [{ kind, seat, by }] }]` sorted by `at`, the whole second to seek to; `kind` is `rescue` (`seat`'s princess, rescued by `by`) or `knockout` (`seat`'s hero, with no `by`). |
 | `GET /replays?name=NAME` | `{ replays }`: the replays listed under the player named `NAME`, whatever its case ([ADR 0024](adr/0024-a-players-replays-are-listed-under-their-name.md)): the last 25 battles that player keeps ([ADR 0034](adr/0034-each-player-keeps-their-last-25-replays.md)), newest first, each `{ id, created, seat, ranked, environment, players, result }`. `seat` is the one that player played in, or null where the server doesn't know it. A name nobody holds has none. HTTP `404 Not Found` with `{ error: "off" }` when the server keeps no replays. |
@@ -335,6 +355,14 @@ The `GET /status` reply has the following fields:
 | `online` | Players online, bots excluded. |
 | `waiting` | Players waiting in the ranked Quick Match. |
 | `replays` | Whether the server keeps replays: false with `RG_REPLAYS=0`. |
+
+`POST /seat` takes a JSON body `{ name, token, leave }`, with the credentials of the page's login: `name`, and on a server with Discord sign-in the guest's or member's `token`, so nobody else can see or give up a player's seat. A name nobody holds, a missing name, or a token that doesn't open that name gets `{}`, as a player who holds nothing does, and the request registers no name. Without `leave`, the reply, sent with `Cache-Control: no-store`, is one of the following:
+
+- `{ held: { ranked, seat, seats, leftMs } }`: the player holds seat `seat` in a running ranked (`ranked` true) or friendly battle. `seats` lists every seat of that battle as `{ seat, name, bot }`, sorted by `seat`. `leftMs` is what is left of the rejoin window, in milliseconds. A seat still in play counts too, unless its player has lost, with the whole window: after a reload, the old session stays seated until the page's new login ends it, and the window starts only then.
+- `{ dropped: { ranked, seat, seats } }`: the rejoin window of the player's last held seat ran out. The server says so once and then forgets it; it forgets it on a restart too.
+- `{}`: neither.
+
+With `leave: true`, the server gives that seat up, held or still in play (EndGame reason 0; anything a session still seated there sends no longer counts), forgets a seat that dropped out, and answers `{}`.
 
 The page also sends two SNAP commands that only this server defines:
 

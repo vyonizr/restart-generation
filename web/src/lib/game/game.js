@@ -22,6 +22,7 @@ import { frameView, FRAMES } from './board.js';
 import { loadCurtain } from './curtain.js';
 import { focusOn } from '../focus.js';
 import { readGuide } from '../guide/guide.js';
+import { askSeat, startRejoin } from './rejoin.js';
 
 let screen; // the game screen, which paints the engine's frame (screen.js)
 
@@ -80,10 +81,11 @@ function accountLogin(accounts) {
     credentials: () => ({ username: account.name, password: account.token }), name: () => '', forget() {} };
 }
 
-// The Start button's click, or a gamepad's press of it (gamepad.js). Sound and the wake video must start inside the press itself,
-// or Safari blocks them.
+// The Start button's click, or a gamepad's press of it (gamepad.js), and the rejoin card's Rejoin, which starts the game the same way
+// (rejoin.js). Sound and the wake video must start inside the press itself, or Safari blocks them.
 let onStart = null;
 export const pressStart = () => onStart?.();
+export const rejoinStart = () => onStart?.(true);
 
 async function main(canvas) {
   const server = await serverStatus();
@@ -120,17 +122,20 @@ async function main(canvas) {
   guideFiles = { ...files };
   currentGuide().then(g => { page.guidable = Boolean(g); }, e => console.warn('guide:', e));
   page.status = 'Ready';
-  page.start = true;
+  // A seat held in a running battle (docs/adr/0038) puts the rejoin card in Start's place; the server knows the account by the
+  // credentials the login will use.
+  const offered = server && await askSeat(accounts ? { name: accounts.account.name, token: accounts.account.token } : { name: login.name() });
+  if (!offered) page.start = true;
   if (!accounts) showOnlineName();
   let audio;
-  await new Promise(r => {
-    onStart = () => {
+  const rejoining = await new Promise(r => {
+    onStart = (rejoin = false) => {
       onStart = null;
       page.start = false;
       audio = new Audio(game, gamepadSound());
       audio.ctx.resume();
       if (touch) stayAwake();
-      r();
+      r(rejoin);
     };
   });
   page.overlay = false;
@@ -141,8 +146,9 @@ async function main(canvas) {
   const held = new Set();
   const input = []; // applied at the start of each tick
   const presses = createPresses(game, input);
-  // Keys go to the game wherever focus is on the page, except in a dialog, the overlay's buttons, and the buttons under the screen.
-  const PAGE_KEYS = '.login, #overlay, .finish, .board, .guide-open';
+  // Keys go to the game wherever focus is on the page, except in a dialog, the overlay's buttons, the rejoin card and strip, and the
+  // buttons under the screen.
+  const PAGE_KEYS = '.login, #overlay, .rejoin, .finish, .board, .guide-open';
   addEventListener('keydown', e => {
     const k = javaKey(e);
     if (!k || e.target.closest?.(PAGE_KEYS)) return;
@@ -163,6 +169,8 @@ async function main(canvas) {
   addEventListener('blur', () => { held.clear(); presses.releaseAll(); });
   canvas.addEventListener('pointerdown', () => canvas.focus());
   padSession.current = { game, input, audio, presses };
+  // Rejoin was the Start press: the page drives the menus back to the battle while the player's input waits (rejoin.js).
+  let rejoin = rejoining ? startRejoin({ game, snap, input, presses, login }) : null;
 
   // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
   // The settings file also holds the custom keys, which the controls legend and the touch pad follow.
@@ -199,10 +207,12 @@ async function main(canvas) {
       // At most one tick per frame, when the engine's clock is behind real time; each tick sleeps the
       // engine to its next frame. A late frame slows the game instead of bursting catch-up ticks.
       if (game.time < now - t0) {
+        rejoin?.beforeTick();
         while (input.length) input.shift()();
         game.fullBoard = page.board === 'full'; // taken by the engine between ticks, in a battle too
         const running = game.tick(); snap.pump();
         if (!running) { clearInterval(slowTimer); quit(saveNow, snap); return; } // the loop stops here: no more ticks, input or saves
+        if (rejoin && !rejoin.afterTick()) rejoin = null;
         if (game.unsaved('settings.cfg')) saveNow(); // the player left the settings: show their keys at once
         if (game.time < now - t0) t0 = now - game.time; // drop the backlog
         page.battle = game.inBattle ? (game.battleFull ? 'full' : 'classic') : null;

@@ -251,7 +251,7 @@ for (let n = 0; n < 40; n++) {
 }
 assert.deepEqual([...firstSeats].sort(), [1, 2], 'the first player to join always got the same seat');
 
-// Phase 4: when the player holding the last turn leaves, every client is already in phase 5, so the server follows.
+// Phase 4: when the player holding the last turn quits, every client is already in phase 5, so the server follows.
 const left4 = inSeatOrder(battle.createTable(3, api));
 const [m1, m2, m3] = ['m1', 'm2', 'm3'].map(client);
 let mseq = 0;
@@ -260,7 +260,7 @@ for (const s of [m1, m2, m3]) { battle.seat(left4, s, api); fromClient(left4, s,
 [m1, m2, m3].forEach((s, i) => say(left4, s, i + 1, gm.TYPE.PLACE_TILE, 1, 2));
 say(left4, m1, 1, gm.TYPE.END_TURN_REQUEST, 1, 4); say(left4, m2, 2, gm.TYPE.END_TURN_REQUEST, 1, 4);
 assert.equal(left4.phase, 4, 'm3 still holds the turn');
-battle.leave(left4, left4.players[2], api);
+fromClient(left4, m3, { seq: ++mseq, type: gm.TYPE.END_GAME, sender: 3, turn: 1, phase: 4, body: Buffer.alloc(4) }); // reason 0: left through the menus
 assert.deepEqual([left4.turn, left4.phase], [1, 5]);
 
 // Phase 4: a seat that was silent for a whole turn may be a defeated player (the clients skip them) or a stopped player
@@ -300,4 +300,13 @@ dropout.phaseStart = Date.now() - 29000; battle.tick(dropout, api);
 assert.equal(dropout.phase, 2, 'waited less than 30 s for r3');
 dropout.phaseStart = Date.now() - 31000; battle.tick(dropout, api);
 assert.equal(dropout.phase, 4, 'r3 is presumed defeated');
+
+// Only a person's seat is held when its session leaves (docs/adr/0038). A bot's isn't: the others hear at once that it disconnected.
+const botLeft = inSeatOrder(battle.createTable(2, api));
+const [human, robot] = [client('human'), { ...client('CPU_1'), account: { id: 'bot1', bot: true } }];
+inbox.set(robot, []);
+for (const s of [human, robot]) { battle.seat(botLeft, s, api); fromClient(botLeft, s, join(s.name)); }
+take(human);
+battle.leave(botLeft, botLeft.players[1], api);
+assert.deepEqual(take(human).map(m => [m.type, m.sender, m.body.readInt32LE(0)]), [[gm.TYPE.END_GAME, 2, 2]]);
 console.log('battle host ok');

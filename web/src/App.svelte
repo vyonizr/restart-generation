@@ -8,6 +8,7 @@
   import { frameView, FRAMES, setBoard, toggleBoard } from './lib/game/board.js';
   import Pad from './lib/input/Pad.svelte';
   import Overlay from './lib/game/Overlay.svelte';
+  import Rejoin from './lib/game/Rejoin.svelte';
   import Keys from './lib/input/Keys.svelte';
   import Footer from './lib/legal/Footer.svelte';
   import Who from './lib/account/Who.svelte';
@@ -41,6 +42,7 @@
     <div class="screen" bind:this={screen} data-finish={page.finish} data-grid={pitch >= GRID_MIN_PITCH ? '' : null}>
       <canvas id="screen" width="420" height="378" tabindex={page.playing ? 0 : -1} aria-label="Game screen" inert={page.dialogs > 0} bind:this={canvas} use:focusTarget={'screen'}></canvas>
       <Overlay />
+      <Rejoin />
       {#if page.nameLogin}<NameDialog />{/if}
       <BotsDialog />
       {#if page.nameDialog}<MemberDialog />{/if}

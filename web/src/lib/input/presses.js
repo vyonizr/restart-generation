@@ -7,9 +7,14 @@ import { CHAR_UNDEFINED } from '../../../../shared/emu/host.js';
 
 export function createPresses(game, input) {
   const count = new Map(); // Java key code -> inputs holding it
+  let held = false;
   return {
+    // While the page presses the menu keys itself (a rejoin's drive, docs/adr/0038), no input's presses reach the engine; their
+    // releases then find nothing held and send nothing.
+    hold(on) { held = on; },
     // A key another input already holds doesn't go down again, but a press that types a character always types it.
     press(code, ch, loc) {
+      if (held) return;
       const n = (count.get(code) ?? 0) + 1;
       count.set(code, n);
       if (n === 1) input.push(() => game.key(true, code, ch, loc));

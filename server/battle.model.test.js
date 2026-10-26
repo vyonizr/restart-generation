@@ -2,7 +2,8 @@
 // Model clients play whole battles against the server in simulated time (api.now) with a seeded random source
 // (api.random), so a failure's label reproduces it exactly. A defeated player goes quiet (the clients send nothing that shows
 // a defeat, docs/re/re_rules.md section 5), a person may also quit or drop, and any player may become a stopped player (a phone that
-// sleeps, a hidden tab, a hung bot worker) while its game goes on in everyone else's client. The clients move through phases
+// sleeps, a hidden tab, a hung bot worker) while its game goes on in everyone else's client. A person who drops is a stopped
+// player too, until the server's EndGame for the seat it held for them (docs/adr/0038). The clients move through phases
 // only on the server's EndTurn messages, as the real ones do, so a server that stalls leaves them stuck. Every battle is
 // played twice: once without a witness, where the server can only guess defeats from silence, and once with a fake witness
 // that reports each defeat the moment it happens, as the engine does (docs/adr/0020). Checked:
@@ -74,6 +75,7 @@ function play({ seed, seats, relaxed, bots, defeats, witnessed }) {
   // The clients' game: (turn, phase), the living seats, and what each of them is about to do.
   const live = new Set(sessionOf.keys());
   const stopped = new Set(); // stopped players' seats: they act no more, but still get their turns
+  const away = new Set(); // dropped persons' seats, held by the server: stopped, and told nothing, until its EndGame for them
   const exempt = new Set(); // steps whose end may wait for the forced end: the first one a quiet defeat or a stopped player can't show in
   let turn = 1, phase = 2, phaseAt = clock.t, work = 0; // work: when the last planned action of the phase is due
   let plan = [], moved = new Set(), fired = 0, lastMover = 0, happened = 0, over = false;
@@ -84,14 +86,22 @@ function play({ seed, seats, relaxed, bots, defeats, witnessed }) {
   function defeat(d) {
     happened++;
     plan = plan.filter(a => a.team !== d.team);
-    // Without a witness, only a quit or a drop shows at once. With one, every defeat does; a stopped player is still in the game.
-    if (d.how === 'stop' || (d.how === 'silent' && !witness)) { exempt.add(step(turn, 5)); if (phase === 5) exempt.add(step(turn + 1, 2)); }
+    // Without a witness, only a quit shows at once. With one, every defeat does; a stopped player is still in the game, and so is a
+    // dropped one until the rejoin window runs out.
+    if (d.how === 'stop' || d.how === 'drop' || (d.how === 'silent' && !witness)) { exempt.add(step(turn, 5)); if (phase === 5) exempt.add(step(turn + 1, 2)); }
     if (d.how === 'stop') { stopped.add(d.team); return; }
+    if (d.how === 'drop') { stopped.add(d.team); away.add(d.team); battle.leave(table, playerOf(sessionOf.get(d.team)), api); return; }
     live.delete(d.team);
     if (d.how === 'quit') order(d.team, gm.TYPE.END_GAME, i32(0));
-    else if (d.how === 'drop') battle.leave(table, playerOf(sessionOf.get(d.team)), api);
     witness?.defeat(d.team);
     if (live.size < 2) over = true; // the clients end the battle
+  }
+  // The server's EndGame for a held seat whose window ran out: every client now sees that player defeated, and in phase 4 passes the
+  // turn on if it was theirs.
+  function droppedOut(t) {
+    away.delete(t); stopped.delete(t); live.delete(t);
+    if (live.size < 2) { over = true; return; }
+    if (phase === 4 && lastMover === t) nextMover();
   }
   const due = () => (defeats ?? []).filter(d => !d.done && live.has(d.team) && !stopped.has(d.team) && d.turn === turn && d.phase === phase
     && (phase === 4 ? moved.size : fired) >= d.count);
@@ -137,10 +147,12 @@ function play({ seed, seats, relaxed, bots, defeats, witnessed }) {
       const seen = [];
       for (const [s, box] of inbox) {
         const msgs = box.splice(0).map(m => { assert.equal(m[0], T.GAME); return gm.unpack(m.subarray(1)); });
-        if (playerOf(s).state === 'playing') seen.push(msgs.filter(m => m.type === gm.TYPE.END_TURN).map(m => [m.turn, m.phase]));
+        if (playerOf(s).state === 'playing' && !away.has(playerOf(s).team)) {
+          seen.push(msgs.filter(m => m.type === gm.TYPE.END_TURN || (m.type === gm.TYPE.END_GAME && away.has(m.sender))).map(m => [m.type, m.turn, m.phase, m.sender]));
+        }
       }
       for (const e of seen) if (JSON.stringify(e) !== JSON.stringify(seen[0])) fail(`players saw different EndTurns: ${JSON.stringify(seen)}`);
-      for (const [t, ph] of seen[0] ?? []) { if (over) return; onEndTurn(t, ph); }
+      for (const [type, t, ph, sender] of seen[0] ?? []) { if (over) return; if (type === gm.TYPE.END_TURN) onEndTurn(t, ph); else droppedOut(sender); }
     }
   }
 
