@@ -19,7 +19,7 @@ A battle's screens are UI states run by a manager `M = [[[app+0x8c]+0x84]+0x20]`
 
 Every key handler first calls the shared one, `FUN_1008e0d0`, which opens chat (`0x52`) and the battle menu (Back, `0x4f`) and, while the state's byte `S+0x2c` is set, passes the event to the cursor (`FUN_10073fd0`, below). The shared constructor `FUN_1008d5a0` sets `S+0x2c`; the two special skills that choose a direction clear it (static).
 
-The other states of a battle take no battle input of their own: InfoUIState (others' turns, the intro), AutoSelectActionUIState (`0x1018807c`, after a move, which picks the next state), AttackUIState (`0x10188e50`, a full special power), the battle menu, a story message, and chat entry (TextMessageUIState, made by `FUN_100c28c0`). Measured: from the tick after a Select that sent its order, the state is AutoSelectAction or Info.
+The other states of a battle take no battle input of their own: IdleUIState (`0x101880d4`, others' turns, the intro) and ObserverUIState (`0x1018800c`, after a defeat), where only the cursor moves ("Others' turns and the observer", below), AutoSelectActionUIState (`0x1018807c`, after a move, which picks the next state), AttackUIState (`0x10188e50`, a full special power), the battle menu, a story message, and chat entry (TextMessageUIState, made by `FUN_100c28c0`). Measured: from the tick after a Select that sent its order, the state is AutoSelectAction or Idle.
 
 ### When no input applies
 
@@ -27,7 +27,7 @@ Even in one of the six states, the player's input does nothing, or the board isn
 
 - **A curtain animation plays:** the battle view's animation chain (the intro, the phase and turn banners) while `[bv+0x2a4]+0x50` is set, a rescue while `[[bv+0x2a0]+8]` isn't 0, a fight while `[[bv+0x29c]+0x14]` is 1 ([`re_screen.md`](re_screen.md)). On the Full board the screen then shows the 240 × 320 inset. Measured: PlaceTile was the state from tick 900, under the round's banners until tick 982; a hero turn's MoveUnit came 69 ticks before its banner ended (ticks 3139 to 3208 in round 2); FireCannon, 69 ticks (2392 to 2461).
 - **The cursor isn't active:** the cursor's byte `+0x5b` is 0. The cursor's arrow handler and PlaceTile's arrows do nothing then (static).
-- **The state is done:** a dropped piece (`S+0xb8` set; the state was Info three ticks after the drop, measured), every cannon shot taken (`S+0x80`, the shots taken, reached `S+0x84`, the shots allowed; Info followed at once, measured), an item used (`S+0x88`), an item that takes no target (`S+0x94`, below), a special skill confirmed (`S+0x84`) or with no target to choose (`S+0x74`, below).
+- **The state is done:** a dropped piece (`S+0xb8` set; the state was Idle three ticks after the drop, measured), every cannon shot taken (`S+0x80`, the shots taken, reached `S+0x84`, the shots allowed; Idle followed at once, measured), an item used (`S+0x88`), an item that takes no target (`S+0x94`, below), a special skill confirmed (`S+0x84`) or with no target to choose (`S+0x74`, below).
 
 ## The cursor
 
@@ -136,3 +136,87 @@ Measured, each with the hero's skill written into its hero data (`[hero+0x58]+0x
 ## Online play
 
 Nothing a client sends depends on how the cursor got to its cell, except MoveUnit's path, which is the route the cursor took or the engine's shortest path after the setter (spike, measured). A target order carries the cursor's cell. Nothing here was run online.
+
+## Others' turns and the observer
+
+What the cursor does while the local player isn't acting: in IdleUIState (`0x101880d4`: the intro and the other players' turns) and in ObserverUIState (`0x1018800c`, after the local player is defeated). Measured in the same Arcade battle, on the Full board and on Classic, mostly with two engines in lockstep where only one gets the input under test (the throwaway `tmp/pointer/info-harness.mjs`, gitignored). Pointer play moves the cursor in both (`pointer.js` reads them as `watch`), and `tools/emu/pointer-test.mjs` checks the reach area under a jump and an arrow in another player's turn.
+
+### The two states
+
+- **The name.** The state at `0x101880d4` names itself IdleUIState (static, `FUN_100d59e0`); earlier notes called it InfoUIState. The engine's InfoUIState is a different state (vtable `0x10188138`) that builds the info menu; it isn't a battle state.
+- **Input.** Both states' key handler, the second entry of the input vtables `0x101880cc` and `0x10188004`, is `FUN_100d5bf0`, a single jump to the shared one, `FUN_1008e0d0` (static). The first entries of their own vtables are `0x100d5c20` (Idle) and `0x100cfeb0` (Observer). Their update is the shared `FUN_1008e2f0`. Idle's start sets the cursor's kind to 0 and then runs the shared start. Its draw is the shared draw plus the acting hero's face in its corner panel (`FUN_100d5ae0`). Observer's start and draw are the shared ones (static).
+- **The cursor** is the same object as in the other states, `[S+0x28]`, which is also the local player's `[player+0x68]` with `player = [S+0x18]`. Its active byte `+0x5b` and drawn byte `+0x5a` were 1 throughout, in the intro, in others' turns and in Observer (measured).
+- **Its kind is 0** in both states, over heroes too (measured). Kind 0 is drawn in the acting seat's colour rather than the owner's (static, `FUN_10073ac0`; measured red in red's turn, green in green's). It is an arrowhead on each side of the cell with a jagged blob in that colour over the right one. The hero turn's kind 1 is four corner marks. No kind is set apart for looking at things.
+- **Arrows and the setter** both move the cursor's cell at `+0x24` and `+0x28` (measured in both states).
+
+### What the engine shows for the cell under the cursor
+
+After each key event that reaches the shared handler, and when a state starts, `FUN_1008da30` looks at the cursor's cell (static):
+
+- It takes the unit at the cell's `+0x54`. That has to be a unit that isn't a princess (`+0xe4` is 0) and that the local seat can see: its `+0x100` is 0, or it is our seat's (`FUN_100409f0`). Two state bytes allow it, `S+0x56` for our seat's units and `S+0x55` for the others'. The base constructor sets both.
+- **A unit that passes** turns on highlight slot 1 of the local player (slots of `0x24` bytes from `[player+0x70]`, `+0x21` on, `+0x20` changed). The slot gets the reach area of that unit's seat's hero: the engine's cost field from the hero (`FUN_10072130`) with its movement budget (`FUN_10040950`), each reachable cell in the seat's colour (`FUN_1008d7e0`). A unit whose byte `+0x13c` is set gets a frog's jump mask instead (`FUN_10026480`). Measured: the slot keeps the map's columns and rows at `+4` and `+8` and its cells at `[+0x18]`, one dword a cell by rows, the seat (1 to 4) on each cell of the area, the hero's own cell included, and 0 elsewhere. A slot turned off keeps its cells.
+- **Any other cell** turns slot 1 off.
+- **The update** hands the first slot that is on to the battle view each tick; `[player+0x78]` is the slot shown, −1 for none.
+
+Measured, a cursor moved by an arrow onto each target and read 2 and 40 ticks later:
+
+| Under the cursor | Drawn |
+| --- | --- |
+| Each of the four heroes: ours, the acting one, the two others waiting | That hero's reach area, its cells outlined and tinted in the hero's colour |
+| A castle, an item on the ground, an empty cell | Nothing more than the cursor |
+
+- No path, panel or other cursor icon was drawn.
+- Castle and item cells have no unit at `+0x54`; the heroes' cells do. The Arcade battle has no monster, so monsters weren't tried. [INFERENCE] By the code, a monster cell would draw its seat's hero's area if it has one.
+
+**The area changes only on a key event.**
+
+- The setter moves the cursor but leaves the slot as it was. Our hero's area stayed on screen after the setter took the cursor to an empty cell, and setting the cursor onto heroes drew no area (measured).
+- The area is a snapshot. Red's hero moved from (8,3) to (8,4) with its area showing; the area stayed where it had been drawn until the next arrow (measured).
+- A host can call `FUN_1008da30` itself between two ticks: a fastcall with `ecx` = `S` and no stack arguments. Called after the setter, it drew the hovered hero's area (measured, in Idle), and an empty cell turned the slot off. Pointer play's jump does so in both states.
+
+**A name label** is started once a tick, so it follows the setter too (static, `FUN_1008d900`, its state at `[app+0x128]`).
+
+- While the cursor is on a unit it can see, the engine waits the setting `HeroNameDisplayDelay`. It then types the owner's player name above the unit, a letter every `HeroNameDisplaySpeed` ms.
+- Measured: after a jump onto a hero, the label's state went from waiting to shown within 40 ticks, but no pixel changed. [INFERENCE] This local battle's players have empty names; online, the names would show.
+
+**Select does nothing** (measured: a tap, a 20-tick hold, Enter and Space each left the frame identical to the twin's and sent nothing). Back opens the battle menu, in Observer too. The shared handler knows only chat, the battle menu (Back, or code `0x54` twice within 500 ms), and the cursor's arrows (static).
+
+### The camera
+
+The local player's update turns the camera toward its cursor every tick unless `[player+0xb0]` is set (static, `FUN_10073e00`), and it was 0 in every read.
+
+- **Idle on Classic:** arrows took the cursor to (8,8), and the camera glided to (130, 17). It stayed there through the turns of the three other players and into the cannon phase. The twin, whose cursor stayed on our hero, kept (−40, −40) all along.
+- **Other heroes** never moved the camera: on Classic a player sees the others' moves only where its own cursor is.
+- **Observer on Classic:** arrows and the setter both moved the camera.
+- **On the Full board** the camera stays put on this map.
+
+### What a moved cursor carries into the next state
+
+- **The hero turn** starts with the cursor on the hero (measured).
+- **The cannon phase** starts with the cursor where Idle left it: at (8,8) against (2,2) in the twin.
+- **Tile placement** starts with the piece's anchor on that cell: anchor (8,8) against (2,2) (measured).
+
+### The intro
+
+- **Timing (measured):** the intro is Idle from the battle's first tick (720) to 882, under the battle view's animation chain for all of it. On the Full board the screen shows the 240 × 320 inset then.
+- **Arrows** move the cursor, and the frame doesn't change (measured).
+- **Tick 814:** the engine puts the cursor on (1,2), the local castle's cell, over any earlier move.
+- **A move after 814** carries into tile placement: anchor (0,2) against (1,2) in the twin.
+
+### Observer
+
+In this local battle, Observer came at tick 12436, once the local player was knocked out, and lasted until about 12531, when the battle ended by itself (measured, both views).
+
+- **What worked as in Idle (measured):** arrows; an enemy hero's reach area on an arrow onto it; the setter leaving the old area; Select doing nothing; Back opening the menu; the camera following the cursor on Classic.
+- [INFERENCE] Online, Observer lasts until the others finish the battle.
+
+### Is a cursor moved in these states safe?
+
+- **Static:** the key handler sends nothing. The area writes only the local player's highlight slots and a cost field it allocates and frees.
+- **Measured:**
+  - On the Full board, one twin hovered four heroes, a castle, an item and empty cells, and pressed Select, Enter and Space.
+  - On Classic, one twin moved its cursor in Idle for a whole round.
+  - Both pairs sent the same orders on the same ticks and kept the same units on the same cells. Their frames were identical at the next hero turn, once both cursors were back on the hero.
+  - Their heaps differed: an EndTurnRequest read at the send held different leftover bytes where a body would be. EndTurnRequest has no body on the wire ([`re_rules.md`](re_rules.md)).
+- **What a player would see:** a cursor left elsewhere moves the Classic camera away from the acting heroes. It also changes where the cannons' aim and the next tile piece start.
+- Nothing here was run online.

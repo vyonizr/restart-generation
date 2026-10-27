@@ -221,6 +221,30 @@ const at = (x, y) => ({ x, y });
 }
 
 {
+  // Others' turns and after a defeat ('watch'): hover and clicks only move the cursor, along the trail by arrows or by a jump, so the
+  // engine shows the reach area of the hero under it. A click on the cursor's cell and the right button press nothing.
+  const b = battle('watch', { cell: at(2, 2) });
+  b.play.hover(at(9, 2));
+  assert.deepStrictEqual(b.log.splice(0), ['jump 9,2']);
+  b.play.hover(at(9, 3));
+  assert.deepStrictEqual(b.run(2), ['down']);
+  b.click(at(9, 3));
+  b.play.right(at(9, 3));
+  b.play.right(at(4, 4));
+  assert.deepStrictEqual(b.run(4), []);
+  assert.deepStrictEqual(b.cell, at(9, 3));
+
+  // With no hover, a click away from the cursor jumps it and one next to it steps there; a second click there does nothing.
+  b.play.leave();
+  b.click(at(2, 9));
+  assert.deepStrictEqual(b.run(2), ['jump 2,9']);
+  b.click(at(3, 9));
+  assert.deepStrictEqual(b.run(2), ['right']);
+  b.click(at(3, 9));
+  assert.deepStrictEqual(b.run(4), []);
+}
+
+{
   // While a rejoin drives the keys, and where the battle has no pointer state, the pointer does nothing.
   const b = battle('move', { cell: at(5, 2), hero: at(5, 2) });
   b.blocked = true;

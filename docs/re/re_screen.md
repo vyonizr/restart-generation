@@ -136,10 +136,12 @@ A battle's screens are UI states, run by a UI state manager `M`. `M` is `[[[app+
 | `IngameMenuState`, the battle menu | `0x10187028` | From the tick Esc is pressed (1280) to the tick it closes (1355). |
 | `MessageUIState`, a story message | `0x101869f8` | One per message. Between two messages the state is `0x101880d4` for one tick. |
 | PlaceTile | `0x10186860` | Placing a tile. |
-| `InfoUIState` | `0x101880d4` | Not the player's turn, and the battle's intro. |
+| `IdleUIState` | `0x101880d4` | Not the player's turn, and the battle's intro. |
 | `MoveUnitUIState`, `FireCannonUIState` | | The hero's turn and the cannon phase. |
-| `ObserverUIState` | | After the local player is defeated. |
+| `ObserverUIState` | `0x1018800c` | After the local player is defeated. |
 | `TextMessageUIState` | | Chat entry; its draw is `FUN_100c2a00`. |
+
+Earlier notes called the state at `0x101880d4` InfoUIState. The engine's own `InfoUIState` (vtable `0x10188138`) is the info menu's state, not a battle state ([`re_battle_input.md`](re_battle_input.md) "Others' turns and the observer").
 
 While the battle menu is up, `FUN_100d5d90` runs every frame: it grays the width × height of the screen through `FUN_1008d4a0`, and its `FUN_10045c50` draws the menu. `FUN_100f94a0` runs once, when the menu opens, and it was the only menu screen build during a battle. While a story message is up, its draw `FUN_100b8570` runs every frame.
 

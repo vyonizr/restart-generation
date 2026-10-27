@@ -218,6 +218,14 @@ _Avoid_: relaxed table, untimed match
 One step of the cycle a battle repeats: tile placement (all players at once), the player-turns phase (one player at a time), or cannons (all at once).
 _Avoid_: round, stage
 
+**Cursor**:
+The engine's mark on one cell of the battlefield, which a player moves with the arrows or the pointer. In their own hero's turn it is four corner marks; in other players' turns, and after they are defeated, it is a cog-like mark in the acting player's color. A player's tile piece and cannon aim start where it was left.
+_Avoid_: cog (it is the same cursor), selector, highlight
+
+**Reach area**:
+The cells a hero can reach this turn, tinted in its seat's color. The engine shows the acting player's own, and, in other players' turns, that of any hero under the cursor, which is how a player sees how far an opponent can go.
+_Avoid_: movement range, move range, reach (alone)
+
 **Defeated player**:
 A player who can no longer win the battle: another player's hero rescued their princess, or they left the battle or dropped out. A player drops out when their rejoin window runs out. A defeated player who stays attached watches the rest of the battle and is still a player, not an observer.
 _Avoid_: eliminated player, knocked-out player, captured castle

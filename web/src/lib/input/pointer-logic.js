@@ -89,8 +89,10 @@ export function createPlay({ jump, press, release, blocked = () => false }) {
   const direction = () => (!settled() && expect?.dir) || towards(view.hero, view.cell);
   // In a direction state a cell next to the hero picks its direction, and the cursor's own cell the direction it is in.
   const picks = cell => (!view.hero || !(near(cell, view.hero) || same(cell, view.cell)) ? null : towards(view.hero, cell));
-  // Whether a click on the cell is on the cursor, so it commits.
+  // Whether a click on the cell is on the cursor, so it commits. While the player isn't acting ('watch') nothing commits: a click
+  // only moves the cursor, and the engine shows the reach area of the hero under it.
   const onCursor = cell => {
+    if (view.state === 'watch') return false;
     switch (kind(view)) {
       case 'tile': return same(anchorFor(cell, view), cursor());
       case 'free': return same(cell, cursor());
@@ -187,7 +189,7 @@ export function createPlay({ jump, press, release, blocked = () => false }) {
       moveTo(cell, kind(view) === 'free' && near(cell, cursor()));
     },
     // The right button on the battlefield: it turns a piece (a tap of Select) and takes a hero's cursor back to the hero, which drops
-    // the route.
+    // the route; elsewhere, a watch state included, it does nothing.
     right(cell) {
       if (cell === null || idle()) return;
       if (kind(view) === 'tile') { select(); sent(); reaim = true; commit = null; }

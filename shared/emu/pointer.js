@@ -5,11 +5,14 @@
 
 const APP = 0x101b828c; // the engine's app object: +0x8c the UI, +0x9c the battle view while a battle is on
 const SETTER = 0x10073ea0; // FUN_10073ea0: sets the cursor's cell, clamped to the map
+const REFRESH = 0x1008da30; // FUN_1008da30: shows the reach area of the hero under the cursor, or none
 // What the player sees is drawn about 4 px lower than the engine's grid (docs/re/re_battle_input.md "Pixel to cell").
 const DRAW_OFFSET = 4;
 
 // The battle UI states pointer play applies to, by their vtable, with the first entry of it and the input vtable at S+8 whose second
-// entry handles the state's keys (docs/re/re_battle_input.md "The states").
+// entry handles the state's keys (docs/re/re_battle_input.md "The states"). While the local player isn't acting, in IdleUIState
+// (others' turns, the intro) and ObserverUIState (after a defeat), the pointer only moves the cursor ('watch'): both states' keys
+// go to the shared handler, which has no commit there ("Others' turns and the observer").
 const STATES = [
   { state: 'tile', vtable: 0x10186860, first: 0x100b2bb0, input: 0x10186858, keys: 0x100d5410 },
   { state: 'tileItem', vtable: 0x10188ea0, first: 0x100e2ae0, input: 0x10188e98, keys: 0x100d5410 },
@@ -17,9 +20,11 @@ const STATES = [
   { state: 'cannon', vtable: 0x10186964, first: 0x100b7d40, input: 0x1018695c, keys: 0x100b76f0 },
   { state: 'item', vtable: 0x10186914, first: 0x100b71c0, input: 0x1018690c, keys: 0x100b6710 },
   { state: 'skill', vtable: 0x101892e0, first: 0x100ea150, input: 0x101892d8, keys: 0x100e9e60 },
+  { state: 'watch', vtable: 0x101880d4, first: 0x100d5c20, input: 0x101880cc, keys: 0x100d5bf0 },
+  { state: 'watch', vtable: 0x1018800c, first: 0x100cfeb0, input: 0x10188004, keys: 0x100d5bf0 },
 ];
 // The code whose fields and rules read() and jump() rely on, checked as ADR 0017 checks its hooks: the setter whole, since jump()
-// runs it, and the start of each other function.
+// runs it, and the start of each other function, the reach area's refresh included, which jump() runs in a watch state.
 const SITES = [
   { va: 0x10073ea0, bytes: '8b4424048b108951248b40048a54240889412833c03ad0742b' }, // FUN_10073ea0, the cursor's cell setter
   { va: 0x10073eb9, bytes: '3941247d038941243941287d038941288b41048b5020395124' },
@@ -34,6 +39,9 @@ const SITES = [
   { va: 0x100251a0, bytes: '5156578d4424085083c1' }, // FUN_100251a0: a seat's hero, whose corner panel is drawn
   { va: 0x1000cf60, bytes: '8b4130c3' },             // FUN_1000cf60: a hero's seat
   { va: 0x1008a500, bytes: '8b442408538b5c240856' }, // FUN_1008a500: a corner panel's place
+  { va: 0x100d5bf0, bytes: 'e9db84fbff' },           // FUN_100d5bf0: the watch states' keys, a jump to the shared handler
+  { va: 0x1008da30, bytes: '568bf18b4e108b0157ff50188bf885ff0f841501' }, // FUN_1008da30: the reach area under the cursor
+  { va: 0x1008da44, bytes: '00008b879400000085c00f8e070100008b4e28' },
 ];
 // Item kinds (the item's +0x54) and special skill kinds (the hero's skill, [hero+0x58]+0x2c) whose arrows move the cursor freely or
 // pick a direction, as checked in a battle (docs/re/re_battle_input.md "Items" and "Special skills"). Any other kind reads as null.
@@ -70,6 +78,7 @@ export function battlePointer(game) {
     if (!state) return null;
     const cursor = rd(S + 0x28);
     if (!cursor || !m8[cursor + 0x5b]) return null; // battle input is dropped while the cursor isn't active
+    // A watch state is a free cursor with no hero of ours.
     let targets = 'free', hero = 0, jump = true, piece = null, choices = null;
     if (state === 'tile' || state === 'tileItem') {
       if (m8[S + 0xb8]) return null; // dropped
@@ -86,7 +95,7 @@ export function battlePointer(game) {
       const kind = ri(rd(S + 0x8c) + 0x54);
       targets = m8[S + 0x9c] ? 'cycle' : ITEM_DIRECTION.has(kind) ? 'direction' : ITEM_FREE.has(kind) ? 'free' : null;
       jump = targets === 'free' && !ITEM_NO_JUMP.has(kind);
-    } else {
+    } else if (state === 'skill') {
       if (m8[S + 0x84] || m8[S + 0x74]) return null; // confirmed, or no target to choose
       hero = rd(S + 0x88);
       const kind = ri(rd(hero + 0x58) + 0x2c);
@@ -141,7 +150,9 @@ export function battlePointer(game) {
       };
     },
     // Moves the cursor to the cell (x, y) through FUN_10073ea0, a thiscall on the cursor with a pointer to the cell and a "clamp"
-    // byte, which pops both. Only where read() would say so and the state keeps nothing of its own that follows the cursor.
+    // byte, which pops both. Only where read() would say so and the state keeps nothing of its own that follows the cursor. In a
+    // watch state the engine shows the reach area under the cursor only after a key, so FUN_1008da30, a fastcall on the state with
+    // no stack arguments, shows it for the new cell.
     jump(x, y) {
       const s = now();
       if (!s || !s.jump) return false;
@@ -150,7 +161,10 @@ export function battlePointer(game) {
       const p = (cpu.r[4] >>> 0) + 16;
       cpu.wr32(p, x | 0); cpu.wr32(p + 4, y | 0);
       cpu.r[1] = s.cursor;
-      try { cpu.call(addr(SETTER), [p, 1]); } finally { cpu.r[1] = ecx; cpu.r[4] = esp; }
+      try {
+        cpu.call(addr(SETTER), [p, 1]);
+        if (s.state === 'watch') { cpu.r[1] = s.S; cpu.call(addr(REFRESH)); }
+      } finally { cpu.r[1] = ecx; cpu.r[4] = esp; }
       return true;
     },
   };
