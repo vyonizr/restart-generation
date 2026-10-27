@@ -30,7 +30,8 @@ const keyOf = battle => {
 // The cast's battles as { id, created, text, meta }, from `cacheDir` where a battle's players and the replay code are unchanged,
 // else played now by Bots (a few minutes each) and each cached as it ends, so a run that stops keeps the battles it finished. Each
 // battle has a gateway of its own, so they are played at once, as many as the machine has a core for each player and the witness.
-export async function battles(cacheDir, { fresh = false, log = console.log } = {}) {
+// With `play` false, only the cached battles, and none is played.
+export async function battles(cacheDir, { fresh = false, play = true, log = console.log } = {}) {
   fs.mkdirSync(cacheDir, { recursive: true });
   const load = b => {
     const file = path.join(cacheDir, `${b.id}.json`);
@@ -38,6 +39,7 @@ export async function battles(cacheDir, { fresh = false, log = console.log } = {
     return cached && cached.key === keyOf(b) ? { ...b, text: cached.text, meta: cached.meta } : null;
   };
   const out = BATTLES.map(load);
+  if (!play) return out.filter(Boolean);
   const todo = BATTLES.filter((b, i) => !out[i]);
   const cores = os.availableParallelism();
   const playOne = async b => {
@@ -90,8 +92,8 @@ function fill(dir, played) {
   }
 }
 
-// A gateway on free ports over `dir`'s cast, sending the server copy `game` (RG_GAME) to the page. Resolves with its address, the
-// hero's sign-in, and a way to stop it, once it listens and its game bundle is ready.
+// A gateway on free ports over `dir`'s cast, sending the server copy `game` (RG_GAME) to the page, or none if `game` is null.
+// Resolves with its address, the hero's sign-in, and a way to stop it, once it listens and its game bundle (if any) is ready.
 export async function gateway(dir, game, played) {
   fs.mkdirSync(dir, { recursive: true });
   fill(dir, played);
@@ -99,7 +101,7 @@ export async function gateway(dir, game, played) {
   const url = `http://127.0.0.1:${HTTP_PORT}`;
   // The shell's .env mustn't decide how this server runs: only the server copy is taken from it.
   const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('RG_')));
-  const env = { ...clean, ...discord(url), RG_GAME: game, PORT: String(PORT), HTTP_PORT: String(HTTP_PORT),
+  const env = { ...clean, ...discord(url), ...(game ? { RG_GAME: game } : {}), PORT: String(PORT), HTTP_PORT: String(HTTP_PORT),
     RG_DB: path.join(dir, 'accounts.db'), RG_REPLAYS_DB: path.join(dir, 'replays.db') };
   const child = spawn(process.execPath, [path.join(root, 'server', 'gateway.js')], { cwd: root, env });
   const log = fs.createWriteStream(path.join(dir, 'gateway.log'));
@@ -109,7 +111,7 @@ export async function gateway(dir, game, played) {
     const t0 = Date.now();
     const check = () => {
       if (/RG_GAME: /.test(out)) return reject(new Error(`the gateway couldn't load the server copy:\n${out.slice(-2000)}`));
-      if (out.includes('browser client on') && out.includes('game bundle ready')) return resolve();
+      if (out.includes('browser client on') && (!game || out.includes('game bundle ready'))) return resolve();
       if (child.exitCode !== null || Date.now() - t0 > 60000) return reject(new Error(`the gateway did not start:\n${out.slice(-2000)}`));
       setTimeout(check, 100);
     };

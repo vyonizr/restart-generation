@@ -11,17 +11,20 @@ const escape = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt
 // A post's whole caption, a line each: the feature's, what a player needs, and that the site isn't official.
 export const captionOf = feature => `${FEATURES[feature].caption}\n${NEEDS}\n${DISCLAIMER}`;
 
-const media = (file, kind) => kind === 'clip'
-  ? `<video src="${escape(file)}" controls loop muted playsinline preload="metadata"></video>`
-  : `<a href="${escape(file)}"><img src="${escape(file)}" alt="" loading="lazy"></a>`;
+const image = file => `<a href="${escape(file)}"><img src="${escape(file)}" alt="" loading="lazy"></a>`;
+// A clip plays; a comparison's raw pictures show before and after side by side.
+const media = a => a.kind === 'clip'
+  ? `<video src="${escape(a.file)}" controls loop muted playsinline preload="metadata"></video>`
+  : a.before ? `<div class="pair">${image(a.before)}${image(a.file)}</div>` : image(a.file);
 
 export function preview(out, manifest) {
   manifest.captions = Object.fromEntries(Object.keys(FEATURES).map(f => [f, captionOf(f)]));
   const sections = Object.entries(FEATURES).map(([feature, f]) => {
     const cards = (manifest.cards ?? []).filter(c => c.feature === feature);
-    const raw = manifest.assets.filter(a => a.feature === feature);
+    // A comparison's pictures make more than one card, but are listed once, in the shape they were taken in.
+    const raw = manifest.assets.filter((a, i, all) => a.feature === feature && all.findIndex(b => b.file === a.file && b.before === a.before) === i);
     if (!cards.length && !raw.length) return '';
-    const item = (a, warn) => `<figure>${media(a.file, a.kind)}<figcaption>${escape(ASPECTS[a.aspect].label)} · ${a.kind}${a.seconds ? ` · ${a.seconds.toFixed(1)} s` : ''}
+    const item = (a, warn) => `<figure>${media(a)}<figcaption>${escape(ASPECTS[warn ? a.shot ?? a.aspect : a.aspect].label)} · ${a.kind}${a.seconds ? ` · ${a.seconds.toFixed(1)} s` : ''}
       · <a href="${escape(a.file)}" download>${escape(path.basename(a.file))}</a>${warn && a.name === false ? '<br><b>No site name in it: post the card instead.</b>' : ''}</figcaption></figure>`;
     return `<section><h2>${escape(f.headline)}</h2>
       <p class="caption">${escape(captionOf(feature)).replaceAll('\n', '<br>')} <button type="button" data-copy="${escape(captionOf(feature))}">Copy caption</button></p>
@@ -35,7 +38,7 @@ h1 { font-size: 28px; } h2 { margin-top: 56px; font-size: 22px; border-bottom: 4
 h3 { color: #c6cad7; font-size: 14px; text-transform: uppercase; letter-spacing: .05em; }
 .caption { max-width: 80ch; color: #e2e4ec; } .note { color: #c6cad7; max-width: 80ch; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; align-items: start; }
-figure { margin: 0; } img, video { width: 100%; display: block; background: #11141b; }
+figure { margin: 0; } img, video { width: 100%; display: block; background: #11141b; } .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 figcaption { font-size: 13px; color: #c6cad7; margin-top: 6px; } figcaption b { color: #ff8fa8; }
 a { color: #fff; } button { font: inherit; margin-left: 8px; }
 </style>
