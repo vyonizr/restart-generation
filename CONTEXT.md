@@ -142,6 +142,14 @@ _Avoid_: keybinds, key mapping, hotkeys, controls
 A game controller that the browser reads on the device the player plays on.
 _Avoid_: controller, joypad, joystick
 
+**Pointer**:
+A mouse, a trackpad, a pen, or a finger on a touchscreen laptop, pointing at the game screen on a desktop. A finger on a touch device isn't one: that device plays with the touch pad.
+_Avoid_: mouse (for all of them), touchpad, trackpad (as the general word; the touch pad is the on-screen controls)
+
+**Pointer play**:
+Playing a battle's tile placement, hero turns, and cannons with the pointer on the battlefield, beside the keys, the touch pad, and a gamepad. The engine's menus, the battle menu, and chat stay on the keys.
+_Avoid_: mouse mode, click to move, mouse support
+
 **Info menu**:
 The engine's own menu that explains how to play and describes the heroes and items, with an About page. Players rarely find it.
 _Avoid_: help screen, info screen, manual
