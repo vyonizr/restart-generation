@@ -306,6 +306,10 @@ _Avoid_: recording, video, clip, replay file
 Footage that shows the replay page's title band above the battle (the REPLAY tag, the day and the kind of match) and its lower third below it (each seat's number in its color, name, and hero; a defeated player's seat hollow, and each winner's crowned once the battle ends). **Download replay** offers it as **With Details**, first, and plain footage as **Battle Only**, every time. The page's own buttons never appear in it.
 _Avoid_: framed footage, header and footer (those are the page's), overlay
 
+**Control strip**:
+The row of the replay page's own controls under the screen: play, the time slider with the replay's marks, the clock, skip idle, double speed, mute, and the volume. Broadcast footage never shows it.
+_Avoid_: player bar, toolbar, control bar
+
 **Knocked-out hero**:
 A hero whose health ran out: it drops any princess it carries, is thrown away or sent back to its castle, and plays on with part of its health. It can happen any number of times, and its player is not defeated by it.
 _Avoid_: dead hero, killed hero, knocked-out player (that is a defeated player)

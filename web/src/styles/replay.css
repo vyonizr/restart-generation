@@ -124,11 +124,13 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
 .scrub-tip { position: absolute; bottom: calc(100% + 8px); left: clamp(24px, var(--x), calc(100% - 24px)); z-index: 3; padding: 6px 8px;
   background: var(--ink-2); font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; color: #fff; white-space: nowrap;
   pointer-events: none; transform: translateX(-50%); }
-/* With marks, Previous and Next take room from the slider, whose ticks need it most: on a smaller view it gets a row of its own */
+/* A strip on a smaller view gives the slider a row of its own: with marks, Previous and Next take room from the slider, whose ticks
+   need it most, and without them Double speed and the volume would be pushed out past the strip's end on a short window, where the
+   view is narrow however wide the window is */
 @container (max-width: 640px) {
-  .controls:has(.jump) { flex-wrap: wrap; }
-  .controls:has(.jump) .timeline { order: 9; flex-basis: 100%; }
-  .controls:has(.jump) .volume { margin-left: auto; }
+  .controls { flex-wrap: wrap; }
+  .controls .timeline { order: 9; flex-basis: 100%; }
+  .controls .volume { margin-left: auto; }
 }
 
 /* The end screen over the battle: the result and Watch again */
@@ -168,9 +170,10 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
   .controls { flex-wrap: wrap; }
   .timeline { order: 9; flex-basis: 100%; }
 }
-/* A phone's title band has room for the day and the kind of match only if Share and Download replay are their icons, the labels kept
-   for screen readers */
-@media (max-width: 459px) {
+/* A title band on a phone's view has room for the day and the kind of match only if Share and Download replay are their icons, the
+   labels kept for screen readers. A short window narrows the view as much, so this goes by the view's width: 427px is the view of a
+   459px window (the 759px rule's --screen-h) */
+@container (max-width: 427px) {
   .share, .export-footage { justify-content: center; padding: 6px; }
   .share .label, .export-footage .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .share svg, .export-footage svg { width: 18px; height: 18px; }
