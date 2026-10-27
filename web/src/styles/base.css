@@ -9,7 +9,8 @@
   --display: 'Anton', 'Arial Narrow', sans-serif; --body: 'Manrope', system-ui, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace;
   color-scheme: dark; scrollbar-color: var(--ink-3) var(--ink-1);
 }
-* { box-sizing: border-box; }
+/* No browser tap tint (Android's blue flash): each control shows its own pressed state (DESIGN.md) */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { margin: 0; background: var(--ink-1); color: #fff; font: 16px/1.8 var(--body); -webkit-font-smoothing: antialiased; }
 ::selection { background: var(--red); color: #fff; }
 h1, h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; line-height: .9; margin: 0; text-wrap: balance; }
