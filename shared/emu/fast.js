@@ -844,7 +844,7 @@ export function installFastPaths(cpu, addr) {
     c.eip = fadeDone;
   });
 
-  // The engine's zlib (docs/re/re_zlib.md) unpacks every picture it loads, so an animation that loads its pictures as
+  // The engine's zlib (docs/re/re_loading.md) unpacks every picture it loads, so an animation that loads its pictures as
   // it starts spends most of that frame in two loops: the checksum and the decoder's fast loop.
   // FUN_100a2930's 16-byte loops: a sums the bytes, b sums a after each byte. The trap at the long loop's head
   // (0x100a29f0) runs its EAX turns and leaves at the reduction after it (0x100a2a79), whose MOV and XOR set EAX, EDX and
@@ -947,4 +947,48 @@ export function installFastPaths(cpu, addr) {
     r[2] = inp; r[3] = bits; r[5] = state; r[6] = out; r[7] = hold;
     c.eip = inflateDone;
   });
+
+  // FUN_101074e0(name), the hash the engine finds a file in its archives by (docs/re/re_loading.md): each byte, a-z
+  // uppercased and a backslash read as a slash, times a multiplier that steps on after each byte, summed. It measures the
+  // name again before each byte, so a load of an animation's files spent a fifth of its frame here. The trap does the
+  // call: EAX the hash, EDX the multiplier, ECX the name's length, and the flags of its last compare (of the length with
+  // itself), or of testing the length when the name is empty.
+  cpu.traps.set(addr(0x101074e0), c => {
+    const esp = r[4] >>> 0, name = rd(esp + 4) >>> 0;
+    let len = 0;
+    while (m8[name + len]) len++;
+    let hash = 0, mul = len;
+    for (let i = 0; i < len; i++) {
+      const b = m8[name + i], s = (b << 24) >> 24;
+      const ch = b === 0x5c ? 0x2f : s >= 0x61 && s <= 0x7a ? b - 0x20 : b;
+      hash = (hash + Math.imul(ch, mul)) | 0;
+      mul = ((mul >>> 16) + Math.imul(mul & 0xffff, 0x4650)) | 0;
+    }
+    if (len > 0) c.alu(7, len, len, 32); else c.alu(4, 0, 0, 32);
+    r[0] = hash; r[1] = len; r[2] = mul;
+    r[4] = esp + 4;
+    c.eip = rd(esp) >>> 0;
+  });
+
+  // FUN_1009c4b0 clears a picture: width × height dwords, or 16-bit pixels in formats 3 and 4, reading the size again each
+  // pixel. The traps at its two loops' heads (0x1009c511, 0x1009c4e0), reached with the picture's pixels in EDX and the
+  // index 0 in EAX, clear them all and leave at the epilogue (0x1009c527) with EAX and EDI the count, ECX the size's
+  // holder and the flags of the last compare. A picture whose pixels overlap its own size or the pointer to it goes on in
+  // the guest after the loop's first store.
+  const clearDone = addr(0x1009c527);
+  const clear = (size, next) => c => {
+    const self = r[6] >>> 0, desc = rd(self + 0x14) >>> 0, base = r[2] >>> 0;
+    const n = Math.imul(rd(desc + 0x1c), rd(desc + 0x18)), end = base + n * size;
+    if (r[0] !== 0 || (base < desc + 0x20 && end > desc + 0x18) || (base < self + 0x18 && end > self + 0x14)) {
+      for (let i = 0; i < size; i++) m8[base + r[0] * size + i] = 0;
+      c.eip = next;
+      return;
+    }
+    m8.fill(0, base, end);
+    c.alu(7, n, n, 32);
+    r[0] = n; r[1] = desc; r[7] = n;
+    c.eip = clearDone;
+  };
+  cpu.traps.set(addr(0x1009c511), clear(4, addr(0x1009c518)));
+  cpu.traps.set(addr(0x1009c4e0), clear(2, addr(0x1009c4e6)));
 }

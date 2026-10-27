@@ -1,5 +1,5 @@
 // Speed budgets for the moments a slow device drops frames in: the first frame of each battle animation, which loads its
-// pictures (docs/re/re_zlib.md), and the worst frame of a battle. Plays each scenario (scenarios.mjs) with the fast paths,
+// pictures (docs/re/re_loading.md), and the worst frame of a battle. Plays each scenario (scenarios.mjs) with the fast paths,
 // as the page does, and counts the guest instructions each tick runs: a count is the same on every machine, unlike its
 // time. Fails when a count is more than 5% over tools/emu/perf-baseline.json, then checks that the fast paths leave every
 // frame as the guest would (fasttest.mjs, each scenario on both views at once). --update writes the counts to the

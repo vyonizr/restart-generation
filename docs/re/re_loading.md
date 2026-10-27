@@ -1,12 +1,15 @@
-# The zlib code that unpacks pictures
+# Loading a battle animation's files
 
-The engine links a copy of zlib, the public compression library (zlib License), and it unpacks pictures with it. These notes cover the two zlib routines the emulator runs as fast paths (`shared/emu/fast.js`), what each leaves behind, and why they matter for the frame rate. Everything here was observed by running the engine in the emulator, with the reference replay of a 4-player battle on Classic, unless it is marked static.
+A battle's animations (the intro, the phase and turn banners, special skills, item messages, the fight cut-in and the rescue; see [`re_screen.md`](re_screen.md)) load their files in their first frame: the animation's description, a text file the engine parses, and its pictures and sounds. They aren't kept between animations, so every animation loads them again, not only the first time it plays. These notes cover the routines of that frame that the emulator runs as fast paths (`shared/emu/fast.js`), what each leaves behind, and why they matter for the frame rate. Everything here was observed by running the engine in the emulator, with the reference replay of a 4-player battle on Classic, unless it is marked static.
 
-## When the engine unpacks
+## What the first frame costs
 
-A battle's animations (the intro, the phase and turn banners, special skills, item messages, the fight cut-in and the rescue; see [`re_screen.md`](re_screen.md)) load their pictures in their first frame. Those pictures aren't kept between animations, so every animation loads them again. The frame that does it ran 8.6 to 17 million guest instructions, against 0.17 million in a quiet frame of the same battle. That was 50 to 160 ms on a desktop, and every animation start in the battle paid it, not only the first.
+The first frame ran 8.6 to 17 million guest instructions, against 0.17 million in a quiet frame of the same battle: 50 to 160 ms on a desktop. Measured on the first frames of a turn's animation, Dr Lovebomber's special skill, a fight, a rescue and the cannon phase's banner:
 
-The reader asks a stream (`FUN_1005aa90`, called from `0x10108df2`) for 16 KB at a time and inflates each piece into the picture; one picture read this way was 307,200 bytes. Of the instructions in such a frame, the inflate's fast loop (`FUN_100a4910`) ran 38 to 55% and the Adler-32 checksum (`FUN_100a2930`) 8 to 18%. This was measured on the first frames of a turn's animation, a fight, a rescue and the cannon phase's banner.
+- **Unpacking pictures:** the engine links a copy of zlib, the public compression library (zlib License). A reader (returning to `0x10108df2`) calls its inflate routine (`FUN_1005aa90`, with the flush argument 2) with 16 KB of output space at a time. Inflate's fast loop (`FUN_100a4910`) ran 38 to 55% of the frame's instructions, and the Adler-32 checksum (`FUN_100a2930`), which inflate runs over each 16 KB it writes, ran 8 to 18%.
+- **Finding files:** with both of those as fast paths, the name hash (`FUN_101074e0`, below) was 6 to 19% of what was left. Dr Lovebomber's special skill hashed names 76 times in its first frame.
+- **Clearing pictures:** a fight's and a rescue's first frames clear pictures they then draw into (`FUN_1009c4b0`, below): 20 to 28% of what was left.
+- **Reading descriptions:** the description parser, a character-at-a-time tokenizer over a ring buffer (`FUN_10164300`, `FUN_10163f40`, `FUN_10163fa0`), and inflate's own state machine for the bytes the fast loop leaves (`FUN_1005aa90`) made up most of the rest. They have no fast paths.
 
 ## The checksum, `FUN_100a2930`
 
@@ -34,3 +37,17 @@ Each turn the loop tops the bit buffer up to at least 15 bits, two input bytes a
 At the epilogue (`0x100a4d28`) the routine gives back the input bytes whose bits are still in the buffer. It writes the stream's pointers and counts, and the state's bit buffer and bit count. Then it restores the saved registers and returns. It leaves EAX the output places left, ECX the stream, EDX the input pointer, and the flags of the add that frees the frame.
 
 The trap at the loop's head (`0x100a49a2`) does the whole loop and goes on at the epilogue with the five loop registers and the length slot set as the loop would leave them. The frame's other slots are dead once the routine returns.
+
+## The name hash, `FUN_101074e0`
+
+A cdecl function of one argument, a zero-terminated file name, that returns in EAX the number the engine looks the file up by in its archives (it hashed the paths of an animation's description, pictures and sounds). Bytes `a` to `z` count as their capitals and a backslash as a slash, so the hash ignores case and either separator. The hash starts at 0, and a multiplier starts at the name's length. For each byte the hash gains the byte times the multiplier, then the multiplier becomes its top 16 bits plus its low 16 bits times 18000. Both wrap at 32 bits. The comparison of a byte with `a` and `z` is signed, so bytes from `0x80` up stay as they are.
+
+The routine measures the name once to seed the multiplier, and again before each byte to test whether it is done, so its cost grows with the square of the name's length. It leaves EDX the multiplier, ECX the name's length and the flags of comparing the length with itself, or, for an empty name, of testing the length, which is 0. It saves and restores EBX, EBP, ESI and EDI.
+
+The trap at its entry does the whole call and returns.
+
+## Clearing a picture, `FUN_1009c4b0`
+
+A thiscall on a picture, without arguments. The picture's size holder (its `+0x14`) has the width at `+0x18`, the height at `+0x1c` and the pixel format at `+0x20`. In format 2 the routine writes a 0 dword to each of width × height pixels; in formats 3 and 4 a 0 word; in any other format it does nothing. It reaches the pixels through the picture's virtual method `+0x0c`, which returns a holder whose first dword is the pixel base. Each loop counts up in EAX from 0 with the base in EDX, and reads the width and height again through `+0x14` for every pixel. A loop leaves EAX and EDI the count, ECX the size holder and the flags of comparing the count with itself.
+
+The traps at the two loops' heads (`0x1009c511` for dwords, `0x1009c4e0` for words) clear every pixel and go on at the epilogue (`0x1009c527`). The routine would read a size its own stores had changed if the pixels overlapped the size holder's width and height or the picture's pointer to it; then the trap makes the loop's first store and lets the guest go on.
