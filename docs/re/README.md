@@ -25,6 +25,7 @@ The following table lists the notes and what each covers:
 | [`re_quit.md`](re_quit.md) | How the engine reports Quit through `tick`, and what the Java client did then. |
 | [`re_render.md`](re_render.md) | The engine's hottest drawing and update routines in a battle: the run-length sprite blitters, their data format and span routines; the scene object draw, its image cache and the run-length image; the curved band; the line blends; the sprung points; the tile grid edge pass; the alpha fill of a rectangle; the fight cut-in's two picture effects; and the loop states `shared/emu/fast.js` reproduces. |
 | [`re_screen.md`](re_screen.md) | The screen size: where it lives, who reads it, and changing it while the engine runs; the battle view's large-screen mode with its curtain and fades; the battle UI states a host can read; and the `.gfx` image container. |
+| [`re_battle_input.md`](re_battle_input.md) | A local player's battle input, for pointer play: the battle UI states and when they take input, the cursor and its cell setter, pixel to cell, the corner panels, tile placement, the hero turn's orders, and how each item and special skill state's arrows move the cursor. |
 | [`re_info.md`](re_info.md) | The info menu: its sheet, its text files and their escapes and key names, the language the engine picks, the `.gfx` images of kind 1, and the palette files, which the guide reads. |
 | [`re_looks.md`](re_looks.md) | What the five environments and the fame level badges look like, in words, for the Replays dialog's sketches and Ranked icon. |
 

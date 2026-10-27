@@ -1,6 +1,6 @@
 <!-- The controls, under the game screen on a desktop. They show the player's custom keys (CONTEXT.md), which the engine keeps in the
      saved game's settings.cfg; game.js reads them into page.keys. After a press on the gamepad they show its buttons instead,
-     until the next key press (gamepad.js). -->
+     until the next key press (gamepad.js). Pointer play (docs/adr/0039) has one entry in both, where this copy has it. -->
 <script>
   import { page } from '../page.svelte.js';
   import { KEPT } from './keys.js';
@@ -16,6 +16,7 @@
   // The gamepad's buttons by position, so one drawing fits every brand: the face buttons' diamond with the one to press filled.
   const CROSS = 'M5.5 1.5h5v4h4v5h-4v4h-5v-4h-4v-5h4z', MENU = 'M3 4h10M3 8h10M3 12h10';
   const FACE = [['top', 8, 3], ['left', 3, 8], ['right', 13, 8], ['bottom', 8, 13]];
+  const POINTER = 'M2.5 5a3.5 3.5 0 0 1 7 0v2a3.5 3.5 0 0 1-7 0zM6 1.5V5M2.5 5h7'; // a mouse with its two buttons, for every kind of pointer
 </script>
 
 <!-- One key: an arrow key as its arrow, any other by name. `what` names the direction for a screen reader when the key isn't that
@@ -47,4 +48,7 @@
     <div><dt>{@render key(KEPT.back)}</dt><dd>Menu</dd></div>
   {/if}
   <div><dt>{@render key(page.keys.chat)}</dt><dd>Chat</dd></div>
+  {#if page.pointable}
+    <div><dt><kbd><svg viewBox="0 0 12 12" aria-hidden="true"><path d={POINTER}/></svg><span class="vh">Pointer</span></kbd></dt><dd>Battlefield</dd></div>
+  {/if}
 </dl>
