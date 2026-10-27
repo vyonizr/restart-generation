@@ -97,7 +97,7 @@ function apply(seed, { accounts, replays: replayStore, discord, now = Date.now()
   for (const r of seed.replays) {
     const players = r.players.map(p => ({ name: p.name, hero: p.hero, seat: p.seat, bot: Boolean(p.bot) }));
     replayStore.put({ id: r.id, created: now + offset(r.created), text: PLACEHOLDER_TEXT, seats: seated(players),
-      meta: { ranked: r.ranked, environment: r.environment, players, result: r.result } });
+      meta: { ranked: r.ranked, environment: r.environment, players, result: r.result, ...(r.marks && { marks: r.marks }) } });
   }
   const unplayed = [];
   for (const p of seed.played) {
@@ -122,6 +122,15 @@ function check(seed) {
   }
   for (const [a, b, state] of seed.friends) {
     if (!names.has(a.toLowerCase()) || !names.has(b.toLowerCase()) || !['to', 'both'].includes(state)) throw new Error(`seed: friends ${a}, ${b}, ${state}`);
+  }
+  // Marks as the witness makes them (server/replay.js `marks`): in time order, each moment about a seat that played.
+  for (const r of seed.replays) {
+    const seats = new Set(r.players.map(p => p.seat));
+    (r.marks ?? []).forEach((m, i, all) => {
+      const ok = Number.isInteger(m.at) && m.at >= 0 && (i === 0 || m.at > all[i - 1].at) && m.moments.length
+        && m.moments.every(o => (o.kind === 'knockout' || (o.kind === 'rescue' && seats.has(o.by))) && seats.has(o.seat));
+      if (!ok) throw new Error(`seed: ${r.id} has a mark that isn't one the witness makes: ${JSON.stringify(m)}`);
+    });
   }
 }
 

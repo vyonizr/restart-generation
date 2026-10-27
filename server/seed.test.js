@@ -95,6 +95,10 @@ const dump = ({ accounts, replays: r }) => ({
   assert.throws(broken({ wins: 9, matches: 3 }), /more wins/);
   assert.throws(broken({ name: 'Ada' }), /Dev_ prefix/);
   assert.throws(broken({ lastActive: 'yesterday' }), /time offset/);
+  const marked = seed.replays.find(r => r.marks);
+  const badMark = mark => () => check({ ...seed, replays: [{ ...marked, marks: [mark] }] });
+  assert.throws(badMark({ at: 10, moments: [{ kind: 'knockout', seat: 9 }] }), /a mark that isn't one/);
+  assert.throws(badMark({ at: 10, moments: [{ kind: 'rescue', seat: 1 }] }), /a mark that isn't one/);
 
   console.log('seed: ok');
 })().catch(e => { console.error(e); process.exit(1); });

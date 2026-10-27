@@ -1,4 +1,4 @@
-<!-- The replay's control bar (replay.svelte.js): play or pause, the time slider with the time and the replay's marks, skip idle time,
+<!-- The replay's control strip (CONTEXT.md, replay.svelte.js): play or pause, the time slider with the time and the replay's marks, skip idle time,
      double speed, and the volume. With marks (CONTEXT.md), Previous and Next sit on each side of play. It works once the engine has
      built the battle, except while footage is rendered on it. -->
 <script>
