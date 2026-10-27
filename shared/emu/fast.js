@@ -843,4 +843,168 @@ export function installFastPaths(cpu, addr) {
     r[0] = 0; r[1] = b; r[2] = stepA; r[5] = a;
     c.eip = fadeDone;
   });
+
+  // The engine's zlib (docs/re/re_loading.md) unpacks every picture it loads, so an animation that loads its pictures as
+  // it starts spends most of that frame in two loops: the checksum and the decoder's fast loop.
+  // FUN_100a2930's 16-byte loops: a sums the bytes, b sums a after each byte. The trap at the long loop's head
+  // (0x100a29f0) runs its EAX turns and leaves at the reduction after it (0x100a2a79), whose MOV and XOR set EAX, EDX and
+  // the flags. The trap at the short loop's head (0x100a2ab1) also takes 16 off EBX each turn and leaves at its TEST
+  // (0x100a2b3d). Both leave EAX 0 and EDX the last byte, as the loops do.
+  const sums16 = (p, turns) => {
+    let a = r[1] >>> 0, b = r[7] >>> 0;
+    for (const end = p + turns * 16; p < end; p++) { a += m8[p]; b += a; }
+    r[0] = 0; r[1] = a; r[2] = m8[p - 1]; r[6] = p; r[7] = b;
+  };
+  const longSumsDone = addr(0x100a2a79), shortSumsDone = addr(0x100a2b3d);
+  cpu.traps.set(addr(0x100a29f0), c => { sums16(r[6] >>> 0, r[0] >>> 0); c.eip = longSumsDone; });
+  cpu.traps.set(addr(0x100a2ab1), c => {
+    const turns = r[0] >>> 0;
+    sums16(r[6] >>> 0, turns); r[3] = (r[3] - turns * 16) | 0;
+    c.eip = shortSumsDone;
+  });
+
+  // FUN_100a4910, the decoder's fast loop. The trap at the loop's head (0x100a49a2), after the prologue has laid out the
+  // frame, decodes until the input passes its last safe byte or the output its last safe place, an end of block, or a bad
+  // code, and leaves at the epilogue (0x100a4d28) with the registers it reads: EBX the bit count, EDX the input pointer,
+  // EDI the bit buffer, ESI the output pointer, EBP the state. Both pointers point at the byte before the next one, as the
+  // loop keeps them. The loop keeps the length in the stack slot of the routine's second argument, which the caller
+  // owns, so the trap leaves there the last value the loop would have written.
+  const inflateDone = addr(0x100a4d28);
+  const tooFarBack = addr(0x1017c9c8), badDistance = addr(0x1017c9e8), badLength = addr(0x1017ca00);
+  cpu.traps.set(addr(0x100a49a2), c => {
+    const esp = r[4] >>> 0, strm = rd(esp + 0x50) >>> 0, state = r[5] >>> 0;
+    const last = rd(esp + 0x30) >>> 0, end = rd(esp + 0x34) >>> 0, beg = rd(esp + 0x44) >>> 0;
+    const lcode = rd(esp + 0x20) >>> 0, dcode = rd(esp + 0x24) >>> 0, lmask = rd(esp + 0x38), dmask = rd(esp + 0x3c);
+    const wsize = rd(esp + 0x28) >>> 0, window = rd(esp + 0x2c) >>> 0, write = rd(esp + 0x1c) >>> 0, whave = rd(esp + 0x48) >>> 0;
+    let inp = r[2] >>> 0, out = r[6] >>> 0, hold = r[7] >>> 0, bits = r[3] >>> 0, slot = rd(esp + 0x54) >>> 0;
+    const refill = () => { hold = (hold + (m8[inp + 1] << bits)) >>> 0; inp++; bits = (bits + 8) >>> 0; };
+    const copy = (from, n) => { for (; n > 0; n--) m8[++out] = m8[++from]; return from; };
+    let here = 0, op = 0;
+    const take = () => { op = here & 0xff; const n = (here >>> 8) & 0xff; hold = (hold >>> (n & 31)) >>> 0; bits = (bits - n) >>> 0; };
+    decode: do {
+      if (bits < 15) { refill(); refill(); }
+      here = rd(lcode + (lmask & hold) * 4); take();
+      for (;;) {
+        if (op === 0) { m8[++out] = (here >>> 16) & 0xff; continue decode; }
+        if (op & 0x10) break;
+        if (op & 0x40) {
+          if (op & 0x20) wr(state, 0xb);
+          else { wr(strm + 0x18, badLength); wr(state, 0x1b); }
+          break decode;
+        }
+        slot = 1;
+        here = rd(lcode + ((((1 << op) - 1) & hold) + (here >>> 16)) * 4); take();
+      }
+      slot = here >>> 16;
+      op &= 0xf;
+      if (op) {
+        if (bits < op) refill();
+        slot = (slot + (((1 << op) - 1) & hold)) >>> 0;
+        hold = (hold >>> op) >>> 0; bits = (bits - op) >>> 0;
+      }
+      if (bits < 15) { refill(); refill(); }
+      here = rd(dcode + (dmask & hold) * 4); take();
+      while (!(op & 0x10)) {
+        if (op & 0x40) { wr(strm + 0x18, badDistance); wr(state, 0x1b); break decode; }
+        here = rd(dcode + ((((1 << op) - 1) & hold) + (here >>> 16)) * 4); take();
+      }
+      op &= 0xf;
+      if (bits < op) { refill(); if (bits < op) refill(); }
+      const dist = ((here >>> 16) + (((1 << op) - 1) & hold)) >>> 0;
+      bits = (bits - op) >>> 0; hold = (hold >>> op) >>> 0;
+      const have = (out - beg) >>> 0;
+      let from;
+      if (dist <= have) {
+        // From the output already written, three bytes a turn while more than two are left.
+        from = out - dist;
+        do { from = copy(from, 3); slot = (slot - 3) >>> 0; } while (slot > 2);
+        if (slot) { m8[++out] = m8[++from]; if (slot > 1) m8[++out] = m8[++from]; }
+        continue;
+      }
+      // From the window, which may wrap, then from the output.
+      let n = (dist - have) >>> 0;
+      if (n > whave) { wr(strm + 0x18, tooFarBack); wr(state, 0x1b); break; }
+      from = window - 1;
+      if (write === 0) {
+        from += wsize - n;
+        if (n < slot) { slot = (slot - n) >>> 0; copy(from, n); from = out - dist; }
+      } else if (write < n) {
+        from += wsize + write - n; n -= write;
+        if (n < slot) {
+          slot = (slot - n) >>> 0; copy(from, n);
+          from = window - 1;
+          if (write < slot) { slot = (slot - write) >>> 0; copy(from, write); from = out - dist; }
+        }
+      } else {
+        from += write - n;
+        if (n < slot) { slot = (slot - n) >>> 0; copy(from, n); from = out - dist; }
+      }
+      // The rest: three bytes a turn while more than two are left, then one or two.
+      while (slot > 2) { from = copy(from, 3); slot -= 3; }
+      if (slot) { m8[++out] = m8[++from]; if (slot > 1) m8[++out] = m8[++from]; }
+    } while (inp < last && out < end);
+    wr(esp + 0x54, slot);
+    r[2] = inp; r[3] = bits; r[5] = state; r[6] = out; r[7] = hold;
+    c.eip = inflateDone;
+  });
+
+  // FUN_101074e0(name), the hash the engine finds a file in its archives by (docs/re/re_loading.md): each byte, a-z
+  // uppercased and a backslash read as a slash, times a multiplier that steps on after each byte, summed. It measures the
+  // name again before each byte, so a load of an animation's files spent a fifth of its frame here. The trap does the
+  // call: EAX the hash, EDX the multiplier, ECX the name's length, and the flags of its last compare (of the length with
+  // itself), or of testing the length when the name is empty.
+  cpu.traps.set(addr(0x101074e0), c => {
+    const esp = r[4] >>> 0, name = rd(esp + 4) >>> 0;
+    let len = 0;
+    while (m8[name + len]) len++;
+    let hash = 0, mul = len;
+    for (let i = 0; i < len; i++) {
+      const b = m8[name + i], s = (b << 24) >> 24;
+      const ch = b === 0x5c ? 0x2f : s >= 0x61 && s <= 0x7a ? b - 0x20 : b;
+      hash = (hash + Math.imul(ch, mul)) | 0;
+      mul = ((mul >>> 16) + Math.imul(mul & 0xffff, 0x4650)) | 0;
+    }
+    if (len > 0) c.alu(7, len, len, 32); else c.alu(4, 0, 0, 32);
+    r[0] = hash; r[1] = len; r[2] = mul;
+    r[4] = esp + 4;
+    c.eip = rd(esp) >>> 0;
+  });
+
+  // FUN_1009c4b0 clears a picture: width × height dwords, or 16-bit pixels in formats 3 and 4, reading the size again each
+  // pixel. The traps at its two loops' heads (0x1009c511, 0x1009c4e0), reached with the picture's pixels in EDX and the
+  // index 0 in EAX, clear them all and leave at the epilogue (0x1009c527) with EAX and EDI the count, ECX the size's
+  // holder and the flags of the last compare. A picture whose pixels overlap its own size or the pointer to it goes on in
+  // the guest after the loop's first store.
+  const clearDone = addr(0x1009c527);
+  const clear = (size, next) => c => {
+    const self = r[6] >>> 0, desc = rd(self + 0x14) >>> 0, base = r[2] >>> 0;
+    const n = Math.imul(rd(desc + 0x1c), rd(desc + 0x18)), end = base + n * size;
+    if (r[0] !== 0 || (base < desc + 0x20 && end > desc + 0x18) || (base < self + 0x18 && end > self + 0x14)) {
+      for (let i = 0; i < size; i++) m8[base + r[0] * size + i] = 0;
+      c.eip = next;
+      return;
+    }
+    m8.fill(0, base, end);
+    c.alu(7, n, n, 32);
+    r[0] = n; r[1] = desc; r[7] = n;
+    c.eip = clearDone;
+  };
+  cpu.traps.set(addr(0x1009c511), clear(4, addr(0x1009c518)));
+  cpu.traps.set(addr(0x1009c4e0), clear(2, addr(0x1009c4e6)));
+
+  // FUN_10163f40(i), a thiscall on the description reader's ring buffer (docs/re/re_loading.md): the byte i places past
+  // the read position. The trap does the call when the byte is in the buffer already (i below both the capacity and the
+  // bytes filled): AL the byte over the rest of EAX the capacity less 1, ECX the buffer, and the flags of comparing the
+  // bytes filled with i. Otherwise the guest runs the call from its second instruction, to fill the buffer.
+  const peekRest = addr(0x10163f41);
+  cpu.traps.set(addr(0x10163f40), c => {
+    const esp = r[4] >>> 0, self = r[1] >>> 0, i = rd(esp + 4), cap = rd(self), filled = rd(self + 0x10);
+    if (i >= cap || filled <= i) { wr(esp - 4, r[3]); r[4] = esp - 4; c.eip = peekRest; return; }
+    const buf = rd(self + 4), mask = (cap - 1) | 0;
+    c.alu(7, filled, i, 32);
+    r[0] = (mask & ~0xff) | m8[(((rd(self + 0xc) + i) & mask) + buf) >>> 0];
+    r[1] = buf;
+    r[4] = esp + 8;
+    c.eip = rd(esp) >>> 0;
+  });
 }
