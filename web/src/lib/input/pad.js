@@ -4,6 +4,7 @@ import { javaKey, padKey } from './keys.js';
 import { page } from '../page.svelte.js';
 import { stayAwake, needsVideo } from '../game/wake.js';
 import { botQuestion } from '../game/bots.js';
+import { rejoinPad } from '../game/rejoin.js';
 import { dismissDisconnected } from './gamepad.js';
 
 // pad: the .pad element; typing: the hidden field that raises the system keyboard; typeButton: the Keyboard control.
@@ -65,8 +66,9 @@ export function bindPad({ pad, typing, typeButton, audio, presses }) {
   document.addEventListener('visibilitychange', () => { if (document.hidden) liftAll(); else stayAwake(); }, { signal });
   pad.addEventListener('mousedown', e => e.preventDefault(), { signal }); // keeps focus in the typing field, so pad taps don't hide the keyboard
 
-  // Keyboard: the hidden field raises the system keyboard; each typed character goes to the game as a key press.
-  typeButton.addEventListener('click', () => document.activeElement === typing ? typing.blur() : typing.focus(), { signal });
+  // Keyboard: the hidden field raises the system keyboard; each typed character goes to the game as a key press. It is focused
+  // without scrolling, and sits at the viewport's top (app.css), so the browser has no reason to scroll the page to show it.
+  typeButton.addEventListener('click', () => document.activeElement === typing ? typing.blur() : typing.focus({ preventScroll: true }), { signal });
   typing.addEventListener('focus', () => typeButton.classList.add('held'), { signal });
   typing.addEventListener('blur', () => typeButton.classList.remove('held'), { signal });
   // The system keyboard's own key events are unreliable on Android, so text and Backspace come from input events instead.
@@ -82,6 +84,22 @@ export function bindPad({ pad, typing, typeButton, audio, presses }) {
   }, { signal });
 
   return () => ac.abort();
+}
+
+// Before the game runs (no session yet), a tap on the pad does what a gamepad's press does then (gamepad.js): it answers the CPU
+// players box or the rejoin card, and Select presses Start. It acts on click, not on pointerdown, because only a click counts as the
+// user action Start needs for sound and the wake lock; the control shows as held while the finger is down.
+export function bindIdlePad({ pad, start }) {
+  const ac = new AbortController(), { signal } = ac;
+  const letGo = () => { for (const b of pad.querySelectorAll('[data-key].held')) b.classList.remove('held'); };
+  pad.addEventListener('pointerdown', e => e.target.closest('[data-key]')?.classList.add('held'), { signal });
+  for (const t of ['pointerup', 'pointercancel']) pad.addEventListener(t, letGo, { signal });
+  pad.addEventListener('click', e => {
+    const k = e.target.closest('[data-key]')?.dataset.key;
+    if (!k || botQuestion.pad(k) || rejoinPad(k)) return;
+    if (k === 'select' && page.start && !page.dialogs) start();
+  }, { signal });
+  return () => { letGo(); ac.abort(); };
 }
 
 // Fullscreen: Android and iPad; iPhone Safari can't make a page element fullscreen.

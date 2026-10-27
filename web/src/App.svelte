@@ -35,7 +35,7 @@
   const useClassic = () => { page.slow = null; setBoard('classic'); };
 </script>
 
-<div class="page" data-frame={frame} data-guide={touch && page.guidable ? '' : null}>
+<div class="page" data-frame={frame}>
   <header><h1 class="name">Restart Generation</h1><div class="who" id="who" hidden={!page.who}><Who /></div></header>
   <span class="ghost" aria-hidden="true">Restart<br>Generation</span>
   <main>

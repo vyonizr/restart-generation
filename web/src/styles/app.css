@@ -181,7 +181,9 @@
 
 .pad, .touch-only { display: none; }
 .typing, .wake { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.typing { font-size: 16px; } /* iOS zooms into smaller fields */
+/* The typing field sits at the viewport's top, above where the device's keyboard opens, so the browser doesn't scroll the page to show
+   it. iOS zooms into a field under 16px. */
+.typing { top: 0; bottom: auto; font-size: 16px; }
 :fullscreen { background: var(--ink-1); }
 
 @media (max-width: 759px) {
@@ -189,67 +191,96 @@
   .page[data-frame=full] { --screen-h: min(clamp(300px, 100dvh - 330px, 640px), (100vw - 32px) * 378 / 420); }
 }
 
-/* Touch devices: no header, and the touch pad under the game screen, both as wide as fits the height */
+/* Touch devices: no header. The page's first screenful is the game screen and the touch pad, the pad a fixed 12px above the
+   viewport's foot whatever the screen's frame, with the footer one swipe below. Spare height goes above the screen, so the screen
+   grows upward; a notice sits between the screen and the pad and takes its height from the screen, so the pad never moves
+   (.scratch/touch-controls/spec.md). */
 @media (hover: none) and (pointer: coarse) {
-  /* --cross: the D-pad's side. It is also capped so the D-pad, a 24px gap, Select and Back (a cell each, 16px apart) fit the width.
-     --pad-h: the pad's height, which the screen leaves room for: the D-pad's, and a row more for the Guide's book. */
-  :root { --cross: min(clamp(116px, 24.5dvh, 240px), calc(60vw - 40px)); --cell: calc((var(--cross) - 8px) / 3); --side: calc(var(--cell) * 2 + 16px); --chrome: 30px; }
-  .page { --pad-h: var(--cross); --w: min(100%, (100dvh - var(--chrome) - var(--pad-h)) * 3 / 4); }
-  .page[data-frame=full] { --w: min(100%, (100dvh - var(--chrome) - var(--pad-h)) * 420 / 378); }
-  .page[data-guide] { --pad-h: calc(var(--cross) + 48px); }
+  /* --rd: the round D-pad's diameter, and the side of the square Select and Back sit in; capped so the two fit the width side by side.
+     --pad-h: the pad's height, which the screen leaves room for: the D-pad, a 24px gap, and the tool bar. --chrome: main's padding and
+     the gap between the screen and the pad. --note-h: a notice's line and its gap, while one shows. */
+  /* --edge: how far the D-pad and the buttons sit in from the pad's sides, where a thumb rests rather than at the phone's edges. */
+  :root { --edge: clamp(10px, calc(5vw - 2px), 28px); --rd: min(clamp(116px, 26dvh, 230px), calc(50vw - 24px - var(--edge))); --tools-h: 68px; --chrome: 40px; }
+  .page { --pad-h: calc(var(--rd) + 24px + var(--tools-h)); --w: min(100%, (100dvh - var(--chrome) - var(--pad-h) - var(--note-h, 0px)) * 3 / 4); }
+  .page[data-frame=full] { --w: min(100%, (100dvh - var(--chrome) - var(--pad-h) - var(--note-h, 0px)) * 420 / 378); }
+  .page:has(#slow:not([hidden]), #nudge:not([hidden])) { --note-h: 64px; }
   header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
   .page { grid-template-rows: 1fr auto; }
   .touch-only { display: inline; }
   #who-touch, .online-line { display: flex; }
   html, body { overscroll-behavior: none; }
-  main { grid-template-columns: 100%; align-content: start; gap: 12px; padding: 0 16px 16px; }
-  .screen { height: auto; width: var(--w); }
+  main { min-height: 100dvh; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 12px; padding: 16px 12px 12px; }
+  .screen { flex: none; height: auto; width: var(--w); }
   .screen, .pad { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
-  /* The D-pad, and beside it Select and Back with Keyboard and Fullscreen below them: one cluster, as wide as it needs */
-  .pad { display: grid; justify-self: center; width: calc(var(--cross) + 24px + var(--side)); height: var(--cross);
-    grid-template: "c r" var(--cross) / var(--cross) var(--side); gap: 24px; }
-  /* Tapped buttons keep :hover on touch screens, so hover looks the same as rest */
-  .pad button, .pad button:hover { display: grid; place-content: center; justify-items: center; gap: 6px; padding: 0; font-size: 20px;
-    color: var(--light-2); background: var(--ink-2); border-color: var(--ink-3); transition: none; }
-  .pad .select, .pad .select:hover { color: #fff; background: var(--red); border-color: var(--red); }
-  .pad .small, .pad .small:hover { width: 44px; height: 44px; padding: 0; color: var(--light-3); background: none; }
-  .pad .small[aria-pressed=true], .pad .small[aria-pressed=true]:hover { color: #fff; }
-  .pad .small svg { width: 24px; max-width: none; }
+  /* The pad: the D-pad at the left, Select and Back at the right, the tool bar under both, as wide as the page up to 560px. It comes
+     after the notices, so they sit between it and the screen. */
+  .pad { order: 2; display: grid; width: 100%; max-width: 560px; grid-template: "d b" var(--rd) "t t" var(--tools-h) / 1fr 1fr; row-gap: 24px; }
+  .slow, .nudge { order: 1; }
+  /* Tapped buttons keep :hover on touch screens, so hover looks the same as rest. A control that does nothing yet (before the game
+     runs) waits at 45%, and the pad lights up over 0.4s when the game starts; a press inverts at once. */
+  .pad button, .pad button:hover { display: grid; place-content: center; padding: 0; color: var(--light-2); background: var(--ink-2);
+    border-color: var(--ink-3); transition: opacity .4s cubic-bezier(.16, 1, .3, 1); }
   .pad button.held, .pad button.held:hover { background: #fff; color: var(--red); border-color: #fff; }
-  .pad svg { width: 40%; max-width: 30px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: square; }
-  /* The D-pad: four arrows on a 3 × 3 grid. The middle and the corners are empty, so a thumb that lands there presses nothing. */
-  .cross { grid-area: c; container-type: size; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 4px; }
-  .cross button { font-size: min(11cqi, 24px); }
-  .cross [data-key=up] { grid-area: 1 / 2; }
-  .cross [data-key=left] { grid-area: 2 / 1; }
-  .cross [data-key=right] { grid-area: 2 / 3; } .cross [data-key=down] { grid-area: 3 / 2; }
-  /* The right side, for the thumb that steers: Select and Back side by side in the top row, level with Up, a cell wide each and 16px
-     apart, then the rarely pressed Keyboard and Fullscreen as quiet icons at the right edge. Its rows match the D-pad's. */
-  .side-r { grid-area: r; display: grid; grid-template: repeat(3, minmax(0, 1fr)) / repeat(2, var(--cell)); gap: 4px 16px; }
-  .side-r .select { grid-area: 1 / 1; font-size: min(calc(var(--cell) * .34), 24px); }
-  .side-r .back { grid-area: 1 / 2; font-size: 16px; }
-  .side-r .select, .side-r .back { width: 100%; height: 100%; }
-  .side-r .small { grid-column: 1 / 3; justify-self: end; align-self: center; }
-  .side-r #type { grid-row: 2; } .side-r #fullscreen { grid-row: 3; }
-  .side-r #board { grid-row: 3; grid-column: 1; justify-self: end; }
-  .side-r #finish { grid-row: 2; grid-column: 1; justify-self: end; }
-  /* The Guide's book: a fourth row of quiet icons, under Full board, so the pad grows by a 44px icon and its 4px gap. */
-  .pad.guide { height: var(--pad-h); grid-template: "c r" var(--cross) ". r" 48px / var(--cross) var(--side); row-gap: 0; }
-  .pad.guide .side-r { grid-template-rows: repeat(3, var(--cell)) 44px; }
-  .side-r #guide-book { grid-row: 4; grid-column: 1; justify-self: end; }
+  .pad .asleep { opacity: .45; }
+  .pad .asleep.held, .pad .asleep.held:hover { background: var(--ink-2); color: var(--light-2); border-color: var(--ink-3); }
+  .pad svg { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: square; }
+  /* The D-pad: a disc cut into four wedges, a thin gap of the disc's ink between them, around a dead centre. The whole disc presses an
+     arrow but the centre, so a thumb a little off its arrow still presses it, and one back in the middle lets go. */
+  .disc { grid-area: d; justify-self: start; position: relative; width: var(--rd); height: var(--rd); margin-left: var(--edge); border-radius: 50%;
+    overflow: hidden; background: var(--ink-3); }
+  /* Each wedge's box is its half of the disc, so the box's centre lies on the wedge (where assistive tech and a test tap), not on the
+     dead centre; the clip cuts the triangle out of it, its point at the disc's centre. The clip hides an outline, so a wedge with
+     keyboard focus lightens instead. */
+  .disc .wedge, .disc .wedge:hover { position: absolute; border: 0; }
+  .disc .wedge:focus-visible { outline: 0; background: var(--ink-3); color: #fff; }
+  .disc svg { width: max(20px, calc(var(--rd) * .13)); }
+  /* Each arrow sits near its wedge's rim. The rules name :hover too, because a touch screen keeps a tapped button hovered and the
+     pad's hover rule would otherwise centre the arrow, nudging it toward the middle after every tap. */
+  .pad .wedge.up, .pad .wedge.up:hover { inset: 0 0 50% 0; clip-path: polygon(50% 96%, 3% 0, 97% 0); place-content: start center; padding: 9% 0 0; }
+  .pad .wedge.down, .pad .wedge.down:hover { inset: 50% 0 0 0; clip-path: polygon(50% 4%, 97% 100%, 3% 100%); place-content: end center; padding: 0 0 9%; }
+  .pad .wedge.left, .pad .wedge.left:hover { inset: 0 50% 0 0; clip-path: polygon(96% 50%, 0 97%, 0 3%); place-content: center start; padding: 0 0 0 9%; }
+  .pad .wedge.right, .pad .wedge.right:hover { inset: 0 0 0 50%; clip-path: polygon(4% 50%, 100% 3%, 100% 97%); place-content: center end; padding: 0 9% 0 0; }
+  .rest { position: absolute; inset: 36%; border-radius: 50%; background: var(--ink-1); border: 1px solid var(--ink-3); }
+  /* Select and Back: round, in a square as wide as the D-pad. Select, big and crimson, at its bottom right under the thumb; Back,
+     smaller, at its top left, so a press meant for Select can't reach it. */
+  .buttons { grid-area: b; justify-self: end; position: relative; width: var(--rd); height: var(--rd); margin-right: var(--edge); }
+  .buttons button, .buttons button:hover { position: absolute; aspect-ratio: 1; border-radius: 50%; font-family: var(--display); text-transform: uppercase; }
+  .pad .select, .pad .select:hover { right: 0; bottom: 0; width: 60%; font-size: max(16px, calc(var(--rd) * .1)); color: #fff; background: var(--red); border-color: var(--red); }
+  .pad .select.asleep.held { background: var(--red); color: #fff; border-color: var(--red); }
+  .pad .back, .pad .back:hover { left: 0; top: 0; width: 40%; font-size: max(13px, calc(var(--rd) * .065)); }
+  /* The tools: a labeled bar under the D-pad and the buttons, ruled off above, each label in the form-label type. A tool that is on
+     (a pressed toggle, or Keyboard while the device's keyboard is up) carries the crimson bar on the rule, as the Guide's chosen tab
+     does, and a white label. */
+  .tools { grid-area: t; display: flex; justify-content: space-around; border-top: 1px solid var(--ink-3); }
+  .pad .tools button, .pad .tools button:hover { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 4px; min-width: 56px; padding: 10px 4px 4px; font: 500 13px/1.2 var(--body); text-transform: none; letter-spacing: normal;
+    text-align: center; text-wrap: balance; color: var(--light-3); background: none; border: 0; }
+  .pad .tools button[aria-pressed=true], .pad .tools button.held { color: #fff; background: none; }
+  .pad .tools button:is([aria-pressed=true], .held)::before { content: ''; position: absolute; top: -1px; left: 20%; right: 20%; height: 4px; background: var(--red); }
+  .tools svg { flex: none; width: 22px; }
 
-  /* Fullscreen pins the page to the viewport, so the footer would take room that the screen and the pad were sized to fill and push
-     the pad up under the screen. The page grows past the viewport and scrolls instead, as it does outside fullscreen. */
-  .page:fullscreen { grid-template-rows: max-content max-content; overflow: hidden auto; }
+  /* Fullscreen pins the page to the viewport: the first row is the viewport's height, so the pad stays at its foot, and the footer
+     follows, one swipe below, as it does outside fullscreen. */
+  .page:fullscreen { grid-template-rows: 100dvh max-content; overflow: hidden auto; }
 
   .slow, .nudge { display: flex; align-items: center; justify-content: center; gap: 12px; width: var(--w); justify-self: center;
     font: 13px/1.6 var(--body); color: var(--light-2); }
   .slow button { flex: none; font-size: 16px; padding: 6px 12px; }
   #replays .replay-actions a.button, #replays .replay-actions .replay-copy, .replays-state button { padding: 13px 16px; }
 }
-/* Landscape: a thinner bottom gap, so the column gets the height */
+/* Landscape: the D-pad left of the screen, Select, Back and the tools right of it, the screen centered between them at the page's
+   whole height. The pad fills the viewport, so nothing below can cover it. */
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
-  :root { --cross: min(clamp(116px, 32dvh, 240px), calc(60vw - 40px)); --chrome: 16px; }
-  main { padding-bottom: 4px; }
+  :root { --rd: min(26vw, 56dvh, 220px); --chrome: 16px; }
+  .page { --pad-h: 0px; --w: min(calc(100vw - 2 * (var(--rd) + var(--edge)) - 48px), (100dvh - var(--chrome) - var(--note-h, 0px)) * 3 / 4); }
+  .page[data-frame=full] { --w: min(calc(100vw - 2 * (var(--rd) + var(--edge)) - 48px), (100dvh - var(--chrome) - var(--note-h, 0px)) * 420 / 378); }
+  main { justify-content: center; padding: 8px 8px 4px; }
+  .pad { position: absolute; inset: 8px 8px 4px; width: auto; max-width: none;
+    grid-template: "d . b" 1fr "d . t" auto / calc(var(--rd) + var(--edge)) 1fr calc(var(--rd) + var(--edge));
+    row-gap: 4px; pointer-events: none; }
+  .pad > * { pointer-events: auto; }
+  .disc, .buttons { align-self: center; }
+  .tools { flex-wrap: wrap; border-top: 0; }
+  .pad .tools button:is([aria-pressed=true], .held)::before { top: 0; }
 }

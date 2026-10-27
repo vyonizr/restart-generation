@@ -131,7 +131,7 @@ A phone or tablet whose main input is a finger; it plays the browser client with
 _Avoid_: mobile, handheld
 
 **Touch pad**:
-The on-screen controls under the game screen on a touch device: a D-pad and, to its right, **Select** and **Back** level with Up, then **Keyboard**, **Soft screen**, and (where the browser supports it) **Fullscreen**.
+The on-screen controls on a touch device: a round D-pad, **Select** and **Back** beside it, and a bar of the rarely pressed **Keyboard**, **Soft screen**, **Full board**, **Fullscreen** (where the browser supports it), and **Guide** (when the copy has one).
 _Avoid_: virtual gamepad, on-screen keyboard
 
 **Custom keys**:
