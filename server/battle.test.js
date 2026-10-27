@@ -309,4 +309,45 @@ for (const s of [human, robot]) { battle.seat(botLeft, s, api); fromClient(botLe
 take(human);
 battle.leave(botLeft, botLeft.players[1], api);
 assert.deepEqual(take(human).map(m => [m.type, m.sender, m.body.readInt32LE(0)]), [[gm.TYPE.END_GAME, 2, 2]]);
+
+// An absent player is timed out at the phase time limit, as their own engine would be (docs/adr/0040): a held seat, one the gateway
+// can't reach, and one taken back, until the phase it lands in ends. A silent player who is still there keeps the forced end.
+const clock = { t: 1e6 }, cut = new Set();
+const after = ms => { clock.t = absent.phaseStart + ms; battle.tick(absent, { ...api, now: () => clock.t }); };
+const absent = inSeatOrder(battle.createTable(3, { ...api, now: () => clock.t, unreachable: s => cut.has(s) }));
+const person3 = name => Object.assign(client(name), { account: { id: name } });
+const [x1, x2, x3] = ['x1', 'x2', 'x3'].map(person3);
+for (const s of [x1, x2, x3]) { battle.seat(absent, s, api); fromClient(absent, s, join(s.name)); }
+[x1, x2, x3].forEach((s, i) => say(absent, s, i + 1, gm.TYPE.PLACE_TILE, 1, 2));
+assert.deepEqual([absent.turn, absent.phase], [1, 4]);
+battle.leave(absent, absent.players[0], api); // x1's session ends in its own turn: its seat is held
+take(x2);
+after(22900);
+assert(!absent.ended4.has(1), 'ended an absent turn before the limit and the grace');
+after(23100);
+assert.deepEqual(take(x2).map(m => m.type), [gm.TYPE.END_TURN], 'an absent player\'s turn ends at the phase time limit');
+after(24000);
+assert(!absent.ended4.has(2), 'a silent player who is still there was timed out like an absent one');
+say(absent, x2, 2, gm.TYPE.END_TURN_REQUEST, 1, 4); say(absent, x3, 3, gm.TYPE.END_TURN_REQUEST, 1, 4);
+for (const [s, n] of [[x2, 2], [x3, 3]]) for (let i = 0; i < 2; i++) say(absent, s, n, gm.TYPE.FIRE_CANNON, 1, 5);
+after(19900);
+assert.equal(absent.phase, 5, 'the cannon phase stopped waiting for an absent player before the limit');
+after(20100);
+assert.deepEqual([absent.turn, absent.phase], [2, 2]);
+// Silent for a whole turn, x1 would be counted done at once; absent, the tile phase still waits out its time limit.
+say(absent, x2, 2, gm.TYPE.PLACE_TILE, 2, 2); say(absent, x3, 3, gm.TYPE.PLACE_TILE, 2, 2);
+assert.equal(absent.phase, 2, 'an absent player ended the tile phase before its time limit');
+const x1back = person3('x1'); // x1 reloads and takes the seat back in this phase, where its engine does nothing
+battle.seat(absent, x1back, api); fromClient(absent, x1back, join('x1'));
+after(19900);
+assert.equal(absent.phase, 2, 'a rejoined player ended the tile phase it landed in before the limit');
+after(20100);
+assert.deepEqual([absent.turn, absent.phase], [2, 4]);
+after(24000);
+assert(!absent.ended4.has(1), 'a rejoined player was still timed out after the phase it landed in');
+say(absent, x1back, 1, gm.TYPE.END_TURN_REQUEST, 2, 4);
+cut.add(x2); // the gateway can't reach x2 any more, though its session hasn't ended
+take(x3);
+after(23100);
+assert.deepEqual(take(x3).map(m => m.type), [gm.TYPE.END_TURN], 'an unreachable player\'s turn ends at the phase time limit');
 console.log('battle host ok');

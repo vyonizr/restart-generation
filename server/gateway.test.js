@@ -2,12 +2,19 @@
 const assert = require('assert');
 for (const k of Object.keys(process.env)) if (k.startsWith('RG_')) delete process.env[k]; // the shell's .env mustn't change the result
 process.env.RG_DB = ':memory:';
-const { staleSessions, lanAddresses, handle, processRequest, seatRequest, db } = require('./gateway');
+const { staleSessions, unreachable, lanAddresses, handle, processRequest, seatRequest, db } = require('./gateway');
 
 const now = 100000;
 const sessions = new Map([['a', { name: 'gone', lastSeen: now - 46000 }], ['b', { name: 'here', lastSeen: now - 44000 }]]);
 assert.deepEqual(staleSessions(sessions, now, 45000).map(s => s.name), ['gone']);
 console.log('gateway idle expiry ok');
+
+// A browser silent for 20 s can't be reached, a Java client only once its connection has closed (docs/adr/0040).
+assert.equal(unreachable({ web: true, lastSeen: now - 19999 }, now), false);
+assert.equal(unreachable({ web: true, lastSeen: now - 20000 }, now), true);
+assert.equal(unreachable({ lastSeen: now - 40000 }, now), false, 'a Java client is judged by its connection, not its silence');
+assert.equal(unreachable({ cut: true, lastSeen: now }, now), true);
+console.log('gateway unreachable sessions ok');
 
 const interfaces = {
   lo: [{ address: '127.0.0.1', family: 'IPv4', internal: true }],

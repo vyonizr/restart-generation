@@ -4,6 +4,8 @@ status: accepted
 
 # A battle seat outlives its session
 
+Amended by [ADR 0040](0040-an-absent-player-is-timed-out-at-the-phase-time-limit.md): an absent player's phases and turns end at the phase time limit, not at the forced end.
+
 Until now, a player dropped out the moment their SNAP session ended. That happens after 45 s of silence, or at once when a reload's new login replaces the old session (ADR 0004, ADR 0009). `battle.leave()` then broadcast EndGame reason 2, which every engine treats as a defeat that can't be undone. So a reload, a crash, or a phone asleep for a minute lost the battle, and a ranked one cost fame.
 
 Now the end of a session and the end of a seat are separate:
