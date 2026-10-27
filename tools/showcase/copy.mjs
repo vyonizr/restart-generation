@@ -55,4 +55,8 @@ export const FEATURES = {
     headline: 'Play on your phone',
     caption: 'On a phone or tablet, a touch pad sits under the game: D-pad, Select and Back.',
   },
+  touchpad: {
+    headline: 'UI update',
+    caption: 'New touch controls: a round D-pad, Select and Back at your thumb, and labeled tools.',
+  },
 };

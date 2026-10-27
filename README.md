@@ -132,7 +132,7 @@ This rule works only on a private network. If Windows shows your network as publ
 - [Run a server](docs/HOSTING.md): Docker, Discord sign-in, battle templates, account deletion, and the original Java client.
 - [Deploy to a virtual private server (VPS)](docs/DEPLOY.md): the whole procedure for a public server.
 - How it works: [the protocol](docs/protocol.md), the [architecture decision records (ADRs)](docs/adr/), [notes on the original game](docs/re/), [the emulator](shared/emu), and [the page](web/src).
-- [Showcase pictures and clips](docs/adr/0036-showcase-assets-are-generated-locally-and-never-committed.md): `npm run showcase` films the page with made-up players into `tmp/showcase/`, for posts outside this repository. They show the game, so they are never committed.
+- [Showcase pictures and clips](docs/adr/0036-showcase-assets-are-generated-locally-and-never-committed.md): `npm run showcase` films the page with made-up players into `tmp/showcase/`, for posts outside this repository, and takes stills: the page with one battle frame drawn into its screen, alone or beside the page at an older commit (`npm run showcase -- --stills`). They show the game, so they are never committed.
 - [Contributing](CONTRIBUTING.md): how to help, and what you can't commit.
 
 ## Legal

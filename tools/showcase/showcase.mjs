@@ -3,11 +3,15 @@
 // which git ignores and `npm run legal-check` refuses, and is never committed (docs/LEGAL.md rule 2).
 //
 // Usage: npm run showcase [-- --fresh] [-- --only replay,footage,online,room,arcade] [-- --aspect 16x9,1x1,9x16] [-- --cards]
+//                         [-- --stills [touch-pad-update,touch-pad]]
 //   --fresh    play the cast's battles again instead of using tmp/showcase/cache/
 //   --only     film these scenes only (shots.mjs); the manifest keeps the other scenes' files
 //   --aspect   in these shapes only (capture.mjs)
 //   --cards    film nothing: draw the cards and the preview again from the manifest, as after editing copy.mjs
-// Needs RG_GAME (.env) and battle templates (data/templates/ or data/battle-templates.zip), as `npm run seed -- --play` does.
+//   --stills   film nothing: take these stills only, or all of them (stills.mjs), then the cards. Without --stills, --cards or
+//              --only, the showcase films every scene and then takes every still.
+// Filming needs RG_GAME (.env) and battle templates (data/templates/ or data/battle-templates.zip), as `npm run seed -- --play` does;
+// stills need only RG_GAME, and use the cast's battles if they're cached.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,11 +20,12 @@ import { ASPECTS, launch, encoder } from './capture.mjs';
 import { scenes } from './shots.mjs';
 import { cards } from './cards.mjs';
 import { preview } from './preview.mjs';
+import { takeStills } from './stills.mjs';
 import { buildPage } from '../../e2e/global-setup.mjs';
 
 const OUT = path.join(root, 'tmp', 'showcase');
 const argv = process.argv.slice(2);
-const list = name => { const i = argv.indexOf(`--${name}`); return i < 0 ? null : (argv[i + 1] ?? '').split(',').filter(Boolean); };
+const list = name => { const i = argv.indexOf(`--${name}`); return i < 0 ? null : (argv[i + 1] ?? '').split(',').filter(n => n && !n.startsWith('--')); };
 
 function fail(message) {
   console.error(message);
@@ -31,10 +36,16 @@ const manifestFile = path.join(OUT, 'manifest.json');
 const readManifest = () => fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, 'utf8')) : { assets: [] };
 const rel = f => path.relative(OUT, f).split(path.sep).join('/');
 
-async function film() {
-  if (!process.env.RG_GAME) fail('The showcase films the game, so it needs RG_GAME, your copy of the game (see .env.example).');
+// RG_GAME, resolved, or the run stops: everything the showcase makes draws the game.
+function gameCopy() {
+  if (!process.env.RG_GAME) fail('The showcase shows the game, so it needs RG_GAME, your copy of the game (see .env.example).');
   const game = path.resolve(root, process.env.RG_GAME);
   if (!fs.existsSync(game)) fail(`RG_GAME names ${process.env.RG_GAME}, which doesn't exist.`);
+  return game;
+}
+
+async function film() {
+  const game = gameCopy();
   if (!fs.existsSync(path.join(root, 'data', 'templates')) && !fs.existsSync(path.join(root, 'data', 'battle-templates.zip')))
     fail('Online battles need battle templates in data/templates/ or data/battle-templates.zip (docs/adr/0006).');
   const all = ['replay', 'footage', 'online', 'room', 'arcade'];
@@ -86,10 +97,37 @@ async function film() {
   return failed;
 }
 
-const failed = argv.includes('--cards') ? [] : await film();
+// The stills `only` (all if empty), each still's files replaced in the manifest.
+async function stills(only) {
+  const game = gameCopy(), aspects = list('aspect') ?? Object.keys(ASPECTS);
+  for (const a of aspects) if (!ASPECTS[a]) fail(`--aspect: no shape ${a} (${Object.keys(ASPECTS).join(', ')})`);
+  buildPage();
+  const manifest = readManifest(), taken = [];
+  const browser = await launch();
+  let failed;
+  try {
+    failed = await takeStills({ browser, out: OUT, game, only: only.length ? only : null, aspects,
+      add: a => taken.push({ ...a, file: rel(a.file), ...(a.before ? { before: rel(a.before) } : {}), scene: 'stills' }) });
+  } catch (e) {
+    fail(e.message);
+  } finally {
+    await browser.close();
+  }
+  // The files of the stills taken again are replaced; a still not taken this time keeps its files.
+  const again = new Set(taken.map(a => `${a.still} ${a.aspect}`));
+  manifest.assets = [...manifest.assets.filter(a => !(a.scene === 'stills' && again.has(`${a.still} ${a.aspect}`))), ...taken];
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+  return failed;
+}
+
+const filming = !argv.includes('--cards') && !argv.includes('--stills');
+const failed = [
+  ...filming ? await film() : [],
+  ...argv.includes('--stills') || (filming && !list('only')) ? await stills(list('stills') ?? []) : [],
+];
 const manifest = readManifest();
 await cards(OUT, manifest);
 preview(OUT, manifest);
 fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
 console.log(`Done: ${manifest.assets.length} files, ${manifest.cards?.length ?? 0} cards. Open tmp/showcase/index.html.`);
-if (failed.length) fail(`Some scenes failed:\n  ${failed.join('\n  ')}`);
+if (failed.length) fail(`Some scenes or stills failed:\n  ${failed.join('\n  ')}`);
