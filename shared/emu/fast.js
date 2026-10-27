@@ -843,4 +843,108 @@ export function installFastPaths(cpu, addr) {
     r[0] = 0; r[1] = b; r[2] = stepA; r[5] = a;
     c.eip = fadeDone;
   });
+
+  // The engine's zlib (docs/re/re_zlib.md) unpacks every picture it loads, so an animation that loads its pictures as
+  // it starts spends most of that frame in two loops: the checksum and the decoder's fast loop.
+  // FUN_100a2930's 16-byte loops: a sums the bytes, b sums a after each byte. The trap at the long loop's head
+  // (0x100a29f0) runs its EAX turns and leaves at the reduction after it (0x100a2a79), whose MOV and XOR set EAX, EDX and
+  // the flags. The trap at the short loop's head (0x100a2ab1) also takes 16 off EBX each turn and leaves at its TEST
+  // (0x100a2b3d). Both leave EAX 0 and EDX the last byte, as the loops do.
+  const sums16 = (p, turns) => {
+    let a = r[1] >>> 0, b = r[7] >>> 0;
+    for (const end = p + turns * 16; p < end; p++) { a += m8[p]; b += a; }
+    r[0] = 0; r[1] = a; r[2] = m8[p - 1]; r[6] = p; r[7] = b;
+  };
+  const longSumsDone = addr(0x100a2a79), shortSumsDone = addr(0x100a2b3d);
+  cpu.traps.set(addr(0x100a29f0), c => { sums16(r[6] >>> 0, r[0] >>> 0); c.eip = longSumsDone; });
+  cpu.traps.set(addr(0x100a2ab1), c => {
+    const turns = r[0] >>> 0;
+    sums16(r[6] >>> 0, turns); r[3] = (r[3] - turns * 16) | 0;
+    c.eip = shortSumsDone;
+  });
+
+  // FUN_100a4910, the decoder's fast loop. The trap at the loop's head (0x100a49a2), after the prologue has laid out the
+  // frame, decodes until the input passes its last safe byte or the output its last safe place, an end of block, or a bad
+  // code, and leaves at the epilogue (0x100a4d28) with the registers it reads: EBX the bit count, EDX the input pointer,
+  // EDI the bit buffer, ESI the output pointer, EBP the state. Both pointers point at the byte before the next one, as the
+  // loop keeps them. The loop keeps the length in the stack slot of the routine's second argument, which the caller
+  // owns, so the trap leaves there the last value the loop would have written.
+  const inflateDone = addr(0x100a4d28);
+  const tooFarBack = addr(0x1017c9c8), badDistance = addr(0x1017c9e8), badLength = addr(0x1017ca00);
+  cpu.traps.set(addr(0x100a49a2), c => {
+    const esp = r[4] >>> 0, strm = rd(esp + 0x50) >>> 0, state = r[5] >>> 0;
+    const last = rd(esp + 0x30) >>> 0, end = rd(esp + 0x34) >>> 0, beg = rd(esp + 0x44) >>> 0;
+    const lcode = rd(esp + 0x20) >>> 0, dcode = rd(esp + 0x24) >>> 0, lmask = rd(esp + 0x38), dmask = rd(esp + 0x3c);
+    const wsize = rd(esp + 0x28) >>> 0, window = rd(esp + 0x2c) >>> 0, write = rd(esp + 0x1c) >>> 0, whave = rd(esp + 0x48) >>> 0;
+    let inp = r[2] >>> 0, out = r[6] >>> 0, hold = r[7] >>> 0, bits = r[3] >>> 0, slot = rd(esp + 0x54) >>> 0;
+    const refill = () => { hold = (hold + (m8[inp + 1] << bits)) >>> 0; inp++; bits = (bits + 8) >>> 0; };
+    const copy = (from, n) => { for (; n > 0; n--) m8[++out] = m8[++from]; return from; };
+    let here = 0, op = 0;
+    const take = () => { op = here & 0xff; const n = (here >>> 8) & 0xff; hold = (hold >>> (n & 31)) >>> 0; bits = (bits - n) >>> 0; };
+    decode: do {
+      if (bits < 15) { refill(); refill(); }
+      here = rd(lcode + (lmask & hold) * 4); take();
+      for (;;) {
+        if (op === 0) { m8[++out] = (here >>> 16) & 0xff; continue decode; }
+        if (op & 0x10) break;
+        if (op & 0x40) {
+          if (op & 0x20) wr(state, 0xb);
+          else { wr(strm + 0x18, badLength); wr(state, 0x1b); }
+          break decode;
+        }
+        slot = 1;
+        here = rd(lcode + ((((1 << op) - 1) & hold) + (here >>> 16)) * 4); take();
+      }
+      slot = here >>> 16;
+      op &= 0xf;
+      if (op) {
+        if (bits < op) refill();
+        slot = (slot + (((1 << op) - 1) & hold)) >>> 0;
+        hold = (hold >>> op) >>> 0; bits = (bits - op) >>> 0;
+      }
+      if (bits < 15) { refill(); refill(); }
+      here = rd(dcode + (dmask & hold) * 4); take();
+      while (!(op & 0x10)) {
+        if (op & 0x40) { wr(strm + 0x18, badDistance); wr(state, 0x1b); break decode; }
+        here = rd(dcode + ((((1 << op) - 1) & hold) + (here >>> 16)) * 4); take();
+      }
+      op &= 0xf;
+      if (bits < op) { refill(); if (bits < op) refill(); }
+      const dist = ((here >>> 16) + (((1 << op) - 1) & hold)) >>> 0;
+      bits = (bits - op) >>> 0; hold = (hold >>> op) >>> 0;
+      const have = (out - beg) >>> 0;
+      let from;
+      if (dist <= have) {
+        // From the output already written, three bytes a turn while more than two are left.
+        from = out - dist;
+        do { from = copy(from, 3); slot = (slot - 3) >>> 0; } while (slot > 2);
+        if (slot) { m8[++out] = m8[++from]; if (slot > 1) m8[++out] = m8[++from]; }
+        continue;
+      }
+      // From the window, which may wrap, then from the output.
+      let n = (dist - have) >>> 0;
+      if (n > whave) { wr(strm + 0x18, tooFarBack); wr(state, 0x1b); break; }
+      from = window - 1;
+      if (write === 0) {
+        from += wsize - n;
+        if (n < slot) { slot = (slot - n) >>> 0; copy(from, n); from = out - dist; }
+      } else if (write < n) {
+        from += wsize + write - n; n -= write;
+        if (n < slot) {
+          slot = (slot - n) >>> 0; copy(from, n);
+          from = window - 1;
+          if (write < slot) { slot = (slot - write) >>> 0; copy(from, write); from = out - dist; }
+        }
+      } else {
+        from += write - n;
+        if (n < slot) { slot = (slot - n) >>> 0; copy(from, n); from = out - dist; }
+      }
+      // The rest: three bytes a turn while more than two are left, then one or two.
+      while (slot > 2) { from = copy(from, 3); slot -= 3; }
+      if (slot) { m8[++out] = m8[++from]; if (slot > 1) m8[++out] = m8[++from]; }
+    } while (inp < last && out < end);
+    wr(esp + 0x54, slot);
+    r[2] = inp; r[3] = bits; r[5] = state; r[6] = out; r[7] = hold;
+    c.eip = inflateDone;
+  });
 }
