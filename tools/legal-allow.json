@@ -9,6 +9,7 @@
     "web/public/icon-512.png": "Made from favicon.svg: the Discord application icon",
     "web/public/apple-touch-icon.png": "Made from favicon.svg",
     "web/public/wake.mp4": "Generated for this project: a few seconds of black video that keeps a phone awake (wake.js)",
+    "docs/repo-card.png": "Drawn for this project: the repository's social preview card, its name in Anton over an outlined copy of it, a tagline in Manrope and the non-affiliation line in Roboto Mono, in the page's own colors; no game art",
     "web/fonts/anton.woff2": "Only in older commits: the same Anton font, before it moved to web/src/assets/fonts (ADR 0035)",
     "web/fonts/raleway.woff2": "Only in older commits: the Raleway font, before it moved to web/src/assets/fonts (ADR 0035) and Manrope replaced it",
     "web/src/assets/fonts/raleway.woff2": "Only in older commits: the Raleway font, SIL Open Font License 1.1, before Manrope replaced it",
