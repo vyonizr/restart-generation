@@ -239,7 +239,7 @@ A player whose page or bot sends nothing more while the battle goes on for the o
 _Avoid_: stalled client, frozen page, stopped page
 
 **Absent player**:
-A player whose page lost its place in a running battle, by a reload, a crash, or a phone asleep too long, while the server still holds their seat. The others see a stopped player: their turns end by themselves, and nobody waits for them. A player who leaves the battle through the game's own menus isn't absent: they have left.
+A player whose page lost its place in a running battle, by a reload, a crash, or a phone asleep too long, while the server still holds their seat; or whose page the server can no longer reach, though their session hasn't ended yet. The others see a stopped player whose phases and turns end at the phase time limit, as a live player's who does nothing would, and nobody waits for them longer. A player who leaves the battle through the game's own menus isn't absent: they have left.
 _Avoid_: disconnected player, away player, stopped player (that is how the others see them)
 
 **Rejoin**:
@@ -255,7 +255,7 @@ The countdown each player sees during a phase; when it runs out, the phase ends 
 _Avoid_: turn timer, player timeout
 
 **Forced end**:
-The server ending a phase, or a turn in the player-turns phase, that no player ended: 30 seconds after the phase time limit, or 3 minutes after it began in a relaxed match (1 minute for cannons).
+The server ending a phase, or a turn in the player-turns phase, that no player ended: 30 seconds after the phase time limit, or 3 minutes after it began in a relaxed match (1 minute for cannons). An absent player's phases end sooner, at the phase time limit.
 _Avoid_: timeout, stall timer
 
 **Battle template**:
