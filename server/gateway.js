@@ -35,6 +35,9 @@ const POLL_HOLD_MS = 15000; // client gives up on long requests after ~40 s
 // A session with no request for this long is logged out (closed browser, killed client). Must exceed
 // POLL_HOLD_MS and the Java client's 40 s resend timeout.
 const IDLE_MS = 45000;
+// A browser session with no request for this long can't be reached, though it isn't logged out yet: a live page always has a poll
+// held here (POLL_HOLD_MS) and sends the next at once. A battle times such a player out at the phase time limit (docs/adr/0040).
+const SILENT_MS = 20000;
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
 
@@ -112,6 +115,9 @@ function dropSession(s) {
 }
 
 const staleSessions = (sessions, now, ms) => [...sessions.values()].filter(s => now - s.lastSeen > ms);
+// Whether the session can no longer be reached: a browser silent for SILENT_MS, or a Java client whose TCP connection closed.
+// Nothing says a Java client keeps the page's poll rhythm, so only its connection counts; both clear at the session's next request.
+const unreachable = (s, now) => Boolean(s.cut || (s.web && now - s.lastSeen >= SILENT_MS));
 
 function pushEvent(s, line) {
   s.events.push(line);
@@ -156,8 +162,8 @@ const api = {
   },
   // The only game-data event the client reads.
   send(s, data, from = '0') { pushEvent(s, `${EVENT.GAME_PACKET_TARGET}|${from}|${data.toString('base64')}`); },
-  // Tells a browser that its battle's replay is kept, under this id (shared/snap.js).
   replaySaved(s, id) { if (sessions.get(s.sid) === s) pushEvent(s, `${EVENT.REPLAY_SAVED}|${id}`); },
+  unreachable: s => unreachable(s, Date.now()),
 };
 
 // POST /seat (docs/adr/0038): whether the account holds a seat in a running battle, or, with `leave`, gives it up. It asks with the
@@ -298,10 +304,11 @@ function handle(req, s, send) {
 // A request without a session (INIT, login) is keyed by its whole text, not by R: behind a proxy every browser has the proxy's
 // address, and two players whose R matched would otherwise get one login reply, session included.
 // `web` marks a request that came over HTTP: its session is a browser's, which reads events the Java client doesn't know.
-function processRequest(text, addr, reply, web = false) {
+// `conn` is the Java client's TCP connection it came on, whose close makes the session unreachable (`unreachable`).
+function processRequest(text, addr, reply, web = false, conn = null) {
   const req = parseRequest(text);
   const s = sessions.get(req.session);
-  if (s) { s.lastSeen = Date.now(); if (web) s.web = true; }
+  if (s) { s.lastSeen = Date.now(); if (web) s.web = true; s.conn = conn; s.cut = false; }
   const cacheKey = req.session ? `${req.session}:${req.rid}` : `${addr}:${text}`;
   if (replies.has(cacheKey)) return reply(replies.get(cacheKey));
   if (req.cmd !== CMD.RETRIEVE_ALL_EVENTS) log(`<- ${s?.name || '(no session)'} C=${req.cmd}`, req.cmd === CMD.EXTENDED_LOGIN ? `user=${req.params[1]}` : '');
@@ -317,7 +324,7 @@ function processRequest(text, addr, reply, web = false) {
 const lanAddresses = interfaces => Object.entries(interfaces).flatMap(([name, list]) =>
   list.filter(a => a.family === 'IPv4' && !a.internal).map(a => [name, a.address]));
 
-module.exports = { staleSessions, lanAddresses, handle, processRequest, seatRequest, db };
+module.exports = { staleSessions, unreachable, lanAddresses, handle, processRequest, seatRequest, db };
 if (require.main !== module) return; // tests import the module without starting the servers
 
 // A public server publishes Terms and a Privacy policy that name who runs it, who stores its data for them, and where players and
@@ -357,11 +364,14 @@ net.createServer(sock => {
       if (f.type === FRAME.HELLO) { sock.write(frame(FRAME.HELLO_ACK, f.seq)); continue; }
       if (f.type === FRAME.STAT) { sock.write(frame(FRAME.STAT_ACK, f.seq)); continue; }
       if (f.type !== FRAME.REQUEST) { log(id, 'frame type', f.type); continue; }
-      processRequest(f.payload.toString('utf8'), addr, payload => { if (!sock.destroyed) sock.write(frame(FRAME.RESPONSE, f.seq, payload)); });
+      processRequest(f.payload.toString('utf8'), addr, payload => { if (!sock.destroyed) sock.write(frame(FRAME.RESPONSE, f.seq, payload)); }, false, sock);
     }
   });
   sock.on('error', e => log(id, e.message));
-  sock.on('close', () => log('disconnect', id));
+  sock.on('close', () => {
+    log('disconnect', id);
+    for (const s of sessions.values()) if (s.conn === sock) s.cut = true;
+  });
 }).listen(PORT, HOST, () => log(`SNAP gateway on tcp/${PORT}`));
 gameServer.start?.(api);
 setInterval(() => {

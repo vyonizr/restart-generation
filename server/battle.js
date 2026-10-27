@@ -26,6 +26,10 @@ const BOT_IDLE_MS = 15000;        // a live bot acts about 4 s into a phase; a b
 const SUSPECT_MS = 30000;         // a person who sat out the previous phase, or was skipped in phase 4, is presumed defeated this far into a phase
 // How long a person's seat is held after their session leaves a running battle (CONTEXT.md "Rejoin window", docs/adr/0038).
 const REJOIN_WINDOW_MS = 120000;
+// An absent player's turn ends this long after the phase time limit (docs/adr/0040): if the server's idea of whose turn it is
+// is wrong (the clients skipped a defeated player nobody reported), the live turn owner's own end-turn request gets in first,
+// and the server doesn't end that one turn twice.
+const ABSENT_GRACE_MS = 3000;
 const ORDERS = new Set([gm.TYPE.MOVE_UNIT, gm.TYPE.FIRE_CANNON, gm.TYPE.PLACE_TILE, gm.TYPE.ATTACK,
   gm.TYPE.POINT, gm.TYPE.SPECIAL_SKILL]);
 
@@ -161,9 +165,12 @@ function createTable(seats, api, relaxed = false) {
     seq: 3, started: false, // server seq continues after the handshake messages (1-3)
     now, createdAt: now(),
     deadline: now() + START_DEADLINE_MS,
-    turn: 0, phase: 0, phaseStart: 0, done: new Set(), ended4: new Set(),
+    turn: 0, phase: 0, phaseStart: 0, part: 0, done: new Set(), ended4: new Set(),
     cannons: cannonCount(t.game), fired: new Map(), // team -> FireCannon count this phase
     forceAfter: limits.map((l, phase) => l === -1 ? -1 : relaxed ? (phase === PHASE.CANNONS ? RELAXED_CANNON_MS : RELAXED_MS) : l + OVERTIME_MS), // ms, per phase
+    limits, // the template's phase time limits, a relaxed match's too: an absent player is timed out at them (docs/adr/0040)
+    // Whether the gateway can no longer reach a session (a browser silent too long, a Java client whose connection closed).
+    unreachable: api.unreachable ?? (() => false),
     losers: [], lastOrderTeam: 0, finished: false,
   };
   const witness = api.witness ?? defaultWitness;
@@ -225,7 +232,7 @@ function seat(table, s, api) {
   }
   if (table.players.some(p => p.s === s) || table.players.length >= table.seats) return;
   const p = { s, state: 'joining', index: 0, team: 0, lastSeq: 0, seen: step(1, PHASE.TILE_PLACEMENT), skipped: 0, fired5: 0, bot: Boolean(s.account?.bot),
-    away: null, rejoining: null };
+    away: null, rejoining: null, backIn: -1 };
   table.players.push(p);
   sendMsg(table, p, step1(table), api);
 }
@@ -259,11 +266,12 @@ function onJoinInfo(table, p, body, api) {
 // new Commander in every engine. Its hero is the one it joined with; the JoinInfo's is ignored. From here it is an ordinary seat.
 // Its silence counts afresh from the next turn: it couldn't act while it was away, and it doesn't in the phase it lands in, so the
 // silence rules would otherwise end its next tile phase the moment the others had placed (a whole turn silent), or 30 s in
-// (presumed defeated for the cannon phase it missed). So it counts as having acted through this turn's cannon phase.
+// (presumed defeated for the cannon phase it missed). So it counts as having acted through this turn's cannon phase. It stays
+// absent until this phase or turn ends (`absentLimit`), since its engine doesn't end the one it lands in.
 function onRejoinInfo(table, p, api) {
   catchUp(table, p, api);
   p.rejoining = null;
-  p.seen = step(table.turn, PHASE.CANNONS); p.fired5 = table.turn; p.skipped = 0;
+  p.seen = step(table.turn, PHASE.CANNONS); p.fired5 = table.turn; p.skipped = 0; p.backIn = table.part;
   report(table, api, `${p.s.name} rejoined as player ${p.index} with ${table.history.length} messages`);
 }
 
@@ -278,8 +286,9 @@ function maybeBegin(table, api) {
   enterPhase(table, 1, PHASE.TILE_PLACEMENT);
 }
 
+// `part` counts every start of a phase, or of a turn in phase 4: what `phaseStart` times.
 function enterPhase(table, turn, phase) {
-  table.turn = turn; table.phase = phase; table.phaseStart = table.now();
+  table.turn = turn; table.phase = phase; table.phaseStart = table.now(); table.part++;
   table.done.clear(); table.fired.clear();
   if (phase === PHASE.TILE_PLACEMENT) table.ended4.clear();
 }
@@ -297,7 +306,7 @@ function endTurn(table, api, why) {
   if (phase === PHASE.TILE_PLACEMENT) return enterPhase(table, turn, PHASE.PLAYER_TURNS);
   if (phase === PHASE.PLAYER_TURNS) {
     const left = alive(table).filter(p => !table.ended4.has(p.team));
-    if (left.length) { table.phaseStart = table.now(); return; }
+    if (left.length) { table.phaseStart = table.now(); table.part++; return; }
     return enterPhase(table, turn, PHASE.CANNONS);
   }
   return enterPhase(table, turn + 1, PHASE.TILE_PLACEMENT);
@@ -322,13 +331,25 @@ const suspect = (table, p) => {
   if (table.phase === PHASE.CANNONS) return p.seen < step(table.turn, PHASE.TILE_PLACEMENT) || p.skipped === table.turn;
   return table.phase === PHASE.TILE_PLACEMENT && (p.seen < step(table.turn - 1, PHASE.CANNONS) || (table.cannons > 0 && table.turn > 1 && p.fired5 !== table.turn - 1));
 };
+// Absent (docs/adr/0040): a person whose seat is held, who is taking it back, or who took it back in this phase or turn, or whose
+// session the gateway can't reach any more. No engine ends their phase, so the server ends it at the phase time limit, as their own
+// engine would have: they hold the others up no longer, and no sooner, than a live player who does nothing. Returns that limit in
+// ms, or null for a seat that isn't absent or a phase without one.
+const absentLimit = (table, p) => {
+  const limit = table.limits[table.phase] ?? -1;
+  return limit > 0 && !p.bot && (p.away !== null || p.rejoining !== null || p.backIn === table.part || table.unreachable(p.s)) ? limit : null;
+};
 // Phases 2 and 5 only. In phase 4 the server never ends or skips a turn on silence: a silent player may be a defeated player
 // (the clients skip them) or a stopped player (the clients still wait for them), and the server can't
 // tell which. It follows the clients instead, on the first order of a later phase, or the forced end ends the turn.
-// Waiting for no one at all ends the phase at once (see `lose`).
-const goneWhy = (table, p) => lapsed(table, p) ? 'silent for a whole turn'
-  : p.bot && waited(table, BOT_IDLE_MS) ? `a bot silent for ${BOT_IDLE_MS / 1000} s`
-  : suspect(table, p) && waited(table, SUSPECT_MS) ? 'presumed defeated' : null;
+// Waiting for no one at all ends the phase at once (see `lose`). An absent player is done at the phase time limit, never sooner.
+const goneWhy = (table, p) => {
+  const limit = absentLimit(table, p);
+  if (limit !== null) return waited(table, limit) ? `absent past the ${limit / 1000} s phase time limit` : null;
+  return lapsed(table, p) ? 'silent for a whole turn'
+    : p.bot && waited(table, BOT_IDLE_MS) ? `a bot silent for ${BOT_IDLE_MS / 1000} s`
+    : suspect(table, p) && waited(table, SUSPECT_MS) ? 'presumed defeated' : null;
+};
 const allDone = table => alive(table).every(p => table.done.has(p.team) || goneWhy(table, p));
 const endIfAllDone = (table, api) => {
   if (!allDone(table)) return;
@@ -487,16 +508,27 @@ function tick(table, api) {
   return out;
 }
 
+// The seat whose phase-4 turn the server believes it is: turns run in ascending seat number, and players don't join in seat order.
+const current = table => alive(table).filter(p => !table.ended4.has(p.team)).sort((x, y) => x.team - y.team)[0];
+
 function advance(table, api) {
   if (!table.started) return maybeBegin(table, api);
   if ((table.phase === PHASE.TILE_PLACEMENT || table.phase === PHASE.CANNONS) && !table.finished && alive(table).length && allDone(table)) return endIfAllDone(table, api);
+  if (table.finished) return;
+  if (table.phase === PHASE.PLAYER_TURNS) {
+    const cur = current(table);
+    const absent = cur ? absentLimit(table, cur) : null;
+    if (absent !== null && waited(table, absent + ABSENT_GRACE_MS)) {
+      table.ended4.add(cur.team);
+      return endTurn(table, api, `seat ${cur.team} is absent: its turn ended after the ${absent / 1000} s phase time limit`);
+    }
+  }
   const limit = table.forceAfter[table.phase] ?? -1;
-  if (limit === -1 || table.finished) return;
+  if (limit === -1) return;
   if (table.now() - table.phaseStart > limit) {
     let whose = '';
     if (table.phase === PHASE.PLAYER_TURNS) {
-      // Turns run in ascending seat number, and players don't join in seat order.
-      const cur = alive(table).filter(p => !table.ended4.has(p.team)).sort((x, y) => x.team - y.team)[0];
+      const cur = current(table);
       if (cur) { table.ended4.add(cur.team); whose = ` of seat ${cur.team}'s turn`; }
     }
     endTurn(table, api, `forced end${whose} after ${Math.round(limit / 1000)} s`);
