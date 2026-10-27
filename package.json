@@ -19,6 +19,7 @@
     "test:wide": "node --env-file-if-exists=.env tools/emu/wide-test.mjs",
     "test:pointer": "node --env-file-if-exists=.env tools/emu/pointer-test.mjs",
     "test:effects": "node --env-file-if-exists=.env shared/emu/effects.test.mjs",
+    "test:perf": "node --env-file-if-exists=.env tools/emu/perftest.mjs",
     "e2e": "node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test",
     "boot": "node --env-file-if-exists=.env tools/emu/boot.mjs",
     "delete-user": "node --env-file-if-exists=.env server/delete-user.mjs",
