@@ -200,17 +200,24 @@ async function main(canvas) {
 
   let t0 = performance.now();
   let lastSave = 0, frames = 0, statT = t0, statI = 0;
+  // Where the time goes: dropped is the game time lost since the page opened (ms), slow counts the ticks that took
+  // longer than the game time they covered, and worst is the longest tick (ms) since the last refresh. A hidden tab
+  // runs no frames, so the time it was hidden is dropped too but not counted (away).
+  let dropped = 0, slow = 0, worst = 0, away = false;
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) away = true; });
   const frame = now => {
     try {
       if (++frames % 60 === 0) { // exposed for debugging and the end-to-end tests, which wait on the engine's own clock (time, ms), its screen and the battle's board view
         const ic = game.m.cpu.icount;
         window.rgStats = { fps: +(60000 / (now - statT)).toFixed(1), mips: +((ic - statI) / (now - statT) / 1000).toFixed(1),
-          lag: Math.round(now - t0 - game.time), heap: Math.round(game.m.heap.top / 2 ** 20), time: game.time, screen: `${game.width}x${game.height}`, battle: page.battle };
-        statT = now; statI = ic;
+          lag: Math.round(now - t0 - game.time), dropped: Math.round(dropped), slow, worst: Math.round(worst),
+          heap: Math.round(game.m.heap.top / 2 ** 20), time: game.time, screen: `${game.width}x${game.height}`, battle: page.battle };
+        statT = now; statI = ic; worst = 0;
       }
       // At most one tick per frame, when the engine's clock is behind real time; each tick sleeps the
       // engine to its next frame. A late frame slows the game instead of bursting catch-up ticks.
       if (game.time < now - t0) {
+        const start = performance.now(), from = game.time;
         rejoin?.beforeTick();
         while (input.length) input.shift()();
         game.fullBoard = page.board === 'full'; // taken by the engine between ticks, in a battle too
@@ -219,10 +226,14 @@ async function main(canvas) {
         if (rejoin && !rejoin.afterTick()) rejoin = null;
         pointer?.afterTick(); // the battle's state the next pointer events go by, and the presses that waited for the cursor
         if (game.unsaved('settings.cfg')) saveNow(); // the player left the settings: show their keys at once
-        if (game.time < now - t0) t0 = now - game.time; // drop the backlog
+        if (game.time < now - t0) { if (!away) dropped += now - t0 - game.time; t0 = now - game.time; } // drop the backlog
+        away = false;
         page.battle = game.inBattle ? (game.battleFull ? 'full' : 'classic') : null;
         fitCanvas(canvas);
         screen.paint(game); // the framebuffer only changes inside a tick
+        const took = performance.now() - start;
+        if (took > game.time - from) slow++;
+        if (took > worst) worst = took;
       }
       audio.pump();
       if (now - lastSave > 5000) { lastSave = now; saveNow(); }
