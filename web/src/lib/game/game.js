@@ -1,5 +1,5 @@
 // Browser host: gets the game files, runs the engine in the emulator, draws frames to the canvas, forwards the keyboard, the
-// touch pad and the gamepad and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page`
+// touch pad, the gamepad and the pointer and plays the engine's 8 kHz PCM through WebAudio. What the player sees goes through `page`
 // (page.svelte.js).
 import { GameHost, UNLOCKS, REPLAY_WIDTH, REPLAY_HEIGHT } from '../../../../shared/emu/host.js';
 import { createScreen } from './screen.js';
@@ -16,6 +16,7 @@ import { createNameLogin, showOnlineName } from '../account/login.js';
 import { botQuestion } from './bots.js';
 import { watchGamepad, gamepadSound } from '../input/gamepad.js';
 import { createPresses } from '../input/presses.js';
+import { attachPointer } from '../input/pointer.js';
 import { replaySaved, battleJoined } from '../replay/replay-notice.js';
 import { startOnlineCount, serverStatus } from '../account/online.js';
 import { frameView, FRAMES } from './board.js';
@@ -171,6 +172,9 @@ async function main(canvas) {
   padSession.current = { game, input, audio, presses };
   // Rejoin was the Start press: the page drives the menus back to the battle while the player's input waits (rejoin.js).
   let rejoin = rejoining ? startRejoin({ game, snap, input, presses, login }) : null;
+  // Pointer play on a desktop (docs/adr/0039); a touch device plays with the touch pad. It waits while a rejoin drives the menus.
+  const pointer = touch ? null : attachPointer({ game, canvas, presses, blocked: () => rejoin !== null });
+  page.pointable = Boolean(pointer);
 
   // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
   // The settings file also holds the custom keys, which the controls legend and the touch pad follow.
@@ -213,6 +217,7 @@ async function main(canvas) {
         const running = game.tick(); snap.pump();
         if (!running) { clearInterval(slowTimer); quit(saveNow, snap); return; } // the loop stops here: no more ticks, input or saves
         if (rejoin && !rejoin.afterTick()) rejoin = null;
+        pointer?.afterTick(); // the battle's state the next pointer events go by, and the presses that waited for the cursor
         if (game.unsaved('settings.cfg')) saveNow(); // the player left the settings: show their keys at once
         if (game.time < now - t0) t0 = now - game.time; // drop the backlog
         page.battle = game.inBattle ? (game.battleFull ? 'full' : 'classic') : null;
