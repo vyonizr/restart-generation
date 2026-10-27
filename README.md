@@ -1,150 +1,170 @@
-<p align="center"><img src="web/public/favicon.svg" alt="Restart Generation" width="128" height="128"></p>
-
 # Restart Generation
 
-Restart Generation is an unofficial fan project that revives the Reset Generation experience as faithfully as possible. Reset Generation is a 2008 video game that RedLynx developed for N-Gage 2.0 and Windows (PC).
+<p align="center">
+  <img src="web/public/favicon.svg" alt="Restart Generation Logo" width="128" height="128">
+</p>
 
-## Compared with the original game
+**Restart Generation** is an unofficial, community-driven fan project that faithfully revives the classic **Reset Generation** experience. Originally developed by RedLynx in 2008, Reset Generation was a foundational title for N-Gage 2.0 and Windows (PC). This project brings the game into the modern era via modern web standards.
 
-| Feature | Original game | Restart Generation |
-| --- | --- | --- |
-| Platforms | ✅ N-Gage 2.0 phones and Windows | ✅ A modern browser on Windows, macOS, or Linux, and Chrome on Android or Safari on iOS and iPadOS |
-| Single player | ✅ | ✅ |
-| Online multiplayer | ⚠️ The N-Gage Arena service shut down | ✅ A replacement Arena server, with Discord sign-in or a [guest account](docs/HOSTING.md#guests-and-members) |
-| LAN multiplayer | 🚫 | ✅ |
-| CPU players in friendly matches | 🚫 | ✅ |
-| Friendly matches without phase time limits | 🚫 | ✅ Optional config |
-| Full board view in matches | 🚫 | ✅ |
-| Replays | ✅ | ✅ Downloadable and with highlight timestamps |
+---
+
+## Features & Comparison
+
+The following matrix highlights how Restart Generation modernizes and expands upon the original release:
+
+| Feature | Original Game (2008) | Restart Generation |
+| :--- | :--- | :--- |
+| **Supported Platforms** | ✅ N-Gage 2.0 & Windows PC | ✅ Modern desktop browsers (Windows, macOS, Linux) & mobile browsers (Chrome on Android, Safari on iOS/iPadOS) |
+| **Single Player** | ✅ Included | ✅ Included |
+| **Online Multiplayer** | ⚠️ Offline (N-Gage Arena discontinued) | ✅ Supported via a custom Arena server (Discord sign-in or [guest accounts](docs/HOSTING.md#guests-and-members)) |
+| **LAN Multiplayer** | 🚫 Not supported | ✅ Supported |
+| **CPU Opponents (Friendly Matches)** | 🚫 Not supported | ✅ Supported |
+| **Flexible Friendly Matches**| 🚫 Fixed phase time limits | ✅ Optional configuration to remove time limits |
+| **Board Perspective** | 🚫 Partial view | ✅ Full board view during matches |
+| **Match Replays** | ✅ Included | ✅ Enhanced with download options and highlight timestamps |
+
+---
 
 ## Prerequisites
 
-- **Your Windows copy of the game**, as its `.zip` file or the extracted folder.
-- **[Node.js](https://nodejs.org) 22.13 or later** to run the server.
-- **A browser** on Windows, macOS, or Linux. A phone or tablet can play too: see [Play on other devices](#play-on-other-devices).
+Before setting up the project, ensure you have the following components:
 
-## Start playing
+*   **Game Assets:** A valid copy of the original Windows version of the game (either as a `.zip` archive or an extracted folder).
+*   **Runtime Environment:** [Node.js](https://nodejs.org) version **22.13 or later** to run the backend server.
+*   **Web Browser:** Any modern desktop or mobile browser. For mobile setups, see the [Mobile & Remote Devices](#mobile--remote-devices) section.
 
-1. Download this project (**Code > Download ZIP**), and then extract it.
-2. Open a terminal in the project folder.
-3. Run `npm install`. Do this one time only.
-4. Run `npm start`.
-5. Open <http://localhost:8080/> and select **Start**.
-6. When the page asks for your game files, choose the `.zip` or the game folder.
-7. To stop the server, press <kbd>Ctrl</kbd>+<kbd>C</kbd> in the terminal.
+---
 
-On your own server, every story and every hero, including the Aggressor, is unlocked from the start.
+## Getting Started
 
-### Optional: set the game location
+Follow these steps to set up your local development or play environment:
 
-Do this to get CPU players in the rooms that you make with **Online > Create Room**, and so that players' devices don't ask for the game files:
+1. **Download and Extract:** Download this repository (**Code > Download ZIP**) and extract the contents to your preferred directory.
+2. **Navigate to the Project:** Open your terminal or command prompt and change directories into the root folder of the project.
+3. **Install Dependencies:** Run the following command once to install required packages:
+   ```bash
+   npm install
+   ```
+4. **Launch the Server:** Start the local server application:
+   ```bash
+   npm start
+   ```
+5. **Access the Game:** Open your web browser and navigate to `http://localhost:8080/`, then select **Start**.
+6. **Provide Game Files:** When prompted by the browser, select your original game `.zip` file or extracted folder.
+7. **Shutdown:** To stop the local server at any time, press `Ctrl + C` in your terminal.
 
-1. Copy `.env.example` to `.env`.
-2. Put the path to your game on the `RG_GAME` line:
+*Note: By default on local servers, all stories and heroes—including the Aggressor—are unlocked immediately.*
 
-   ```sh
+### Optional: Automate Asset Loading & Enable AI Players
+
+Configuring the game path variables automates asset delivery to connected clients and enables CPU players in custom online rooms:
+
+1. Duplicate the template environment file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Open the newly created `.env` file and define the absolute path to your game assets on the `RG_GAME` line:
+   ```env
    RG_GAME=D:/Downloads/ResetGeneration-Standalone.zip
    ```
+3. Restart the server (`Ctrl + C` followed by `npm start`) to apply changes.
 
-   Replace the path with the location of your `.zip` file or game folder.
-3. Stop the server (press <kbd>Ctrl</kbd>+<kbd>C</kbd>) and run `npm start` again.
+Once configured, the server automatically serves game files to connecting devices. Public internet servers (`--public`) restrict this distribution via a secure download code system (see [Run a server](docs/HOSTING.md#send-the-game-with-a-download-code)).
 
-Your server then sends the game to every device that opens its page. A server on the internet (`--public`) sends it only to the people you give its download code (see [Run a server](docs/HOSTING.md#send-the-game-with-a-download-code)).
+---
 
 ## Controls
 
-The following table lists the default controls:
+The game supports multiple input methods. Keybindings can be reconfigured ingame via **Settings > Custom Keys**.
 
-| Action | Keyboard (default keys) | Touch pad (phone or tablet) | Gamepad |
-| --- | --- | --- | --- |
-| Move | Arrow keys | D-pad | D-pad or left stick |
-| Select | <kbd>Ctrl</kbd> or <kbd>Enter</kbd> | **Select** | Bottom button |
-| Go back | <kbd>Shift</kbd> | **Back** | Right button |
-| Open the menu | <kbd>Esc</kbd> | **Back** (in a battle) | Start |
-| Chat | <kbd>E</kbd> | **Keyboard**, and then the chat key | None |
-| Type text | Your keyboard | **Keyboard** | None |
+| Action | Keyboard (Default) | Touch Interface (Mobile) | Gamepad |
+| :--- | :--- | :--- | :--- |
+| **Move** | Arrow Keys | D-pad | D-pad / Left Stick |
+| **Select** | `Ctrl` / `Enter` | **Select** Button | Bottom Action Button |
+| **Go Back** | `Shift` | **Back** Button | Right Action Button |
+| **Open Menu** | `Esc` | **Back** Button (In-battle) | Start Button |
+| **Chat** | `E` | **Keyboard** Icon -> Chat Key | *Not Supported* |
+| **Text Entry**| Alpha-numeric Keys | **Keyboard** Overlay | *Not Supported* |
 
-To change the keys, open **Settings > Custom Keys** in the game.
+---
 
-## Play online
+## Online Play Mechanics
 
-### Your name
+### Identity Management
+*   **Standard Servers:** Players are assigned a randomized moniker (e.g., `Guest123456`) on the Start screen. You can modify this using **Set name** or **Change name**.
+*   **Discord-Enabled Servers:** Features secure authorization allowing you to log in with your Discord account to save progress permanently. 
+*   *For implementation specifics, review the [Guests and members](docs/HOSTING.md#guests-and-members) documentation.*
 
-On a server without Discord sign-in, the Start screen shows the name you play online as, a random one such as `Guest123456` until you choose your own with **Set name**; **Change name** picks another later. If you go online without setting one, the game asks for it. On a server with Discord sign-in, you can sign in with Discord to keep your account. For more information, see [Guests and members](docs/HOSTING.md#guests-and-members).
+### CPU Players
+If a friendly room contains 2 or 3 human players, the empty slots can be filled by AI bots. This feature requires a pre-configured server game path (see [Optional Configuration](#optional-automate-asset-loading--enable-ai-players)).
+*   To activate, click **Start** in your room and select **Yes** when prompted to fill empty seats. 
+*   Matchmaking rooms require a minimum of two human players to display the **Start** option. For solo play against bots, utilize the **Arcade Mode** in Single-Player. CPU players are excluded from Ranked matches.
 
-### CPU players
+### Battle Templates
+Online matches rely strictly on predefined match structures. Generating these templates requires a Windows environment, Visual Studio, and the legacy Java client. See [Battle templates](docs/HOSTING.md#battle-templates) for creation details.
 
-In a friendly match with 2 or 3 people in the room, CPU players can fill the empty seats. They need the game location on your server: see [Optional: set the game location](#optional-set-the-game-location).
+---
 
-1. Select **Start** in your room.
-2. The page asks "Fill the empty seats with CPU players?" Choose **Yes**. To play with people only, choose **No**.
+## Mobile & Remote Devices
 
-   To move between the choices, use Left and Right (or the D-pad), and press Select. Back chooses **No**. You can also click a choice.
-3. Wait about 15 seconds. The CPU players start with the battle.
+You can join public instances or host games across your Local Area Network (LAN) for cross-device play.
 
-CPU players are the AI of the game, each with a random hero.
+### Local Network (LAN) Setup
+Ensure your host PC and remote devices (phones, tablets, other computers) are connected to the same subnet (e.g., the same home Wi-Fi network).
 
-A room shows **Start** only once someone else is in it. To play against CPU players alone, use Arcade Mode in Single-Player. Ranked matches don't have CPU players.
+1. Execute the dedicated LAN initialization command on your host PC:
+   ```bash
+   npm run start:lan
+   ```
+2. The terminal output will list unique network addresses for available interfaces.
+3. Open the corresponding address on your remote device browser (e.g., `http://192.168.1.20:8080/`).
 
-### Online battles need battle templates
+### Public Web Server Setup
+1. Navigate directly to the public server domain (e.g., `https://play.example.com/`) on your mobile browser.
+2. If the host server does not distribute the assets automatically, upload your local copy of the game `.zip` file when prompted.
+3. Tap **Start** to interact using the built-in virtual touchpad overlay.
 
-Your server starts an online battle only from a battle template. To make templates, you need Windows, Visual Studio, and the original Java client. For more information, see [Battle templates](docs/HOSTING.md#battle-templates).
+---
 
-## Play on other devices
+## Troubleshooting
 
-A phone, tablet, or other computer can play on a public server, or on LAN from a PC that runs the server.
+*   **Remote devices cannot connect to the LAN server:** This is usually caused by the host machine's firewall rules. Open PowerShell as an Administrator on your Windows host and run:
+    ```powershell
+    New-NetFirewallRule -DisplayName "Restart Generation" -Direction Inbound -Protocol TCP -LocalPort 8080,8976 -Action Allow -Profile Private
+    ```
+    *Note: Ensure your current network profile is set to **Private** in Windows Network Settings for this rule to apply.*
+*   **Error: "Vite is not installed" during startup:** The project dependencies are missing. Run `npm install` in the project root to resolve this.
+*   **Online matches fail to initialize:** The server lacks a valid battle template matching the specific player count in the room. See [Online battles need battle templates](#battle-templates).
+*   **iOS/iPadOS assets keep requesting re-upload:** Apple Safari purges local browser cache data for unvisited sites after roughly 7 days of inactivity. Re-select the game files to resume play.
 
-### On your own network
+---
 
-Both devices must be on the same private network, such as your home Wi-Fi.
+## Technical & Contribution Reference
 
-1. Run the server with `npm run start:lan` (not `npm start`).
+*   **Architecture & Protocol:** Detailed specifications are available covering the core engine [protocol](docs/protocol.md), [architecture decision records (ADRs)](docs/adr/), [reverse engineering notes](docs/re/), the [emulator implementation](shared/emu), and the web client [source logic](web/src).
+*   **Asset & Media Generation:** Visual assets can be compiled locally via the automated framework. Execute `npm run showcase` to record interface captures to `tmp/showcase/` or output frame comparisons via `npm run showcase -- --stills`. These generated assets are excluded from version control metrics ([ADR 0036](docs/adr/0036-showcase-assets-are-generated-locally-and-never-committed.md)).
+*   **Contributions:** Guidelines and compliance requirements regarding code formatting and asset exclusions can be reviewed in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-   The server shows one `http://ADDRESS:8080/` line for each network, with the name of the network. `ADDRESS` is your PC's address on that network.
-2. On the other device, open the address of the network that both devices use, such as `http://192.168.1.20:8080/`.
+---
 
-### On a public server
+## Legal & Compliance
 
-1. On the phone or tablet, open the server's address, such as `https://play.example.com/`, as you would on a desktop.
-2. Unless the server sends the game, the page asks for your game files: choose the `.zip` on the device.
-3. Select **Start**, and play with the touch pad.
+Restart Generation is an independent, non-commercial fan revival project. It maintains no affiliation with, sponsorship from, or endorsement by RedLynx, Ubisoft, Nokia, or the N-Gage brand ecosystem. All product names, logos, and brands remain the property of their respective owners.
 
-To play with friends over the internet, see [Run the server with Node.js](docs/HOSTING.md#run-the-server-with-nodejs).
+This source repository distributes **no proprietary game assets**, copyrighted binaries, decompiled logic, audio assets, textures, or level data. Players provide their own assets via the Windows standalone build layout. If a remote administrator elects to host and serve assets directly ([ADR 0001](docs/adr/0001-players-bring-their-own-game-files.md)), they assume full legal liability and must declare an active point of contact (`RG_CONTACT`) for rights inquiries. 
 
-## Problems
+The analytical data in `docs/re/` represents clean-room observations of engine and Arcade behaviors written entirely in the contributors' own words. The platform communication stack is built natively based on clean-room specifications documented in `docs/protocol.md` to establish interoperability between legacy clients and modern environments.
 
-**The other device can't connect.** Windows Firewall probably blocks it. Open PowerShell as an administrator and run the following command:
+The underlying codebase is distributed as open-source software under the terms of the **GNU General Public License, version 3 or later** ([`LICENSE`](LICENSE)). Included fonts and framework libraries are governed by their respective original licensing terms ([Third-party notices](THIRD_PARTY_NOTICES.md), also accessible runtime via `/licenses.txt`). Code-level compliance formatting rules are actively validated via `npm run legal-check` as detailed in [Keep the legal risk of this project low](docs/LEGAL.md).
 
-```powershell
-New-NetFirewallRule -DisplayName "Restart Generation" -Direction Inbound -Protocol TCP -LocalPort 8080,8976 -Action Allow -Profile Private
-```
+For copyright claims, digital removals, or related inquiries regarding this open repository or the primary demonstration platform, please [open an issue](https://github.com/vyonizr/restart-generation/issues) or submit a formal request via GitHub's standard DMCA channels for prompt resolution.
 
-This rule works only on a private network. If Windows shows your network as public, change it to private in Windows Settings.
+---
 
-**`npm start` says that Vite is not installed.** Run `npm install`.
+## Privacy Policy
 
-**An online match never starts.** Your server has no battle template for that number of players. See [Online battles need battle templates](#online-battles-need-battle-templates).
+Public production nodes automatically host formal Terms of Service at `/terms` and Privacy Policy data at `/privacy` linked within the deployment footer layout ([ADR 0021](docs/adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)). 
 
-**An iPhone or iPad asks for the game files again.** Safari can delete them when you don't visit for about 7 days. Choose them again.
-
-## More
-
-- [Run a server](docs/HOSTING.md): Docker, Discord sign-in, battle templates, account deletion, and the original Java client.
-- [Deploy to a virtual private server (VPS)](docs/DEPLOY.md): the whole procedure for a public server.
-- How it works: [the protocol](docs/protocol.md), the [architecture decision records (ADRs)](docs/adr/), [notes on the original game](docs/re/), [the emulator](shared/emu), and [the page](web/src).
-- [Showcase pictures and clips](docs/adr/0036-showcase-assets-are-generated-locally-and-never-committed.md): `npm run showcase` films the page with made-up players into `tmp/showcase/`, for posts outside this repository, and takes stills: the page with one battle frame drawn into its screen, alone or beside the page at an older commit (`npm run showcase -- --stills`). They show the game, so they are never committed.
-- [Contributing](CONTRIBUTING.md): how to help, and what you can't commit.
-
-## Legal
-
-Restart Generation is an unofficial fan revival of Reset Generation (RedLynx, 2008). It isn't affiliated with or endorsed by RedLynx, Ubisoft, or Nokia, and their names, and N-Gage, belong to their owners.
-
-This repository holds no game files and none of the game's code, art, sound, or text: no decompiled code, and no level or battle data. Each player brings their own copy of the Windows standalone build, unless the admin of a server chooses to send one from it ([ADR 0001](docs/adr/0001-players-bring-their-own-game-files.md)). That admin answers for it, and must publish where a rights holder can ask for its removal (`RG_CONTACT`). The notes in `docs/re/` describe how the engine and Arcade behave, in our own words, and the protocol code is written from `docs/protocol.md` so that the original clients and this server can talk to each other.
-
-The code here is free software under the GNU General Public License, version 3 or later ([`LICENSE`](LICENSE)). The fonts and the Svelte runtime keep their own licenses ([Third-party notices](THIRD_PARTY_NOTICES.md), also served as `/licenses.txt`). What you can and can't commit is in [Keep the legal risk of this project low](docs/LEGAL.md); `npm run legal-check` enforces the file-level rules.
-
-If you hold rights to something here and want it removed from this repository, or from the server its author runs, [open an issue](https://github.com/vyonizr/restart-generation/issues), or use GitHub's own takedown process. We respond promptly. Every public server names its admin and a contact on its Terms and Privacy policy pages.
-
-## Privacy
-
-Every public server publishes a Privacy policy at `/privacy` and Terms at `/terms`, linked from the page's footer, filled in with its admin, its hosting provider, and its contact ([ADR 0021](docs/adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)). In short: a server with Discord sign-in keeps a member's Discord ID, name, stats, friends, and saved game, and a guest's name, stats, and friends until the account is wiped 24 hours after its last activity. It keeps no email address and no avatar, and writes no IP address to its logs. **Download my data** and **Delete my account** in the Account menu let a member get or remove their record, and an admin can delete any account with `npm run delete-user`.
+*   **Data Minimization:** System instances utilizing Discord authentication retain the unique Snowflake ID, public handle, match metrics, friends lists, and state files. 
+*   **Guest Lifecycle:** Unauthenticated guest profiles automatically expire and are purged from database records exactly 24 hours following their last recorded network activity.
+*   **Tracking:** The engine logs zero IP addresses and explicitly declines tracking user email records or external avatars. Users can access data management utilities directly via the account interface to trigger self-service archival exports (**Download my data**) or prompt account removal (**Delete my account**). Server operators can manually terminate individual entries via terminal commands using `npm run delete-user`.
