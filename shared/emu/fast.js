@@ -991,4 +991,20 @@ export function installFastPaths(cpu, addr) {
   };
   cpu.traps.set(addr(0x1009c511), clear(4, addr(0x1009c518)));
   cpu.traps.set(addr(0x1009c4e0), clear(2, addr(0x1009c4e6)));
+
+  // FUN_10163f40(i), a thiscall on the description reader's ring buffer (docs/re/re_loading.md): the byte i places past
+  // the read position. The trap does the call when the byte is in the buffer already (i below both the capacity and the
+  // bytes filled): AL the byte over the rest of EAX the capacity less 1, ECX the buffer, and the flags of comparing the
+  // bytes filled with i. Otherwise the guest runs the call from its second instruction, to fill the buffer.
+  const peekRest = addr(0x10163f41);
+  cpu.traps.set(addr(0x10163f40), c => {
+    const esp = r[4] >>> 0, self = r[1] >>> 0, i = rd(esp + 4), cap = rd(self), filled = rd(self + 0x10);
+    if (i >= cap || filled <= i) { wr(esp - 4, r[3]); r[4] = esp - 4; c.eip = peekRest; return; }
+    const buf = rd(self + 4), mask = (cap - 1) | 0;
+    c.alu(7, filled, i, 32);
+    r[0] = (mask & ~0xff) | m8[(((rd(self + 0xc) + i) & mask) + buf) >>> 0];
+    r[1] = buf;
+    r[4] = esp + 8;
+    c.eip = rd(esp) >>> 0;
+  });
 }
