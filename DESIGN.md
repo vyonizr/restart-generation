@@ -136,6 +136,7 @@ The page draws no game art of its own. The only imagery is the engine's screen a
 - Anton uppercase display at line height `0.9`.
 - Square corners everywhere, but for the touch pad's round thumb controls.
 - Buttons invert on hover over `0.2s`.
+- A tap never shows the browser's tap tint: each control shows its own pressed state.
 
 ## Colors
 
