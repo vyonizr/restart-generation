@@ -3,6 +3,7 @@
 import { pakRead } from '../../../../shared/pak.js';
 import { readSettings, KEYBOARD } from '../input/keys.js';
 import { HERO_TYPES } from '../../../../shared/heroes.js';
+import { LANGUAGE_IDS } from '../../../../shared/settings.js';
 
 const SHEET = 'data/menus/info_menu.xml';
 const TABS = [['instructions', 'INSTRUCTIONS'], ['heroes', 'HEROES'], ['items', 'ITEMS']]; // our tab, the sheet it shows
@@ -11,8 +12,7 @@ const TOKENS = { P: ['select', 9], S: ['back', 11], L: ['left', 3], R: ['right',
 const ENTER = 5;
 // The heroes' portraits and the palette the engine draws them with (FUN_10045620).
 const HEROES_GFX = 'data/menus/gfx/heroes.gfx', HEROES_PALETTE = 5;
-// The language codes `init` takes and their language IDs (FUN_1010b650); each ID's file name and the language's tag on the page.
-const CODES = { en: 126, fr: 142, it: 208, de: 157, es: 409, ru: 363, 'zh-cn': 84, 'zh-tw': 83, zh: 83, fi: 139, se: 417 };
+// Each language ID's file name and the language's tag on the page (the IDs are those `init` gives the codes, LANGUAGE_IDS).
 const LANGUAGES = { 126: ['english', 'en'], 142: ['french', 'fr'], 208: ['italian', 'it'], 157: ['german', 'de'], 409: ['spanish', 'es'],
   363: ['russian', 'ru'], 84: ['chinese-simplified', 'zh-Hans'], 83: ['chinese-traditional', 'zh-Hant'], 139: ['finnish', 'fi'], 417: ['swedish', 'sv'] };
 
@@ -127,7 +127,7 @@ async function read(files, language) {
   const sheet = sheets(decode(need(await pakRead(menus, SHEET), SHEET)));
   // The settings file's language replaces the code's, as it does in the engine; English where the language has no file.
   const settings = readSettings(files['settings.cfg']);
-  const id = settings ? settings.language : CODES[language];
+  const id = settings ? settings.language : LANGUAGE_IDS[language];
   let [file, lang] = LANGUAGES[id] ?? [], bytes = file && await pakRead(base, `data/base/lang/${file}.lng`);
   if (!bytes) [lang, bytes] = ['en', await pakRead(base, 'data/base/lang/english.lng')];
   const strings = texts(need(bytes, 'the text'));

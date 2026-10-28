@@ -1,6 +1,6 @@
 # Keep the legal risk of this project low
 
-Restart Generation revives a game that is out of print and an online service that is shut down. That is a good reason to do it and no legal defense: the game, its code, and its art are RedLynx's work, which belongs to Ubisoft, and N-Gage Arena was Nokia's. This page is for every commit and every contributor. It isn't legal advice; if a notice arrives, read [A notice arrives](#a-notice-arrives) and get a lawyer before you reply.
+Restart Generation revives a game that is out of print and an online service that is shut down. That is a good reason to do it and no legal defense. The game, its code, and its art are RedLynx's work, and RedLynx is now Ubisoft's. Nokia published the game and is reported to hold its rights, those to 8 Bit Weapon's soundtrack included ([ADR 0041](adr/0041-footage-and-showcase-clips-leave-out-the-soundtrack.md)), and N-Gage Arena was Nokia's. This page is for every commit and every contributor. It isn't legal advice; if a notice arrives, read [A notice arrives](#a-notice-arrives) and get a lawyer before you reply.
 
 The model is EKA2L1, the Symbian and N-Gage emulator: it ships no firmware, no ROMs, and no games, says it isn't affiliated with Nokia, and is free software that reimplements what it needs. What we do beyond that is run a server and, if an admin chooses, send the game to visitors. Those are the parts that need the most care.
 

@@ -21,4 +21,4 @@ Stills (`tools/showcase/stills.mjs`) show what the page does around the game, su
 - `server/seed.js` exports `play()`, and `e2e/global-setup.mjs` exports `buildPage()`, for the script to use.
 - A phone's game page has no header (DESIGN.md "Touch pad"), so its raw 9:16 captures don't show the site's name. The manifest and the preview page mark those captures. Their cards carry the name.
 - Captions keep to facts from README.md and PRODUCT.md: no testimonials, no press quotes, no player counts. Every caption ends with what a player needs (their own copy of the game) and the non-affiliation line.
-- Anyone who posts the pictures does so under Ubisoft's video policy, as with footage (ADR 0028). The repository never carries them.
+- Anyone who posts the pictures does so under Ubisoft's video policy, as with footage (ADR 0028). The repository never carries them. Changed by [ADR 0041](0041-footage-and-showcase-clips-leave-out-the-soundtrack.md): replay clips leave out the soundtrack, and no rights holder's policy is known to cover the pictures.

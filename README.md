@@ -149,7 +149,7 @@ Ensure your host PC and remote devices (phones, tablets, other computers) are co
 
 ## Legal & Compliance
 
-Restart Generation is an independent, non-commercial fan revival project. It maintains no affiliation with, sponsorship from, or endorsement by RedLynx, Ubisoft, Nokia, or the N-Gage brand ecosystem. All product names, logos, and brands remain the property of their respective owners.
+Restart Generation is an independent, non-commercial fan revival project. It maintains no affiliation with, sponsorship from, or endorsement by RedLynx, Ubisoft, Nokia, or the N-Gage brand ecosystem. All product names, logos, and brands remain the property of their respective owners. Reset Generation (2008) was made by RedLynx, now part of Ubisoft, and published by Nokia, which is reported to hold its rights. Its soundtrack, by 8 Bit Weapon, is Nokia's too, so downloaded replays and showcase clips leave it out ([ADR 0041](docs/adr/0041-footage-and-showcase-clips-leave-out-the-soundtrack.md)).
 
 This source repository distributes **no proprietary game assets**, copyrighted binaries, decompiled logic, audio assets, textures, or level data. Players provide their own assets via the Windows standalone build layout. If a remote administrator elects to host and serve assets directly ([ADR 0001](docs/adr/0001-players-bring-their-own-game-files.md)), they assume full legal liability and must declare an active point of contact (`RG_CONTACT`) for rights inquiries. 
 

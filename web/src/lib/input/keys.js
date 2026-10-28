@@ -1,6 +1,7 @@
 // Keyboard: browser keys to Java KeyEvent codes, and the player's custom keys (CONTEXT.md) and language read from the engine's
 // settings file (docs/re/re_settings.md).
 import { VK, CHAR_UNDEFINED } from '../../../../shared/emu/host.js';
+import { HEADER, LANGUAGE, validSettings } from '../../../../shared/settings.js';
 
 const KEYS = {
   ArrowLeft: VK.LEFT, ArrowRight: VK.RIGHT, ArrowUp: VK.UP, ArrowDown: VK.DOWN,
@@ -22,7 +23,6 @@ export const KEPT = { select: VK.ENTER, back: VK.ESCAPE };
 
 // The key lists in settings.cfg, in file order. The first six are menu twins that follow the others.
 const LISTS = [null, null, null, null, null, null, 'select', 'back', 'left', 'right', 'up', 'down', 'chat'];
-const MAGIC = 0x4b455953, END = 0x600dc0de, HEADER = 19, LANGUAGE = 15;
 export const KEYBOARD = 1; // the device of a keyboard key in a key list
 
 // An engine key ID as a Java key code; null for keys the Custom Keys screen refuses.
@@ -36,9 +36,8 @@ function javaCode(id) {
 // What a settings.cfg holds for the page: each action's key list, by the page's action names, as a list of { device, id }, and the
 // language ID. Null for a missing or damaged file, which the engine reads as its defaults.
 export function readSettings(bytes) {
-  if (!bytes || bytes.length < HEADER + 8) return null;
+  if (!validSettings(bytes)) return null;
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), end = bytes.length - 4;
-  if (dv.getUint32(HEADER, true) !== MAGIC || dv.getUint32(end, true) !== END) return null;
   const lists = Object.fromEntries(Object.keys(DEFAULT_KEYS).map(a => [a, []]));
   let at = HEADER + 4;
   for (let i = 0; i < LISTS.length && at + 4 <= end; i++) {

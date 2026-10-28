@@ -54,9 +54,10 @@ export async function canExportFootage() {
 
 // Renders the replay of `game` (a GameHost started with one, shared/emu/host.js) and resolves with the MP4 as a Blob, played in
 // `mode` ({ skipEmpty, doubleSpeed }, as GameHost.setReplayMode takes it), in the soft Screen finish if `soft`, as broadcast footage
-// of the replay `details` describes (its meta, server/battle.js replay()) if given. It boots the engine again, so the replay starts
-// over, and once that boot has worked leaves it with the replay's battle built, wherever it stopped: done, canceled through
-// `signal` (rejects with its reason), or failed. Its sound is drained up to `game.time` by the page's rule (audio.js).
+// of the replay `details` describes (its meta, server/battle.js replay()) if given. It boots the engine again without the soundtrack
+// (docs/adr/0041), so the replay starts over, and once that boot has worked boots it once more with the soundtrack for the page and
+// leaves it with the replay's battle built, wherever the render stopped: done, canceled through `signal` (rejects with its reason),
+// or failed. Its sound is drained up to `game.time` by the page's rule (audio.js).
 // `progress(fraction)` is called each time the page gets the main thread back.
 export async function renderFootage(game, { soft, mode, details, signal, progress }) {
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: false }), target: new BufferTarget() });
@@ -70,6 +71,7 @@ export async function renderFootage(game, { soft, mode, details, signal, progres
   try {
     if (details) bands = await broadcast(picture.getContext('2d'), details);
     await output.start();
+    game.soundtrack = false;
     game.boot();
     booted = true;
     while (game.time < endAt) {
@@ -114,10 +116,15 @@ export async function renderFootage(game, { soft, mode, details, signal, progres
     await output.cancel().catch(() => {});
     throw e;
   } finally {
-    // The page's controls reach the replay's battle, which a new engine builds a few frames in (replay-flow.js).
-    while (booted && !game.replayLoaded && game.time < LOAD_LIMIT_MS) {
-      game.tick();
-      for (; blocks * SOUND_BLOCK_MS < game.time; blocks++) game.pullSound();
+    // The page plays the replay with its soundtrack, and its controls reach the replay's battle, which a new engine builds a few
+    // frames in (replay-flow.js).
+    game.soundtrack = true;
+    if (booted) {
+      game.boot();
+      for (blocks = 0; !game.replayLoaded && game.time < LOAD_LIMIT_MS;) {
+        game.tick();
+        for (; blocks * SOUND_BLOCK_MS < game.time; blocks++) game.pullSound();
+      }
     }
   }
 }

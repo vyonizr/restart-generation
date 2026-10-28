@@ -11,7 +11,7 @@
   ];
 </script>
 
-<DocPage title="Terms" ghost="Terms" changed="22 October 2026" {toc} {server}>
+<DocPage title="Terms" ghost="Terms" changed="28 October 2026" {toc} {server}>
   <p class="lede">These are the rules for playing online on this Restart Generation server. By playing online here, you accept them. If you don't, play offline, or don't play here.</p>
 
   <section id="who">
@@ -21,7 +21,7 @@
 
   <section id="unofficial">
     <h2>An unofficial revival</h2>
-    <p>Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx. It isn't affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners.</p>
+    <p>Restart Generation is an unofficial fan revival of Reset Generation © 2008 RedLynx / Nokia. It isn't affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners.</p>
     <p>Nothing on this server makes a copy of the game licensed or official.</p>
   </section>
 

@@ -14,8 +14,8 @@ The file is little-endian throughout and holds the following fields:
 
 | Offset | Size | Holds |
 | --- | --- | --- |
-| 0 | 3 × u8 | Three on/off flags. The first is believed to be sound on or off. |
-| 3 | 4 × i32 | Four numbers. Two are believed to be the sound and music volumes, from 0 to 11. The last is the language. |
+| 0 | 3 × u8 | Three on/off flags. The first turns all sound on or off; see [Sound](#sound). |
+| 3 | 4 × i32 | Four numbers: the sound effects' volume, the music's volume, a third number, and the language. See [Sound](#sound). |
 | 19 | u32 | The key block's marker: `KEYS` read as a little-endian number, so the bytes on disk spell `SYEK`. |
 | 23 | Variable | 13 key lists, one per action, in the order of the following table. |
 | end − 4 | u32 | End marker `0x600dc0de`. |
@@ -69,6 +69,20 @@ These were checked in the emulator. After Primary was rebound to Z, Ctrl no long
 | Chat | E |
 
 With no `settings.cfg`, the engine writes its defaults when it next writes the file. The `deinit` export does that, and it was checked in the emulator. The first 19 bytes are then flags 1, 1, and 0, followed by the numbers 4, 4, 4, and a language value that depends on the language the page passes to `init`: 126 for `en`, 139 for `fi`, and 157 for `de`. With the default keys, the whole file is 163 bytes.
+
+## Sound
+
+The engine mixes its music and its sound effects into the one 8 kHz mono stream the host pulls (`NativeSoundOutputDevice.onSoundBufferEmpty`). The file's fields set the mix, and this was measured in the emulator: one replay played for 90 seconds in player mode, once with each field changed and everything else at the defaults, comparing the 64 ms blocks of sound.
+
+| Field | Changed to | What the sound did |
+| --- | --- | --- |
+| First flag (offset 0) | 0 | Silent throughout. |
+| First number (offset 3) | 0 | Quieter, but no block silent: the music goes on under where the effects were. At 11 it is louder. |
+| Second number (offset 7) | 0 | About a third of the blocks silent, between the effects: the music is gone and the effects stay. At 11 it is louder. |
+| First and second numbers | both 0 | Silent throughout. |
+| Third number (offset 11), second and third flags | 0, 0, 1 | Unchanged, sample for sample. |
+
+So the first number is the sound effects' volume and the second the music's, and those two are the whole mix. A file with the defaults gives exactly the same sound as no file. Footage and the showcase's replay clips boot their engine with the second number at 0 (`shared/settings.js`, [ADR 0041](../adr/0041-footage-and-showcase-clips-leave-out-the-soundtrack.md)).
 
 ## Key IDs
 

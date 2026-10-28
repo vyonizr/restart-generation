@@ -2,7 +2,7 @@
 // played here on the same engine by the same rules as the replay page (replay-flow.js, audio.js): the replay player at 1× with idle
 // time skipped, sought to the clip's start as the page is, and a 64 ms block of sound drained for every 64 ms of the engine's clock,
 // which the battle waits on. The engine runs the same way in both, so the sound from the seek on is the sound the page played under
-// the clip, within a block.
+// the clip, within a block, without the soundtrack: the engine boots with the music volume at 0, as footage's does (docs/adr/0041).
 import { GameHost } from '../../shared/emu/host.js';
 import { loadGame } from '../../shared/game.mjs';
 
@@ -23,7 +23,7 @@ export function replaySound(text, from, seconds) {
 
 async function play(text, from, seconds) {
   files ??= await loadGame();
-  const game = new GameHost(files, { replay: text, warn: () => {}, log: () => {} });
+  const game = new GameHost(files, { replay: text, soundtrack: false, warn: () => {}, log: () => {} });
   game.boot();
   const want = Math.ceil(seconds * SOUND_RATE);
   const out = new Int16Array(want);

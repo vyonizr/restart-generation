@@ -16,7 +16,7 @@
 
 <Dialog id="notices" titleId="notices-title" focus="#notices-close" oncancel={close}>
   <h2 class="bar" id="notices-title">Notices</h2>
-  <p><strong>Restart Generation</strong> is an unofficial fan revival of Reset Generation © 2008 RedLynx. It is not affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners.</p>
+  <p><strong>Restart Generation</strong> is an unofficial fan revival of Reset Generation © 2008 RedLynx / Nokia. It is not affiliated with or endorsed by RedLynx, Ubisoft or Nokia, and their names and trademarks belong to their owners.</p>
   {#if page.ownCopy}
     <p>Windows standalone build only. Your files stay in this browser.</p>
   {:else if page.sentByCode}

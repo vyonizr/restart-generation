@@ -4,6 +4,7 @@ import { Machine } from './machine.js';
 import { JNI, JObject } from './jni.js';
 import { installFastPaths } from './fast.js';
 import { NET_BUFFER_SIZE, MTU, LOGIN_COULD_NOT_CONNECT } from '../snap-ids.js';
+import { withoutMusic } from '../settings.js';
 
 export const WIDTH = 240, HEIGHT = 320;
 // Player mode, the engine's replay player (docs/re/re_replay.md): a wider battle view and no menus.
@@ -80,9 +81,11 @@ export class GameHost {
   // patches: entries like UNLOCKS, applied after the DLL loads.
   // replay: the text of a replay (server/replay.js) to start the engine in player mode, which plays that battle and nothing else.
   // board: boot able to show a battle on the Full board; `fullBoard` (settable at any time) says whether battles do, the one on included.
-  constructor(files, { log = () => {}, warn = console.warn, language = 'en', snap = null, jit = true, fast = true, patches = [], replay = null, board = false } = {}) {
+  // soundtrack: false boots the engine with the music volume at 0 and its sound effects as they were (docs/adr/0041); `soundtrack`
+  // can be changed before the next boot().
+  constructor(files, { log = () => {}, warn = console.warn, language = 'en', snap = null, jit = true, fast = true, patches = [], replay = null, board = false, soundtrack = true } = {}) {
     this.jit = jit; this.fast = fast; this.patches = patches; this.warn = warn;
-    this.files = files; this.log = log; this.language = language;
+    this.files = files; this.log = log; this.language = language; this.soundtrack = soundtrack;
     this.snapMethods = snap; // JS implementation of NativeSNAPMobileInterface (online play)
     this.replay = replay;
     this.board = board && replay === null;
@@ -96,7 +99,8 @@ export class GameHost {
     this.m = null; // booted again (web/src/lib/replay/footage.js): the old machine's memory can go before the new one takes as much
     const m = this.m = new Machine({ log: this.log });
     m.cpu.jit = this.jit;
-    for (const [name, data] of Object.entries(this.files)) if (!name.endsWith('.dll') && !name.endsWith('.dylib')) m.vfs.put(`${HOME}\\${name}`, data);
+    const files = this.soundtrack ? this.files : { ...this.files, 'settings.cfg': withoutMusic(this.files['settings.cfg'], this.language) };
+    for (const [name, data] of Object.entries(files)) if (!name.endsWith('.dll') && !name.endsWith('.dylib')) m.vfs.put(`${HOME}\\${name}`, data);
     m.loadDll(this.files['ResetGeneration-Win32-Web.dll']);
     for (const p of [EFFECT_ONCE, ...this.patches]) {
       if (bytesAt(m, p.va, p.from.length / 2) !== p.from) { this.warn(`engine patch skipped (${p.what}): unexpected bytes at ${p.va.toString(16)}`); continue; }

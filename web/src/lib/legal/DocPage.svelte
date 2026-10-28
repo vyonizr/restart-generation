@@ -32,6 +32,6 @@
     </article>
   </main>
   <footer>
-    <p class="disclaimer">Unofficial fan revival of Reset Generation © 2008 RedLynx; not affiliated with RedLynx, Ubisoft or Nokia.<br>Made by vyonizr. · <a href="../terms/">Terms</a> · <a href="../privacy/">Privacy policy</a></p>
+    <p class="disclaimer">Unofficial fan revival of Reset Generation © 2008 RedLynx / Nokia; not affiliated with RedLynx, Ubisoft or Nokia.<br>Made by vyonizr. · <a href="../terms/">Terms</a> · <a href="../privacy/">Privacy policy</a></p>
   </footer>
 </div>
