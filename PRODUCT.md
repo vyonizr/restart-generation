@@ -75,7 +75,7 @@ A replay the server's witness followed has [marks](CONTEXT.md) on its time slide
   - **Notices dialog, where the player brings the files:** the note "Windows standalone build only. Your files stay in this browser."
   - **Notices dialog, where a server sends the game files itself:** a statement that it does, with the admin's `RG_CONTACT` for a rights holder who wants them removed ([ADR 0018](docs/adr/0018-publishing-with-legal-guardrails.md)). On a public server only a browser that received them for the download code sees it, as "This server sent you a copy" ([ADR 0031](docs/adr/0031-the-server-sends-its-copy-only-to-a-download-code.md)).
   - **Footer line, on a public server:** links to its **Terms** and **Privacy policy**.
-  - **Under Start, on a public server:** "By playing online you accept the Terms and the Privacy policy.", with both linked. The name dialog for a new member says the same of saving the name.
+  - **Under Start, on a public server:** "By playing online you accept the Terms and the Privacy policy", with both linked. The name dialog for a new member says the same of saving the name.
   - **Notices dialog, on a public server:** links to its Terms and Privacy policy, which say what it keeps ([ADR 0021](docs/adr/0021-public-servers-publish-terms-and-a-privacy-policy.md)).
   - **Notices dialog, always:** that the project is free software under the GNU General Public License, version 3, with no warranty, linking to `/licenses.txt` and to the [source repository](https://github.com/vyonizr/restart-generation). On a server, the same line ends with the version it runs, such as "Version 0.1.2".
 - No RedLynx, Ubisoft or Nokia logos, and nothing that reads as an official RedLynx, Ubisoft or Nokia site.

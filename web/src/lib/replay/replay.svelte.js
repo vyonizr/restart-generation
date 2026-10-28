@@ -65,7 +65,7 @@ async function main(canvas) {
   page.ownCopy = !server?.servesGame;
   if (!found.ok) {
     replay.gone = true;
-    page.status = server?.replays === false ? 'This server keeps no replays.' : 'Each player keeps their last 25 battles.'; // docs/adr/0034
+    page.status = server?.replays === false ? 'This server keeps no replays' : 'Each player keeps their last 25 battles'; // docs/adr/0034
     return;
   }
   const { text, meta } = await found.json();
@@ -130,7 +130,7 @@ async function main(canvas) {
 function unplayable() {
   sound.ctx.suspend();
   page.overlay = true;
-  page.status = "The game couldn't load this replay.";
+  page.status = "The game couldn't load this replay";
 }
 
 // ---- the controls (replay-flow.js), which do nothing until the replay has loaded, nor while footage is rendered ----
@@ -183,7 +183,7 @@ export async function exportFootage(details) {
       check();
     });
     signal.throwIfAborted();
-    if (replay.unplayable) throw new Error("The game couldn't load this replay.");
+    if (replay.unplayable) throw new Error("The game couldn't load this replay");
     const { renderFootage } = await footageModule();
     taken = true;
     // The finish the page shows (stage.css): soft, except where the visitor asks for more contrast

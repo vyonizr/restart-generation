@@ -41,16 +41,16 @@
 
 <Dialog id="replays" titleId="replays-title" focus="#replays-close" oncancel={close}>
   <h2 class="bar" id="replays-title">Replays</h2>
-  <p class="replays-note">The last 25 battles.{#if guest}{' Guests lose them a day after their last game. Sign in with Discord to keep them.'}{/if}</p>
+  <p class="replays-note">The last 25 battles{#if guest}{'. Guests lose them a day after their last game. Sign in with Discord to keep them.'}{/if}</p>
   {#if status === 'loading'}
     <p class="replays-state" role="status">Loading replays…</p>
   {:else if status === 'failed'}
     <div class="replays-state" role="alert">
-      <p>Couldn't load replays.</p>
+      <p>Couldn't load replays</p>
       <button type="button" class="secondary" onclick={load}>Try again</button>
     </div>
   {:else if !replays.length}
-    <p class="replays-state" role="status">No replays yet.</p>
+    <p class="replays-state" role="status">No replays yet</p>
   {:else}
     <ol class="replay-list">
       {#each replays as r (r.id)}

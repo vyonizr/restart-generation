@@ -58,7 +58,7 @@
       {#if result.places.length}
         <ol class="places">{#each result.places as p (p.name)}<li><span class="place">{ordinal(p.place)}</span> {p.name}</li>{/each}</ol>
       {/if}
-      {#if result.guessed}<p class="hint">The server had no copy of the game to follow this battle, so it guessed the result.</p>{/if}
+      {#if result.guessed}<p class="hint">The server had no copy of the game to follow this battle, so it guessed the result</p>{/if}
       <button bind:this={againButton} onclick={watchAgain}>Watch again</button>
     </div>
   {/if}

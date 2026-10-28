@@ -81,7 +81,7 @@ export async function renderFootage(game, { soft, mode, details, signal, progres
         loaded = true;
         game.setReplayMode(mode);
       }
-      if (!loaded && game.time >= LOAD_LIMIT_MS) throw new Error("The game couldn't load this replay.");
+      if (!loaded && game.time >= LOAD_LIMIT_MS) throw new Error("The game couldn't load this replay");
       if (loaded && defeats?.frame(game, true)) bands.seats(defeats.shown);
       // Frame n shows what the engine drew in the frame that covers n / 30 s. Its frames are 33 ms apart, so one in a hundred of
       // them is never shown, which keeps the picture on the sound's clock.

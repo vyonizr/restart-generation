@@ -15,8 +15,8 @@
   const replays = $derived(Boolean(page.server?.replays) && (kind !== 'local' || page.onlineNamed));
   const LINE = {
     guest: 'Guest. Your progress stays in this browser.',
-    member: 'Signed in with Discord.',
-    local: 'Your name online, with no password.',
+    member: 'Signed in with Discord',
+    local: 'Your name online, with no password',
   };
 
   // An item closes the menu and gives the chip focus, so a dialog it opens gives focus back to the chip when it closes.
@@ -46,7 +46,7 @@
       <svg class="who-caret" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg>
     </button>
     <div class="who-menu" id="who-menu" hidden={!open}>
-      <p class="who-kind">{LINE[kind]}{#if kind === 'local' && page.playing}{' A new name takes effect the next time you go online.'}{/if}</p>
+      <p class="who-kind">{LINE[kind]}{#if kind === 'local' && page.playing}{'. A new name takes effect the next time you go online.'}{/if}</p>
       {#each items as item (item.label)}
         <button type="button" class="who-item {item.tone ?? ''}" disabled={item.off} onclick={run(item.run)}>{#if item.discord}<DiscordSymbol />{/if}{item.label}</button>
       {/each}

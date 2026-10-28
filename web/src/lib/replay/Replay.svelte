@@ -11,7 +11,7 @@
 
   // Why Download replay is disabled where it can never work (replay.svelte.js)
   const FOOTAGE_NOTES = {
-    insecure: 'Download replay needs a secure page: open this replay over HTTPS, or at localhost on the PC that runs the server.',
+    insecure: 'Download replay needs a secure page: open this replay over HTTPS, or at localhost on the PC that runs the server',
     unsupported: "Your browser can't download replays. Try Chrome or Edge.",
   };
 </script>

@@ -4,7 +4,7 @@ import { test, expect, seed, factsLine } from '../fixtures.mjs';
 test('an unknown replay is gone, with a way to the game', async ({ page }) => {
   await page.goto('/replay/no-such-replay');
   await expect(page.getByRole('heading', { name: 'Replay not found' })).toBeVisible();
-  await expect(page.getByText('Each player keeps their last 25 battles.')).toBeVisible();
+  await expect(page.getByText('Each player keeps their last 25 battles')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Play the game' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Replay controls' })).toBeHidden();
 });
@@ -74,7 +74,7 @@ test('a page that isn\'t secure says footage needs one, rather than blaming the 
     delete window.VideoEncoder; delete window.AudioEncoder;
   });
   await page.goto(`/replay/${ranked.id}`);
-  const why = 'Download replay needs a secure page: open this replay over HTTPS, or at localhost on the PC that runs the server.';
+  const why = 'Download replay needs a secure page: open this replay over HTTPS, or at localhost on the PC that runs the server';
   const button = page.getByRole('button', { name: 'Download replay' });
   await expect(button).toBeDisabled();
   await expect(button).toHaveAccessibleDescription(why);

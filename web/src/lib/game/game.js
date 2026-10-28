@@ -68,8 +68,8 @@ function fitCanvas(canvas) {
 // A one-line notice under the pad when the device can't run the game at full speed.
 function slowNotice() {
   const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  page.slow = 'This device is running the game slowly.'
-    + (ios ? ' If Lockdown Mode is on, exclude this site in Settings > Privacy & Security > Lockdown Mode.' : '');
+  page.slow = 'This device is running the game slowly'
+    + (ios ? '. If Lockdown Mode is on, exclude this site in Settings > Privacy & Security > Lockdown Mode.' : '');
   page.slowClassic = page.battle === 'full';
 }
 
@@ -271,7 +271,7 @@ export async function retryQuit() {
   page.unsent = false;
   page.status = 'Saving your game…';
   if (await upload()) return reload();
-  page.status = "Your latest progress didn't reach the server and will be lost if you quit now.";
+  page.status = "Your latest progress didn't reach the server and will be lost if you quit now";
   page.unsent = true;
 }
 
@@ -280,7 +280,7 @@ export function startGame(canvas) {
   screen = createScreen(canvas);
   fitCanvas(canvas);
   watchGamepad(pressStart); // from the start, so the first gamepad press can start the sound while the game loads
-  main(canvas).catch(e => fail("The game couldn't start with this copy.", e));
+  main(canvas).catch(e => fail("The game couldn't start with this copy", e));
 }
 
 // The recovery buttons of the failure screen; Reload is also Quit anyway.

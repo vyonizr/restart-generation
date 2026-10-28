@@ -7,9 +7,9 @@ import { leave, discard } from '../game/progress.js';
 
 const POLL_MS = 20000;   // how often a playing page re-reads fame
 const NAME_ERRORS = {
-  invalid: 'Use letters, numbers and _, up to 15.',
-  reserved: 'That name is kept for guests and CPU players.',
-  taken: 'Someone already has that name.',
+  invalid: 'Use letters, numbers and _, up to 15',
+  reserved: 'That name is kept for guests and CPU players',
+  taken: 'Someone already has that name',
 };
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -44,7 +44,7 @@ const render = () => { page.who = { name: account.name, member: account.member }
 
 export const actions = {
   async signin() {
-    if (playing && !await ask({ title: 'Leave this page?', text: 'Signing in opens Discord and ends your current game.', yes: 'Sign in', no: 'Stay' })) return;
+    if (playing && !await ask({ title: 'Leave this page?', text: 'Signing in opens Discord and ends your current game', yes: 'Sign in', no: 'Stay' })) return;
     try { location.assign(await account.discordUrl()); } catch { notice("Couldn't reach Discord sign-in. Try again in a moment.", dismiss); }
   },
   // Saves what the server keeps about the account as a JSON file, without leaving the page.
@@ -93,7 +93,7 @@ async function finishSignIn(code, refused = null) {
     }
     await account.open();
     render();
-    notice(`Signed in as ${account.name}.`, dismiss);
+    notice(`Signed in as ${account.name}`, dismiss);
   } catch (e) {
     // A player without a guest can't play online until a sign-in works, so the offer stays.
     notice(e.code === 'expired' ? 'That sign-in expired. Try again.' : "Discord sign-in didn't work. Try again.", refused ? offer : dismiss);
@@ -108,7 +108,7 @@ async function start() {
     await account.open();
     render();
   } catch (e) {
-    const reason = { too_many: 'This network has made too many guests in the last hour. Try again later, or sign in with Discord.', full: 'This server has no room for more guests right now.' }[e.code];
+    const reason = { too_many: 'This network has made too many guests in the last hour. Try again later, or sign in with Discord.', full: 'This server has no room for more guests right now' }[e.code];
     // A member counts against neither limit, and signing in with Discord needs no guest.
     const refused = () => notice(reason || "Couldn't reach the account server. Online play won't work until you reload.", reason ? offer : dismiss);
     if (reason && returned?.[1] === 'signin') await finishSignIn(returned[2], refused);

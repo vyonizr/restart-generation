@@ -12,7 +12,7 @@ import { NO_DIRECTION, nextDirection } from './direction.js';
 import { BUTTONS, usable } from './pads.js';
 
 const RELEASED = { select: false, back: false, menu: false, up: false, down: false, left: false, right: false, x: 0, y: 0 };
-const CONNECTED = 'Gamepad connected.', DISCONNECTED = 'Gamepad disconnected.';
+const CONNECTED = 'Gamepad connected', DISCONNECTED = 'Gamepad disconnected';
 
 let pressStart = null;
 let index = null; // the pad in use: its index in navigator.getGamepads(), or null until a usable pad sends a press
@@ -53,7 +53,7 @@ function notice(text) {
   if (text === CONNECTED) connectedTimer = setTimeout(() => { if (page.notice?.text === CONNECTED) page.notice = null; }, 3000);
 }
 
-// "Gamepad disconnected." stays until the next input from any source: a key, a touch pad press or a gamepad press.
+// "Gamepad disconnected" stays until the next input from any source: a key, a touch pad press or a gamepad press.
 export function dismissDisconnected() {
   if (page.notice?.text === DISCONNECTED) page.notice = null;
 }
