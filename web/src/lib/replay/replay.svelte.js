@@ -12,6 +12,7 @@ import { touch } from '../device.js';
 import { createReplayFlow } from './replay-flow.js';
 import { BUTTONS, SHOULDERS, usable } from '../input/pads.js';
 import { footageName } from '../../../../shared/replay-text.js';
+import { countVisit } from '../visit.js';
 // Footage needs Mediabunny (footage.js), so it comes in a chunk of its own, after the page, and only to a page that can use it.
 const footageModule = () => import('./footage.js');
 
@@ -60,6 +61,7 @@ export async function startReplay(canvas) {
 async function main(canvas) {
   const [server, found] = await Promise.all([serverStatus(), fetch(`replay/${encodeURIComponent(id)}/data`, { cache: 'no-store' })]);
   page.server = server;
+  countVisit('replay', server); // a replay that is gone still counts as an open of the replay page
   page.ownCopy = !server?.servesGame;
   if (!found.ok) {
     replay.gone = true;

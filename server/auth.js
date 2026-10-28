@@ -60,11 +60,11 @@ function modeFrom(argv, env) {
   };
 }
 
-// The account and replay files of a server in `mode` under `dataDir`: replays sit beside the accounts they name (replays.db or
-// replays-names.db), so an account id never matches replays the other kind of account played.
+// The files of a server in `mode` under `dataDir`: replays sit beside the accounts they name (replays.db or replays-names.db), so an
+// account id never matches replays the other kind of account played. Visitor statistics (stats.db) name no account.
 function dataFiles(mode, dataDir) {
   const dir = mode.dev ? path.join(dataDir, 'dev') : dataDir;
-  return { dir, accounts: path.join(dir, mode.db), replays: path.join(dir, mode.db.replace(/^accounts/, 'replays')) };
+  return { dir, accounts: path.join(dir, mode.db), replays: path.join(dir, mode.db.replace(/^accounts/, 'replays')), stats: path.join(dir, 'stats.db') };
 }
 
 // What the guest limit counts as one address: an IPv6 address's /64 network (the first four groups, after expanding ::), since
@@ -350,14 +350,15 @@ function createAuth({ store, config, busy, remove, dropReplays = () => {}, repla
   };
 }
 
-// The network a request comes from, as `network` counts it, for the limits on guests and on sending the game. Behind a proxy the
-// admin sets RG_TRUST_PROXY, and the address the proxy appended (the last one) is used: earlier ones are written by the client.
-function clientNetwork(req, trustProxy) {
-  if (trustProxy) {
-    const last = String(req.headers['x-forwarded-for'] || '').split(',').pop().trim();
-    if (last) return network(last);
-  }
-  return network(req.socket.remoteAddress || '');
+// The address a request comes from. Behind a proxy the admin sets RG_TRUST_PROXY, and the address the proxy appended (the last one)
+// is used: earlier ones are written by the client. An IPv4-mapped IPv6 address (::ffff:a.b.c.d) is its IPv4 address.
+function clientAddress(req, trustProxy) {
+  const forwarded = trustProxy ? String(req.headers['x-forwarded-for'] || '').split(',').pop().trim() : '';
+  const ip = forwarded || req.socket.remoteAddress || '';
+  return /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip)?.[1] ?? ip;
 }
 
-module.exports = { configFrom, modeFrom, dataFiles, createAuth, clientNetwork, GUEST_IDLE_MS, MEMBER_TOKEN_MS };
+// The network a request comes from, as `network` counts it, for the limits on guests and on sending the game.
+function clientNetwork(req, trustProxy) { return network(clientAddress(req, trustProxy)); }
+
+module.exports = { configFrom, modeFrom, dataFiles, createAuth, clientAddress, clientNetwork, GUEST_IDLE_MS, MEMBER_TOKEN_MS };

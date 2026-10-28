@@ -33,6 +33,9 @@ services:
       RG_ADMIN_TOKEN: ${RG_ADMIN_TOKEN:-}
       # 0 keeps no replays and serves none of those kept (docs/HOSTING.md "Replays"). Empty keeps them.
       RG_REPLAYS: ${RG_REPLAYS:-}
+      # 1 counts visitor statistics, which only you see with `docker compose exec rg npm run stats` (docs/HOSTING.md "Visitor
+      # statistics"). Empty leaves them off.
+      RG_STATS: ${RG_STATS:-}
     volumes:
       - ./data:/app/data
       # With no RG_GAME_PATH, this mounts an empty file that the server ignores.

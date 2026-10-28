@@ -2,7 +2,8 @@
 const assert = require('assert');
 const store = require('./store');
 const replays = require('./replays');
-const { apply, check, settingsFile, tokenOf } = require('./seed');
+const stats = require('./stats');
+const { apply, applyStats, check, settingsFile, tokenOf } = require('./seed');
 const { GUEST_IDLE_MS, MEMBER_TOKEN_MS } = require('./auth');
 const seed = require('./seed.json');
 
@@ -80,6 +81,20 @@ const dump = ({ accounts, replays: r }) => ({
   const guest = db.accounts.byName('Guest900001');
   assert.ok(db.replays.ofAccount(guest.id).some(r => r.id === 'dev-replay-06'));
 
+  // Visitor statistics land on the UTC days their offsets name. A second run over the first changes nothing, a seed day a
+  // developer's server changed goes back to the file's counts, and a day the seed doesn't list is left alone.
+  const visitors = stats.open(':memory:'), everything = () => visitors.summary('0000-01-01', '9999-12-31');
+  applyStats(seed.visitorStatistics, visitors, now);
+  const counted = everything();
+  assert.deepStrictEqual(counted.days.map(d => d.day), seed.visitorStatistics.map(d => stats.dayOf(now - d.daysAgo * 24 * 3600e3)).sort());
+  applyStats(seed.visitorStatistics, visitors, now);
+  assert.deepStrictEqual(everything(), counted);
+  visitors.add({ day: stats.dayOf(now), hour: 3, unique: true, page: 'privacy', referrer: 'example.org', country: 'FI', device: 'touch' });
+  visitors.started('2000-01-01');
+  applyStats(seed.visitorStatistics, visitors, now);
+  assert.deepStrictEqual(visitors.summary('2000-01-02', '9999-12-31'), counted);
+  assert.deepStrictEqual(visitors.summary('2000-01-01', '2000-01-01').days, [{ day: '2000-01-01', opens: 0, uniques: 0, started: true }]);
+
   // Name-only: every seed member is a named account with no Discord ID, token or saved game, and there are no guests.
   const names = open();
   const done = apply(seed, { ...names, discord: false, now });
@@ -99,6 +114,14 @@ const dump = ({ accounts, replays: r }) => ({
   const badMark = mark => () => check({ ...seed, replays: [{ ...marked, marks: [mark] }] });
   assert.throws(badMark({ at: 10, moments: [{ kind: 'knockout', seat: 9 }] }), /a mark that isn't one/);
   assert.throws(badMark({ at: 10, moments: [{ kind: 'rescue', seat: 1 }] }), /a mark that isn't one/);
+  const day = seed.visitorStatistics[0], badDay = edit => () => check({ ...seed, visitorStatistics: [{ ...day, ...edit }] });
+  assert.throws(badDay({ daysAgo: -1 }), /daysAgo/);
+  assert.throws(() => check({ ...seed, visitorStatistics: [day, day] }), /daysAgo/);
+  assert.throws(badDay({ uniques: day.opens + 1 }), /can't count/);
+  assert.throws(badDay({ hours: Array(24).fill(0) }), /hours/);
+  assert.throws(badDay({ device: { desktop: day.opens - 1 } }), /device counts/);
+  assert.throws(badDay({ referrer: { 'www.reddit.com': day.opens } }), /isn't a referrer/);
+  assert.throws(badDay({ page: { home: day.opens } }), /isn't a page/);
 
   console.log('seed: ok');
 })().catch(e => { console.error(e); process.exit(1); });

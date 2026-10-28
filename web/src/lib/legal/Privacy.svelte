@@ -2,21 +2,26 @@
      describes what the code does, so a change to what the server keeps, logs or backs up changes this page in the same commit. -->
 <script>
   import DocPage from './DocPage.svelte';
+  import { notCounted, setNotCounted } from '../visit.js';
 
   let { server } = $props();
   const admin = $derived(server?.adminName || 'the admin'), Admin = $derived(server?.adminName || 'The admin');
   const storedBy = $derived(server?.hosting || 'The hosting provider');
   const discord = $derived(Boolean(server?.accounts)); // guests and members with Discord sign-in, rather than a name alone
   const replays = $derived(server?.replays !== false); // kept unless the admin turned them off (RG_REPLAYS=0)
+  const stats = $derived(server?.stats === true); // visitor statistics, counted only when the admin turned them on (docs/adr/0043)
+  // "Don't count my visits": the choice as this browser stores it, so where storage is blocked the button doesn't claim it was kept.
+  let uncounted = $state(notCounted());
   const toc = $derived([
     ['who', 'Who answers for your data'], ['keeps', 'What the server keeps'], ...(replays ? [['replays', 'Replays']] : []),
+    ...(stats ? [['stats', 'Visitor statistics']] : []),
     ['passes', 'What it passes on and forgets'], ['sees', 'What other players see'], ['logs', 'Logs and backups'], ['browser', 'Your browser'],
     ['why', 'Why'], ['rights', 'Your choices'], ['children', 'Children'], ['changes', 'Changes'],
   ]);
 </script>
 
-<DocPage title="Privacy policy" ghost="Privacy" changed="27 October 2026" {toc} {server}>
-  <p class="lede">This page says what this Restart Generation server keeps about you when you play online, why, for how long, and how to have it removed. It keeps only what online play needs. It sells nothing, shows no ads, and runs no analytics.</p>
+<DocPage title="Privacy policy" ghost="Privacy" changed="28 October 2026" {toc} {server}>
+  <p class="lede">This page says what this Restart Generation server keeps about you when you play online, why, for how long, and how to have it removed. {#if stats}It keeps what online play needs, and daily counts of its visitors that single out no one. It sells nothing and shows no ads.{:else}It keeps only what online play needs. It sells nothing, shows no ads, and runs no analytics.{/if}</p>
 
   <section id="who">
     <h2>Who answers for your data</h2>
@@ -53,6 +58,26 @@
     </section>
   {/if}
 
+  {#if stats}
+    <section id="stats">
+      <h2>Visitor statistics</h2>
+      <p>{Admin} has turned on visitor statistics. Each time you open the game, a replay, the Terms or this Privacy policy, the page tells the server which of these it is, the site you came from, by its domain alone, such as reddit.com, and whether your device is a touch device. For each day, the server counts:</p>
+      <ul>
+        <li>how many pages of each kind were opened;</li>
+        <li>how many were opened from each site visitors came from, and how many from none;</li>
+        <li>how many were opened from each country;</li>
+        <li>how many were opened on a desktop and how many on a touch device;</li>
+        <li>how many different visitors opened a page that day, and how many pages were opened in each hour.</li>
+      </ul>
+      <p>Each count stands on its own. None combines them, such as the countries of the visitors who came from one site, so no count picks out one visitor. Days are counted in UTC.</p>
+      <p>Your IP address is used in memory to find your country and to count you once a day, and is never written down. For the country, the server looks your address up in its own copy of DB-IP's country database, so the address goes nowhere else. To count you once, it mixes your address and your browser's name with a secret it makes at the start of each day, and keeps the result, with how many pages it opened, in memory until the day ends or the server restarts. The secret is never written down either.</p>
+      <p>The counts are kept for each day for 25 months, then deleted. Only {admin} sees them, on the server. A browser that sends the Global Privacy Control signal is never counted.</p>
+      <p><a href="https://db-ip.com" target="_blank" rel="noopener">IP geolocation by DB-IP</a>.</p>
+      <button class="secondary" type="button" onclick={() => (uncounted = setNotCounted(!uncounted))}>{uncounted ? 'Count my visits again' : "Don't count my visits"}</button>
+      <p class="choice" aria-live="polite">{#if uncounted}This browser isn't counted. It remembers that until you press the button again or clear this site's data.{/if}</p>
+    </section>
+  {/if}
+
   <section id="passes">
     <h2>What it passes on and forgets</h2>
     <ul>
@@ -81,6 +106,7 @@
       {#if discord}<li>your player name and sign-in token;</li>{:else}<li>your player name;</li>{/if}
       <li>your saved game, your screen finish and your board view;</li>
       {#if discord}<li>when the page last offered you the Discord sign-in;</li>{/if}
+      {#if stats}<li>whether you chose not to have your visits counted;</li>{/if}
       <li>your copy of the game. It never leaves your browser.</li>
     </ul>
     <p>The page talks only to this server{#if discord}, and sends you to Discord when you sign in{/if}.</p>
@@ -88,7 +114,7 @@
 
   <section id="why">
     <h2>Why</h2>
-    <p>The server keeps your account, stats and friends{#if discord}, and a member's saved game,{/if} because you play online and they're what online play is.{#if replays} It keeps replays so that players can watch their battles again and share them.{/if} It keeps logs and backups to run the server and to recover it, and limits some requests from each network to protect it from abuse.</p>
+    <p>The server keeps your account, stats and friends{#if discord}, and a member's saved game,{/if} because you play online and they're what online play is.{#if replays} It keeps replays so that players can watch their battles again and share them.{/if}{#if stats} It counts its visitors so that {admin} can see how many people come, from where, and when.{/if} It keeps logs and backups to run the server and to recover it, and limits some requests from each network to protect it from abuse.</p>
   </section>
 
   <section id="rights">

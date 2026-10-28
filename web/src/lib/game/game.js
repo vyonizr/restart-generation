@@ -24,6 +24,7 @@ import { loadCurtain } from './curtain.js';
 import { focusOn } from '../focus.js';
 import { readGuide } from '../guide/guide.js';
 import { askSeat, startRejoin } from './rejoin.js';
+import { countVisit } from '../visit.js';
 
 let screen; // the game screen, which paints the engine's frame (screen.js)
 
@@ -91,6 +92,7 @@ export const rejoinStart = () => onStart?.(true);
 async function main(canvas) {
   const server = await serverStatus();
   page.server = server;
+  countVisit('game', server);
   if (server) startOnlineCount(server.online);
   page.ownCopy = !server?.servesGame; // kept whatever this browser stored earlier; loadFiles clears it for a copy sent for the download code
   const accounts = server?.accounts ? createAccounts() : null;

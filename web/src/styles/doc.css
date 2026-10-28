@@ -38,6 +38,10 @@ article a { color: #fff; text-decoration-color: var(--light-3); text-underline-o
 article a:hover { text-decoration-color: #fff; }
 .facts dd a { text-decoration-thickness: 1px; }
 
+/* The Privacy policy's "Don't count my visits" (docs/adr/0043): a secondary button at the dialog size, under the text it acts on. */
+article section > button { margin-top: 24px; font-size: 18px; padding: 12px 20px; }
+article .choice { margin-top: 14px; font-size: 15px; line-height: 1.7; }
+
 @media (max-width: 999px) {
   .doc main { grid-template-columns: minmax(0, 68ch); gap: 0; }
   .toc { display: none; }

@@ -1,15 +1,19 @@
 // Seed accounts (CONTEXT.md, docs/adr/0023): made-up accounts, friends, tokens, saved games and replays from server/seed.json,
-// upserted into a development server's files so that rankings, friends, rooms and replays look lived-in.
+// upserted into a development server's files so that rankings, friends, rooms and replays look lived-in; and made-up visitor
+// statistics, so that `npm run stats -- --dev` has days to show.
 //
-// Usage: node --env-file-if-exists=.env server/seed.js [--lan] [--play] [--db FILE [--replays-db FILE]]
+// Usage: node --env-file-if-exists=.env server/seed.js [--lan] [--play] [--db FILE [--replays-db FILE]] [--stats-db FILE]
 //   --lan         seed the name-only files, as `npm run dev:lan` opens them; otherwise the mode follows .env, as `npm run dev`
 //   --play        also play the seed's `played` battles that have no replay yet, between Bots logged in as seed accounts, for
 //                 replays the engine can play (needs RG_GAME and battle templates; a few minutes each)
-//   --db FILE     seed this accounts file instead of data/dev/'s; its replays go beside it unless --replays-db names a file
+//   --db FILE     seed this accounts file instead of data/dev/'s; its replays and visitor statistics go beside it unless
+//                 --replays-db or --stats-db names a file
 //
 // The seed owns the names in seed.json: each run puts those rows back to the file's values and leaves every other row alone.
 // Times in seed.json are offsets from the run ("-3d", "-23h55m"), so guests never age out of their 24 hours. Dev_Hoarder has more
-// battles than an account keeps (docs/adr/0034), so its oldest leave its list and stay on its opponents'.
+// battles than an account keeps (docs/adr/0034), so its oldest leave its list and stay on its opponents'. Visitor statistics are
+// days before the run (daysAgo), and each run puts those days back as the file has them. A development server never counts
+// visitors itself (docs/adr/0043).
 const crypto = require('crypto');
 const fs = require('fs');
 const net = require('net');
@@ -20,6 +24,7 @@ const { Worker } = require('worker_threads');
 const { pathToFileURL } = require('url');
 const store = require('./store');
 const replays = require('./replays');
+const stats = require('./stats');
 const { modeFrom, dataFiles, MEMBER_TOKEN_MS } = require('./auth');
 const { VALID_NAME } = require('../shared/snap-ids.js');
 
@@ -109,7 +114,14 @@ function apply(seed, { accounts, replays: replayStore, discord, now = Date.now()
   return { accounts: ids.size, friends, replays: seed.replays.length + seed.played.length - unplayed.length, signIns, unplayed, seated };
 }
 
-// What seed.json must hold for apply() to give accounts the server itself could have made.
+// Puts the seed's days of visitor statistics into an open statistics file (server/stats.js), each on the UTC day `daysAgo` days
+// before the run. Returns how many days.
+function applyStats(days, statsStore, now = Date.now()) {
+  for (const d of days) statsStore.putDay(stats.dayOf(now - d.daysAgo * 24 * 3600e3), d);
+  return days.length;
+}
+
+// What seed.json must hold for apply() and applyStats() to give accounts and counts the server itself could have made.
 function check(seed) {
   const names = new Set();
   for (const a of seed.accounts) {
@@ -131,6 +143,24 @@ function check(seed) {
         && m.moments.every(o => (o.kind === 'knockout' || (o.kind === 'rescue' && seats.has(o.by))) && seats.has(o.seat));
       if (!ok) throw new Error(`seed: ${r.id} has a mark that isn't one the witness makes: ${JSON.stringify(m)}`);
     });
+  }
+  // Visitor statistics as the server could have counted them (server/stats.js): each day once, its hours and each of its four
+  // tallies adding up to its page opens, only values the server keeps, and no more page opens than its unique visitors may make.
+  const days = new Set(), sum = list => list.reduce((a, b) => a + b, 0);
+  const counts = list => list.every(n => Number.isInteger(n) && n >= 0);
+  const keeps = { page: v => stats.PAGES.includes(v), device: v => stats.DEVICES.includes(v), referrer: v => stats.referringSite(v) === v, country: v => /^([A-Z]{2})?$/.test(v) };
+  for (const d of seed.visitorStatistics) {
+    const day = `seed: visitor statistics ${d.daysAgo} days ago`;
+    if (!Number.isInteger(d.daysAgo) || d.daysAgo < 0 || days.has(d.daysAgo)) throw new Error(`${day}: daysAgo is a whole number of days, and once for each day`);
+    days.add(d.daysAgo);
+    if (!counts([d.opens, d.uniques]) || d.uniques > d.opens || d.opens > d.uniques * stats.OPENS_PER_VISITOR_DAY) throw new Error(`${day}: page opens and unique visitors the server can't count`);
+    if (d.hours.length !== 24 || !counts(d.hours) || sum(d.hours) !== d.opens) throw new Error(`${day}: its 24 hours don't add up to its page opens`);
+    for (const dim of stats.DIMENSIONS) {
+      const entries = Object.entries(d[dim]);
+      if (!counts(entries.map(e => e[1])) || sum(entries.map(e => e[1])) !== d.opens) throw new Error(`${day}: its ${dim} counts don't add up to its page opens`);
+      const wrong = entries.find(([v]) => !keeps[dim](v));
+      if (wrong) throw new Error(`${day}: ${JSON.stringify(wrong[0])} isn't a ${dim} the server keeps`);
+    }
   }
 }
 
@@ -193,8 +223,9 @@ async function main(argv) {
     const base = path.basename(accountsFile);
     const replaysFile = arg('replays-db') ? path.resolve(arg('replays-db')) : /^accounts/.test(base) ? path.join(path.dirname(accountsFile), base.replace(/^accounts/, 'replays')) : '';
     if (!replaysFile) throw new Error('--db names a file whose name doesn\'t start with "accounts": name its replays file with --replays-db');
-    files = { dir: path.dirname(accountsFile), accounts: accountsFile, replays: replaysFile };
+    files = { dir: path.dirname(accountsFile), accounts: accountsFile, replays: replaysFile, stats: path.join(path.dirname(accountsFile), 'stats.db') };
   }
+  if (arg('stats-db')) files.stats = path.resolve(arg('stats-db'));
   const seed = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed.json'), 'utf8'));
   check(seed);
   fs.mkdirSync(files.dir, { recursive: true });
@@ -212,6 +243,8 @@ async function main(argv) {
       done = apply(seed, { accounts, replays: replayStore, discord: mode.discord, now });
     }
     console.log(`Seeded ${files.accounts}: ${done.accounts} accounts, ${done.friends} friend pairs, ${done.replays} replays (${mode.discord ? 'Discord sign-in' : 'name-only'}).`);
+    const statsStore = stats.open(files.stats);
+    try { console.log(`Seeded ${files.stats}: ${applyStats(seed.visitorStatistics, statsStore, now)} days of visitor statistics.`); } finally { statsStore.close(); }
     if (done.unplayed.length) console.log(`${done.unplayed.length} played replay${done.unplayed.length > 1 ? 's are' : ' is'} missing; \`npm run seed -- --play\` plays ${done.unplayed.length > 1 ? 'them' : 'it'} (needs RG_GAME).`);
     if (!mode.discord) { console.log('To play as a seed account, choose Set name (or Change name) under Start, type its name, such as Dev_Ada, and choose Save.'); return; }
     console.log('To play as a seed account, open the page in a private window, paste its line into the console, and reload:');
@@ -223,4 +256,4 @@ async function main(argv) {
 
 if (require.main === module) main(process.argv.slice(2)).catch(e => { console.error(e.message); process.exitCode = 1; });
 
-module.exports = { apply, check, play, settingsFile, offset, tokenOf };
+module.exports = { apply, applyStats, check, play, settingsFile, offset, tokenOf };

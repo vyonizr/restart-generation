@@ -40,6 +40,18 @@ _Avoid_: user, connected player, active player
 Anyone who opens the browser client's page, online or not. A server that isn't public sends the game to every visitor, and a public server only to visitors who come with its download code, so visitors, not online players, set what sending it costs.
 _Avoid_: user, page view, session
 
+**Unique visitor**:
+A visitor counted once in a day, however many pages they open that day. The next day they count again.
+_Avoid_: user, session, returning visitor
+
+**Referring site**:
+The other site a visitor came from, named by its domain alone, such as `reddit.com`. A visitor who typed the address or came from an app has none.
+_Avoid_: referrer URL, source, channel, campaign
+
+**Visitor statistics**:
+A public server's daily counts of its visitors, which only its admin sees: how many came, to which kind of page, from which referring site and country, and on which kind of device. A server counts them only when its admin turns them on, and never counts a visitor who opts out.
+_Avoid_: analytics, tracking, telemetry, metrics
+
 **Seed account**:
 A made-up account that a server used for developing the site loads at start, so that rankings, friends, rooms, and replays look lived-in. No player owns it, it isn't a bot, and a public server never has one.
 _Avoid_: dummy account, fake user, test account

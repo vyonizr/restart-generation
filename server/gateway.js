@@ -12,10 +12,12 @@ const { PORT, HTTP_PORT } = require('./ports');
 const gameServer = require('./casino');
 const bots = require('./bots');
 const store = require('./store');
-const { modeFrom, dataFiles, createAuth, clientNetwork } = require('./auth');
+const { modeFrom, dataFiles, createAuth, clientAddress, clientNetwork } = require('./auth');
 const { createAdmin } = require('./admin');
 const { createSender } = require('./sendgame');
 const replays = require('./replays');
+const stats = require('./stats');
+const { createCountries } = require('./countries');
 const { replayPage } = require('./replaypage');
 const { versionOf } = require('./version');
 
@@ -53,6 +55,9 @@ const db = store.open(process.env.RG_DB || FILES.accounts);
 // RG_REPLAYS_DB overrides the file, as RG_DB does for tests.
 const REPLAYS = process.env.RG_REPLAYS !== '0';
 const replayStore = replays.open(process.env.RG_REPLAYS_DB || (process.env.RG_DB === ':memory:' ? ':memory:' : FILES.replays));
+// Visitor statistics (CONTEXT.md, docs/adr/0043): counted only on a public server whose admin sets RG_STATS=1, since only a public
+// server has a Privacy policy to say so. RG_STATS_DB overrides their file, as RG_REPLAYS_DB does.
+const STATS = MODE.public && process.env.RG_STATS === '1';
 
 const LOBBY = { id: '1', name: 'resgen' };
 const sessions = new Map(); // sid -> session
@@ -384,6 +389,21 @@ setInterval(sender.sweep, 3600000); // the networks counted for the download cod
 const sweepReplays = () => { const n = replayStore.sweep(id => db.byId(id)?.name ?? null); if (n) log(`deleted ${n} replay${n > 1 ? 's' : ''} no player keeps`); };
 sweepReplays(); setInterval(sweepReplays, 3600000);
 
+// Visitor statistics: the page opens that each page reports with POST /visit (server/stats.js), with the visitor's country from
+// DB-IP's database, which the server downloads into data/ and checks for a new month every day (server/countries.js). The sweep
+// runs on the hour, so a new day's salt and set of visitors start at midnight UTC, and deletes days older than 25 months.
+let visits = null;
+if (STATS) {
+  const countries = createCountries({ dir: FILES.dir, log });
+  countries.start();
+  setInterval(countries.check, 24 * 3600000);
+  visits = stats.createVisits({ store: stats.open(process.env.RG_STATS_DB || (process.env.RG_DB === ':memory:' ? ':memory:' : FILES.stats)), countries });
+  const sweepStats = () => { const n = visits.sweep(); if (n) log(`deleted ${n} day${n > 1 ? 's' : ''} of visitor statistics older than 25 months`); };
+  const onTheHour = () => setTimeout(() => { sweepStats(); onTheHour(); }, 3600000 - (Date.now() % 3600000) + 1000);
+  sweepStats(); onTheHour();
+  log('Visitor statistics are on (RG_STATS=1): `npm run stats` shows them (docs/HOSTING.md "Visitor statistics")');
+} else if (process.env.RG_STATS === '1') log('RG_STATS=1 is ignored: only a --public server counts visitor statistics, so they stay off');
+
 // ---- browser client: serves the built page (web/dist) and the server copy of the game (server/sendgame.js) ----
 const http = require('http');
 const WEB_DIR = path.join(__dirname, '..', 'web');
@@ -424,11 +444,27 @@ const httpServer = http.createServer((req, res) => {
     });
     return;
   }
+  // A page reporting its own visit (server/stats.js). The address is used for the country and the visitor's hash, never logged.
+  if (url === '/visit' && req.method === 'POST') {
+    if (!visits) { res.writeHead(404, { 'Cache-Control': 'no-store' }); return res.end(); }
+    const chunks = [];
+    let size = 0;
+    req.on('data', c => { size += c.length; if (size > 512) req.destroy(); else chunks.push(c); });
+    req.on('end', () => {
+      let status;
+      try {
+        status = visits.visit({ body: Buffer.concat(chunks).toString('utf8'), ip: clientAddress(req, authConfig.trustProxy),
+          userAgent: String(req.headers['user-agent'] || ''), gpc: req.headers['sec-gpc'] === '1' });
+      } catch (e) { log(`visit not counted: ${e.message}`); status = 500; }
+      res.writeHead(status, { 'Cache-Control': 'no-store' }); res.end();
+    });
+    return;
+  }
   if (url === '/status') { // what the page shows before anyone logs in: the account mode and who is playing
     // The admin's name and hosting provider fill in the Terms and the Privacy policy, which only a public server publishes: the page
     // links them when `adminName` is set (docs/adr/0021).
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: sender.servesAll(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, adminName: MODE.public ? authConfig.adminName : '', hosting: MODE.public ? authConfig.hosting : '', online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting(), replays: REPLAYS }));
+    return res.end(JSON.stringify({ version: VERSION, accounts: auth.enabled, servesGame: sender.servesAll(), unlockAll: !MODE.public, invite: authConfig.invite, contact: authConfig.contact, adminName: MODE.public ? authConfig.adminName : '', hosting: MODE.public ? authConfig.hosting : '', online: [...sessions.values()].filter(s => !s.account.bot).length, waiting: gameServer.waiting(), replays: REPLAYS, stats: STATS }));
   }
   if (parsed.pathname.startsWith('/admin/')) {
     admin.http(req, res, parsed);

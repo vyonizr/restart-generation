@@ -26,11 +26,12 @@ Use the following npm scripts:
 - `npm run build`: rebuilds the page after you change anything in `web/` or `shared/`.
 - `npm run dev:web`: serves the page while a gateway runs. A style change swaps in place, and a script or component change reloads the page. It forwards `/snap`, `/status`, `/auth`, `/bots`, `/replays`, `/replay/ID/data`, and `/game` to port 8080 (or `HTTP_PORT`).
 - `npm run dev`, or `npm run dev:lan` for `--lan`: runs `npm run seed`, then starts a development server that restarts on file changes. It keeps its accounts and replays in `data/dev/`, apart from the files `npm start` uses ([ADR 0023](adr/0023-development-servers-load-seed-accounts.md)).
-- `npm run seed`: upserts the seed accounts from `server/seed.json` into `data/dev/`, with their friends, tokens, saved games, and replays. Stop the development server first, because it doesn't read accounts that change under it. Add `-- --lan` for the name-only files. Add `-- --play` to also play the seed's `played` battles between bots, for replays the engine can play. That needs `RG_GAME` and battle templates, and takes a few minutes for each battle. The other seed replays show their players and result, and about 10 seconds after **Watch** the page says they can't be played.
+- `npm run seed`: upserts the seed accounts from `server/seed.json` into `data/dev/`, with their friends, tokens, saved games, and replays, and six weeks of made-up visitor statistics for `npm run stats -- --dev`. Stop the development server first, because it doesn't read accounts that change under it. Add `-- --lan` for the name-only files. Add `-- --play` to also play the seed's `played` battles between bots, for replays the engine can play. That needs `RG_GAME` and battle templates, and takes a few minutes for each battle. The other seed replays show their players and result, and about 10 seconds after **Watch** the page says they can't be played.
 
   To play as a seed account on a server with Discord sign-in, open the page in a private window, paste the account's `localStorage` line that `npm run seed` prints into the browser console, and reload the page. A private window keeps your own account and saved game untouched. On a name-only server, choose **Set name** (or **Change name**) under **Start**, type the seed account's name, such as `Dev_Ada`, and choose **Save**.
 - `npm test`: runs the self-checks that need no local data and no built page.
 - `npm run backup`: copies the accounts database into `data/backups/` while the server runs, and keeps the newest 7 backups. To keep a different number, run `npm run backup -- --keep NUMBER`. In Docker, run `docker compose exec rg npm run backup`.
+- `npm run stats`: shows the visitor statistics of a public server that counts them. See [Visitor statistics](#visitor-statistics).
 
 To start the server without npm after you build the page, run the following command:
 
@@ -69,6 +70,63 @@ To keep no replays, set `RG_REPLAYS=0`: the server then keeps no new ones and se
 From a replay's page, anyone who can watch it can also save it as footage ([CONTEXT.md](../CONTEXT.md) "Footage"), an MP4 file their own browser makes, with the game's sound effects but not its soundtrack ([ADR 0041](adr/0041-footage-and-showcase-clips-leave-out-the-soundtrack.md)); the server does nothing more for it. Browsers make footage only on a secure page, so a `--lan` server over plain HTTP offers it only at `localhost` on its own PC; a public server over HTTPS offers it to everyone. `RG_REPLAYS=0` stops new footage too, but nothing can recall a file someone already saved ([ADR 0028](adr/0028-players-can-export-a-replay-as-footage.md)).
 
 To check that replays play back the battles as they were played, run self-play with `--replays` (`npm run selfplay -- --battles 2 --replays`, needs `RG_GAME`): each battle's replay is played to its end in the engine, which must end on the bots' final turn with their ranks.
+
+### Visitor statistics
+
+A `--public` server can count its visitors, for you alone to see: how many open its pages each day, from which referring site and country, and on which kind of device ([CONTEXT.md](../CONTEXT.md) "Visitor statistics", [ADR 0043](adr/0043-visitor-statistics-are-counted-by-the-gateway-itself.md)). It's off by default. To turn it on, set `RG_STATS=1` and restart the server, which logs `Visitor statistics are on`. The Privacy policy then describes them, credits DB-IP, and offers each visitor a **Don't count my visits** button. A server that isn't `--public` has no Privacy policy to say so: it ignores `RG_STATS=1`, logs that the statistics stay off, and never counts.
+
+Each of the four pages (the game, a replay, the Terms, and the Privacy policy) reports its own visit once it has loaded. For each UTC day, the server counts:
+
+- page opens, in all and in each hour;
+- unique visitors: each visitor once, however many pages they open that day;
+- page opens by kind of page, by referring site (its domain only, such as `reddit.com`), by country, and by kind of device (desktop or touch). Each of these tallies is kept on its own, so no row combines two of them.
+
+The server tells visitors apart by a hash of their IP address and their browser's name with a salt that lives only in memory and changes at every UTC midnight. It uses the address for that and for the country, and never writes it down or logs it. The page sets no cookies. One visitor adds at most 50 page opens a day. A browser that sends Global Privacy Control, or whose player chose **Don't count my visits**, isn't counted, and neither is a browser that runs no script, nor most link previews and crawlers, so the counts are a floor.
+
+The counts are kept in `data/stats.db` (`RG_STATS_DB` names another file). At start and every hour, the server deletes the days older than 25 months. `npm run backup` doesn't back them up. To delete them all, stop the server and delete the file with its `-wal` and `-shm` files.
+
+To see the last 30 days, run `npm run stats`. With Docker, run it inside the container:
+
+```sh
+docker compose exec rg npm run stats
+```
+
+It reads the file while the server runs. Add these options after `--`, such as `npm run stats -- --days 7 --tz +7`:
+
+- `--days N`: the last `N` days, ending today (30 by default).
+- `--from YYYY-MM-DD` and `--to YYYY-MM-DD`: the days from one date to another, both included.
+- `--tz ±H`: shifts the hourly chart by `H` hours, to your clock. The days stay UTC.
+- `--dev`: the development server's file, `data/dev/stats.db`, where `npm run seed` puts six weeks of made-up days.
+- `--db FILE`: another file.
+
+The report looks like this, shortened:
+
+```text
+Visitor statistics from data/stats.db, 2026-09-29 to 2026-10-28 (UTC days)
+
+Day               Page opens  Unique visitors
+2026-10-07 Wed            62               27  ██████
+2026-10-08 Thu           396              248  ████████████████████████████████████████
+2026-10-09 Fri           224              140  ███████████████████████
+2026-10-19 Mon *          82               39  ████████
+* The server started that day: a visitor it had already counted that day may have counted again.
+
+Page opens: 2,979
+Unique visitors, summed over the days: 1,432 (a visitor on two days counts twice)
+
+Referring sites         Page opens   Share
+  reddit.com                   747   25.1%
+  discord.com                  227    7.6%
+  google.com                   163    5.5%
+  other                         96    3.2%
+  none                       1,302   43.7%
+```
+
+The full report lists every day of the range, the kinds of page and of device, the ten largest referring sites and countries, and the page opens of each hour.
+
+The day's salt and its set of visitors live only in memory, so after a restart a visitor already counted that day counts again. The report marks the days the server started with `*`. A move between the site's own pages, and the return from Discord sign-in, count with no referring site.
+
+The country comes from DB-IP's free IP to Country Lite database ([db-ip.com](https://db-ip.com), CC BY 4.0). The server downloads it from `download.db-ip.com` into `data/` as `dbip-country-lite-YYYY-MM.csv.gz`, about 4.5 MB, when it starts, and checks every day for the new month's file, which DB-IP publishes during the month. Until then it keeps last month's, and it deletes older files once a newer one loads. A failed download logs one line and keeps the file the server has; with none, every country is unknown. The database takes about 10 MB of memory and a quarter of a second to load. As its licence asks, the Privacy policy credits it: "IP geolocation by DB-IP", linked to `https://db-ip.com`.
 
 ### Bots
 
