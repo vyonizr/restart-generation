@@ -12,6 +12,7 @@
   import Keys from './lib/input/Keys.svelte';
   import Footer from './lib/legal/Footer.svelte';
   import Who from './lib/account/Who.svelte';
+  import WhoChip from './lib/account/WhoChip.svelte';
   import Online from './lib/account/Online.svelte';
   import MemberDialog from './lib/account/MemberDialog.svelte';
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
@@ -39,7 +40,9 @@
   <header><h1 class="name">Restart Generation</h1><Online where="online-head" /><div class="who" id="who" hidden={!page.who}><Who /></div></header>
   <span class="ghost" aria-hidden="true">Restart<br>Generation</span>
   <main>
-    {#if touch}<Online where="online-top" />{/if}
+    <!-- Touch devices have no header: the line at the top of the page holds the who chip and the online count, and stays while the
+         game runs. -->
+    {#if touch}<div class="top-line" hidden={!page.who && !page.onlineName && page.online === null}><WhoChip /><Online where="online-top" /></div>{/if}
     <div class="screen" bind:this={screen} data-finish={page.finish} data-grid={pitch >= GRID_MIN_PITCH ? '' : null}>
       <canvas id="screen" width="420" height="378" tabindex={page.playing ? 0 : -1} aria-label="Game screen" inert={page.dialogs > 0} bind:this={canvas} use:focusTarget={'screen'}></canvas>
       <Overlay />

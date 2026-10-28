@@ -1,6 +1,6 @@
 <!-- How many players are online: two people, the number, and "online". On a desktop it stands in the header's right end, before
-     the who chip; on a touch device, which has no header, on a line of its own at the top of the page, over the game screen's right
-     end. Both hide when there is no server to ask. -->
+     the who chip; on a touch device, which has no header, at the right end of the line at the top of the page, across from the who
+     chip. Both hide when there is no server to ask. -->
 <script>
   import { page } from '../page.svelte.js';
 

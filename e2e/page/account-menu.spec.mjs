@@ -11,7 +11,7 @@ for (const [item, title, keep, answer] of [
 ]) {
   test(`${item} asks first, and ${answer === 'Escape' ? 'Escape' : keep} keeps the account`, async ({ page }) => {
     await page.goto('/');
-    await page.getByText('Account', { exact: true }).filter({ visible: true }).click();
+    await page.locator('.who summary, .who-chip').filter({ visible: true }).click();
     await page.getByRole('button', { name: item }).filter({ visible: true }).click();
     const dialog = page.getByRole('dialog', { name: title });
     await expect(dialog.getByRole('button', { name: keep })).toBeFocused();

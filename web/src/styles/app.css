@@ -107,7 +107,7 @@
   .replay-actions { grid-column: 2 / -1; grid-row: 2; justify-self: end; }
 }
 
-/* Who you are: the header on a desktop, a line under Start on a touch device */
+/* Who you are: in the header on a desktop; on a touch device, the who chip at the left of the line at the top of the page */
 .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .who-name { font: 500 13px/1 var(--mono); color: #fff; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .who button { font-size: 13px; padding: 6px 12px; white-space: nowrap; }
@@ -118,10 +118,31 @@
 .menu summary:hover, .menu[open] summary { color: #fff; border-color: #fff; }
 .menu-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 2; display: grid; gap: 8px; padding: 12px; background: var(--ink-2); box-shadow: 0 2px 16px rgb(0 0 0 / 50%); white-space: nowrap; }
 .menu-panel button { font-size: 13px; padding: 8px 12px; }
-#who-touch { align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 12px; }
-#who-touch .who-name { font: 600 13px/1.6 var(--body); max-width: none; }
-#who-touch .menu-panel { position: static; display: flex; padding: 8px 0 0; background: none; box-shadow: none; }
-#who-touch .menu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* The who chip: the player's name between a person and a caret, on ink-2 in a 36px box whose tap target reaches 44px. It opens its menu
+   over the screen's top, as the desktop's Account panel drops from the header: a line on what kind of player this is, then the actions
+   in Anton, ruled off from each other in ink-3 as the Download replay menu's options are. A touch screen keeps a tapped button
+   hovered, so hover looks like rest and a press lightens. */
+.who-anchor { position: relative; min-width: 0; }
+.who-chip, .who-chip:hover { position: relative; display: flex; align-items: center; gap: 8px; height: 36px; max-width: 100%; padding: 0 10px 0 8px;
+  text-transform: none; letter-spacing: 0; color: #fff; background: var(--ink-2); border: 1px solid var(--ink-3); transition: none; }
+.who-chip::after { content: ''; position: absolute; inset: -4px; }
+.who-chip:active, .who-chip[aria-expanded=true] { border-color: #fff; }
+.who-chip svg { flex: none; fill: none; stroke: var(--light-3); stroke-width: 1.4; stroke-linecap: square; }
+.who-person { width: 18px; height: 18px; }
+.who-caret { width: 12px; height: 12px; stroke-width: 1.6; }
+.who-menu { position: absolute; left: 0; top: calc(100% + 8px); z-index: 6; display: grid; width: max-content; min-width: 248px; max-width: calc(100vw - 24px);
+  background: var(--ink-2); border: 1px solid var(--ink-3); box-shadow: 0 8px 24px rgb(0 0 0 / 50%); animation: who-drop .2s cubic-bezier(.16, 1, .3, 1); }
+.who-menu[hidden] { display: none; }
+.who-kind { margin: 0; padding: 12px 14px 10px; font: 13px/1.5 var(--body); color: var(--light-3); }
+.who-item, .who-item:hover { min-height: 48px; padding: 0 14px; text-align: left; font-size: 17px; color: #fff; background: transparent; border: 0;
+  border-top: 1px solid var(--ink-3); transition: none; }
+.who-item:active { background: var(--ink-3); }
+.who-item.primary, .who-item.primary:hover { background: var(--red); border-top-color: var(--red); }
+.who-item.primary:active { background: #fff; color: var(--red); }
+.who-item.quiet, .who-item.quiet:hover { color: var(--light-3); }
+.who-item:disabled { opacity: .45; cursor: default; }
+.who-item:focus-visible { outline-offset: -3px; }
+@keyframes who-drop { from { opacity: 0; transform: translateY(-6px); } }
 
 /* The line under the screen: notices, and the offer to sign in */
 .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; max-width: 70ch; font: 15px/1.6 var(--body); color: var(--light-2); text-align: center; }
@@ -204,21 +225,25 @@
 @media (hover: none) and (pointer: coarse) {
   /* --rd: the round D-pad's diameter, and the side of the square Select and Back sit in; capped so the two fit the width side by side.
      --pad-h: the pad's height, which the screen leaves room for: the D-pad, a 24px gap, and the tool bar. --chrome: main's padding and
-     the gap between the screen and the pad. --note-h: a notice's line and its gap, while one shows. --count-h: the online count's
-     line at the top of the page and its gap, while it shows. */
+     the gap between the screen and the pad. --note-h: a notice's line and its gap, while one shows. --count-h: the line at the top of
+     the page and its gap, while it shows: 32px for the count alone, 48px with the who chip. */
   /* --edge: how far the D-pad and the buttons sit in from the pad's sides, where a thumb rests rather than at the phone's edges. */
   :root { --edge: clamp(10px, calc(5vw - 2px), 28px); --rd: min(clamp(116px, 26dvh, 230px), calc(50vw - 24px - var(--edge))); --tools-h: 68px; --chrome: 40px; }
   .page { --pad-h: calc(var(--rd) + 24px + var(--tools-h)); --w: min(100%, (100dvh - var(--chrome) - var(--pad-h) - var(--note-h, 0px) - var(--count-h, 0px)) * 3 / 4); }
   .page[data-frame=full] { --w: min(100%, (100dvh - var(--chrome) - var(--pad-h) - var(--note-h, 0px) - var(--count-h, 0px)) * 420 / 378); }
   .page:has(#slow:not([hidden]), #nudge:not([hidden])) { --note-h: 64px; }
-  .page:has(.online-top:not([hidden])) { --count-h: 32px; }
-  header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
+  .page:has(.top-line:not([hidden])) { --count-h: 32px; }
+  .page:has(.top-line .who-chip) { --count-h: 48px; }
+  header, .keys, .ghost, .sub, #pick-folder, #online-as, .desktop-only { display: none; }
   .page { grid-template-rows: 1fr auto; }
   .touch-only { display: inline; }
-  #who-touch { display: flex; }
-  /* The online count: the page has no header here, so the count stands at its top, over the screen's right end, where the header
-     has it on a desktop. It stays while the game runs. */
-  .online-top { order: -1; justify-content: flex-end; width: var(--w); min-height: 20px; margin-bottom: auto; }
+  /* The line at the top of the page: the page has no header here, so the who chip stands at its left and the online count at its
+     right, where the header has them on a desktop, across the pad's width (the chip over the D-pad, the count over Select). It
+     stays while the game runs, so the account and Replays are a tap away during play; the chip replaces the lines under Start. */
+  .top-line { order: -1; display: flex; align-items: center; gap: 12px; width: min(100%, 560px); min-height: 20px; margin-bottom: auto;
+    padding-inline: var(--edge); box-sizing: border-box; }
+  .top-line[hidden] { display: none; }
+  .online-top { margin-left: auto; }
   html, body { overscroll-behavior: none; }
   main { min-height: 100dvh; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 12px; padding: 16px 12px 12px; }
   .screen { flex: none; height: auto; width: var(--w); }
@@ -287,6 +312,13 @@
   .page { --pad-h: 0px; --w: min(calc(100vw - 2 * (var(--rd) + var(--edge)) - 48px), (100dvh - var(--chrome) - var(--note-h, 0px) - var(--count-h, 0px)) * 3 / 4); }
   .page[data-frame=full] { --w: min(calc(100vw - 2 * (var(--rd) + var(--edge)) - 48px), (100dvh - var(--chrome) - var(--note-h, 0px) - var(--count-h, 0px)) * 420 / 378); }
   main { justify-content: center; padding: 8px 8px 4px; }
+  /* The line at the top: the screen's column has no height to spare, so the count keeps a line of its own over the screen's right
+     end, and the who chip stands at the top of the D-pad's column, in the room the centred disc leaves above it. */
+  .top-line { display: contents; }
+  .page:has(.top-line:not([hidden])) { --count-h: 0px; }
+  .page:has(.online-top:not([hidden])) { --count-h: 32px; }
+  .online-top { order: -1; justify-content: flex-end; width: var(--w); min-height: 20px; margin: 0 0 auto; }
+  .who-anchor { position: absolute; z-index: 3; top: 8px; left: calc(8px + var(--edge)); max-width: var(--rd); }
   .pad { position: absolute; inset: 8px 8px 4px; width: auto; max-width: none;
     grid-template: "d . b" 1fr "d . t" auto / calc(var(--rd) + var(--edge)) 1fr calc(var(--rd) + var(--edge));
     row-gap: 4px; pointer-events: none; }

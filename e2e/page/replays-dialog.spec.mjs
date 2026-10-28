@@ -7,7 +7,8 @@ test.use({ account: member });
 test('a signed-in member opens their replays, newest first, and Escape gives the menu its focus back', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.who-name').filter({ visible: true })).toHaveText(member);
-  const menu = page.getByText('Account', { exact: true }).filter({ visible: true });
+  // The Account menu on a desktop, the who chip on a touch device.
+  const menu = page.locator('.who summary, .who-chip').filter({ visible: true });
   await menu.click();
   await page.getByRole('button', { name: 'Replays' }).filter({ visible: true }).click();
 

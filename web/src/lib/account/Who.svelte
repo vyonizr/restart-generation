@@ -1,4 +1,4 @@
-<!-- Who you are: the header on a desktop, the line under Start on a touch device (App places it in both). -->
+<!-- Who you are, in a desktop's header. A touch device, which has no header, has the who chip instead (WhoChip.svelte). -->
 <script>
   import { page } from '../page.svelte.js';
   import { actions } from './accounts.js';

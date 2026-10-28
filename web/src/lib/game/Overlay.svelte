@@ -2,7 +2,6 @@
      picker, Start, and the way out of an error. -->
 <script>
   import { page } from '../page.svelte.js';
-  import Who from '../account/Who.svelte';
   import { changeName } from '../account/login.js';
   import { chooseZip, chooseFolder } from './game-files.js';
   import { pressStart, reload, useDifferentCopy, retryQuit } from './game.js';
@@ -32,7 +31,6 @@
   <button id="start" hidden={!page.start} bind:this={startButton} use:focusTarget={'start'} onclick={pressStart}>Start</button>
   <p class="hint" id="accept" hidden={!page.start || !page.server?.adminName}>By playing online you accept the <a href="terms/" target="_blank" rel="noopener">Terms</a> and the <a href="privacy/" target="_blank" rel="noopener">Privacy policy</a>.</p>
   <p class="hint" id="online-as" hidden={!page.onlineName}>Online as <b id="online-name">{page.onlineName}</b> · <button id="change-name" class="secondary" onclick={changeName}>{page.onlineNamed ? 'Change name' : 'Set name'}</button>{#if page.server?.replays && page.onlineNamed}{' · '}<button id="online-replays" class="secondary" onclick={() => { page.replays = page.onlineName; }}>Replays</button>{/if}</p>
-  <p class="hint touch-only who" id="who-touch" hidden={!page.who}><Who /></p>
   <div id="recover" hidden={!page.recover}>
     <button id="reload" bind:this={reloadButton} onclick={reload}>Reload</button>
     <button id="forget" class="secondary" hidden={!page.forgettable} onclick={useDifferentCopy}>Use a different copy</button>
