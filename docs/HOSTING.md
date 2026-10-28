@@ -121,7 +121,7 @@ The following table lists the variables for guests and members:
 - A member's **saved game** (story progress, quick-match record, settings, and achievements; at most 256 KiB per file, and at most 1 MiB and 16 files per account) is kept on the server with the account, so it follows them to another browser or device. A guest's saved game stays in the browser. Signing out clears the browser's copy; deleting the account removes the server's copy ([ADR 0014](adr/0014-a-members-saved-game-is-kept-on-the-server.md)).
 - The Java client can't send a token, so such a server refuses it. The Java client still works on servers without Discord sign-in.
 
-The page also shows how many players are online, from `GET /status`: "3 online" under the game screen, or on a phone, a small people icon and the number on the Start screen. A public server runs no bots, so on a quiet server, players wait.
+The page also shows how many players are online, from `GET /status`: "3 online" at the right end of the header, or on a phone, at the top of the page, over the game screen. A public server runs no bots, so on a quiet server, players wait.
 
 ## Terms and Privacy policy
 

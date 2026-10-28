@@ -36,9 +36,10 @@
 </script>
 
 <div class="page" data-frame={frame}>
-  <header><h1 class="name">Restart Generation</h1><div class="who" id="who" hidden={!page.who}><Who /></div></header>
+  <header><h1 class="name">Restart Generation</h1><Online where="online-head" /><div class="who" id="who" hidden={!page.who}><Who /></div></header>
   <span class="ghost" aria-hidden="true">Restart<br>Generation</span>
   <main>
+    {#if touch}<Online where="online-top" />{/if}
     <div class="screen" bind:this={screen} data-finish={page.finish} data-grid={pitch >= GRID_MIN_PITCH ? '' : null}>
       <canvas id="screen" width="420" height="378" tabindex={page.playing ? 0 : -1} aria-label="Game screen" inert={page.dialogs > 0} bind:this={canvas} use:focusTarget={'screen'}></canvas>
       <Overlay />
@@ -51,9 +52,8 @@
     {#if touch}<Pad />{/if}
     <p class="slow" id="slow" role="status" hidden={!page.slow}><span id="slow-text">{page.slow}</span>{#if page.slowClassic && page.board === 'full'}<button class="secondary" onclick={useClassic}>Use Classic</button>{/if}<button id="slow-close" class="secondary" onclick={() => { page.slow = null; }}>Dismiss</button></p>
     <p class="nudge" id="nudge" role="status" hidden={!page.notice}><span id="nudge-text">{page.notice?.text}</span><span class="nudge-actions" id="nudge-actions">{#if page.notice}{#each page.notice.actions as action}{#if action.href}<a class="button" href={action.href} target="_blank" rel="noopener">{action.label}</a>{:else}<button type="button" class={action.secondary ? 'secondary' : ''} onclick={() => { if (!action.keep) page.notice = null; action.run?.(); }}>{action.label}</button>{/if}{/each}{/if}</span></p>
-    <!-- The online count on its own line; under it Guide at the left end, as wide as Soft screen, and the two toggles at the right end. -->
+    <!-- Guide at the left end, as wide as Soft screen, and the two toggles at the right end. -->
     <div class="sub">
-      <span class="sub-online" hidden={page.online === null || Boolean(page.notice)}><Online /></span>
       {#if page.guidable}<span class="sub-start"><button type="button" class="secondary guide-open" style:width={softWidth ? `${softWidth}px` : null} onclick={openGuide}>Guide</button></span>{/if}
       <span class="sub-end">
         {#if page.boardable}<button type="button" class="secondary finish board" aria-pressed={page.board === 'full'} onclick={() => { toggleBoard(); focusOn('screen'); }}>Full board</button>{/if}

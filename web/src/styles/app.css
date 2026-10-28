@@ -127,15 +127,19 @@
 .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; max-width: 70ch; font: 15px/1.6 var(--body); color: var(--light-2); text-align: center; }
 .nudge-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .nudge button, .nudge a.button { font-size: 16px; padding: 8px 14px; }
-.online-line { align-items: center; justify-content: center; gap: 6px; font: 500 13px/1 var(--mono); color: var(--light-2); }
-.online-line svg { width: 16px; height: 16px; fill: none; stroke: var(--light-3); stroke-width: 1.4; stroke-linecap: square; }
+/* How many players are online (Online.svelte): two people, the number in white, "online" a step quieter. On a desktop it stands in
+   the header's right end, ruled off from the who chip when there is one. */
+.online { display: flex; align-items: center; gap: 6px; font: 500 13px/1 var(--mono); color: var(--light-3); white-space: nowrap; }
+.online b { font-weight: 500; color: #fff; }
+.online svg { flex: none; width: 16px; height: 16px; fill: none; stroke: var(--light-3); stroke-width: 1.4; stroke-linecap: square; }
+.online-head { margin-left: auto; }
+.online-head:has(+ .who:not([hidden])) { height: 24px; padding-right: 24px; border-right: 1px solid var(--ink-3); }
 
-/* The online count on its own line, centered; under it Guide at the left end and the two toggles at the right end. The row is at
-   least wide enough for both ends when the screen is narrower than that. */
-.sub-online { grid-column: 1 / -1; margin-bottom: 8px; }
+/* Guide at the left end and the two toggles at the right end. The row is at least wide enough for both ends when the screen is
+   narrower than that. */
 .sub { width: max(calc(var(--screen-h) * var(--screen-w) / var(--screen-h-px)), min(100%, 560px)); }
-.sub-start { grid-row: 2; grid-column: 1; justify-self: start; }
-.sub-end { grid-row: 2; grid-column: 3; justify-self: end; display: inline-flex; gap: 8px; }
+.sub-start { grid-column: 1; justify-self: start; }
+.sub-end { grid-column: 3; justify-self: end; display: inline-flex; gap: 8px; }
 /* Guide is as wide as Soft screen (App.svelte measures it) and as tall as the toggles, with its label centered. */
 .sub .guide-open { display: inline-flex; align-items: center; justify-content: center; font-size: 13px; padding: 4px 8px; white-space: nowrap; }
 /* The Full board toggle's mark is the Full board's own shape, 10 × 9, filled while it is on. */
@@ -188,6 +192,8 @@
 
 @media (max-width: 759px) {
   .who .long { display: none; }
+  /* A narrow window's header has no room for the word beside the who chip: the icon and the number carry it. */
+  .online-head .online-word { display: none; }
   .page[data-frame=full] { --screen-h: min(clamp(300px, 100dvh - 330px, 640px), (100vw - 32px) * 378 / 420); }
 }
 
@@ -198,16 +204,21 @@
 @media (hover: none) and (pointer: coarse) {
   /* --rd: the round D-pad's diameter, and the side of the square Select and Back sit in; capped so the two fit the width side by side.
      --pad-h: the pad's height, which the screen leaves room for: the D-pad, a 24px gap, and the tool bar. --chrome: main's padding and
-     the gap between the screen and the pad. --note-h: a notice's line and its gap, while one shows. */
+     the gap between the screen and the pad. --note-h: a notice's line and its gap, while one shows. --count-h: the online count's
+     line at the top of the page and its gap, while it shows. */
   /* --edge: how far the D-pad and the buttons sit in from the pad's sides, where a thumb rests rather than at the phone's edges. */
   :root { --edge: clamp(10px, calc(5vw - 2px), 28px); --rd: min(clamp(116px, 26dvh, 230px), calc(50vw - 24px - var(--edge))); --tools-h: 68px; --chrome: 40px; }
-  .page { --pad-h: calc(var(--rd) + 24px + var(--tools-h)); --w: min(100%, (100dvh - var(--chrome) - var(--pad-h) - var(--note-h, 0px)) * 3 / 4); }
-  .page[data-frame=full] { --w: min(100%, (100dvh - var(--chrome) - var(--pad-h) - var(--note-h, 0px)) * 420 / 378); }
+  .page { --pad-h: calc(var(--rd) + 24px + var(--tools-h)); --w: min(100%, (100dvh - var(--chrome) - var(--pad-h) - var(--note-h, 0px) - var(--count-h, 0px)) * 3 / 4); }
+  .page[data-frame=full] { --w: min(100%, (100dvh - var(--chrome) - var(--pad-h) - var(--note-h, 0px) - var(--count-h, 0px)) * 420 / 378); }
   .page:has(#slow:not([hidden]), #nudge:not([hidden])) { --note-h: 64px; }
+  .page:has(.online-top:not([hidden])) { --count-h: 32px; }
   header, .keys, .ghost, .sub, #pick-folder, .desktop-only { display: none; }
   .page { grid-template-rows: 1fr auto; }
   .touch-only { display: inline; }
-  #who-touch, .online-line { display: flex; }
+  #who-touch { display: flex; }
+  /* The online count: the page has no header here, so the count stands at its top, over the screen's right end, where the header
+     has it on a desktop. It stays while the game runs. */
+  .online-top { order: -1; justify-content: flex-end; width: var(--w); min-height: 20px; margin-bottom: auto; }
   html, body { overscroll-behavior: none; }
   main { min-height: 100dvh; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 12px; padding: 16px 12px 12px; }
   .screen { flex: none; height: auto; width: var(--w); }
@@ -273,8 +284,8 @@
    whole height. The pad fills the viewport, so nothing below can cover it. */
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
   :root { --rd: min(26vw, 56dvh, 220px); --chrome: 16px; }
-  .page { --pad-h: 0px; --w: min(calc(100vw - 2 * (var(--rd) + var(--edge)) - 48px), (100dvh - var(--chrome) - var(--note-h, 0px)) * 3 / 4); }
-  .page[data-frame=full] { --w: min(calc(100vw - 2 * (var(--rd) + var(--edge)) - 48px), (100dvh - var(--chrome) - var(--note-h, 0px)) * 420 / 378); }
+  .page { --pad-h: 0px; --w: min(calc(100vw - 2 * (var(--rd) + var(--edge)) - 48px), (100dvh - var(--chrome) - var(--note-h, 0px) - var(--count-h, 0px)) * 3 / 4); }
+  .page[data-frame=full] { --w: min(calc(100vw - 2 * (var(--rd) + var(--edge)) - 48px), (100dvh - var(--chrome) - var(--note-h, 0px) - var(--count-h, 0px)) * 420 / 378); }
   main { justify-content: center; padding: 8px 8px 4px; }
   .pad { position: absolute; inset: 8px 8px 4px; width: auto; max-width: none;
     grid-template: "d . b" 1fr "d . t" auto / calc(var(--rd) + var(--edge)) 1fr calc(var(--rd) + var(--edge));
