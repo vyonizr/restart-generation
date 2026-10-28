@@ -13,6 +13,7 @@
   import Footer from './lib/legal/Footer.svelte';
   import Who from './lib/account/Who.svelte';
   import WhoChip from './lib/account/WhoChip.svelte';
+  import DiscordSymbol from './lib/account/DiscordSymbol.svelte';
   import Online from './lib/account/Online.svelte';
   import MemberDialog from './lib/account/MemberDialog.svelte';
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
@@ -54,7 +55,7 @@
     </div>
     {#if touch}<Pad />{/if}
     <p class="slow" id="slow" role="status" hidden={!page.slow}><span id="slow-text">{page.slow}</span>{#if page.slowClassic && page.board === 'full'}<button class="secondary" onclick={useClassic}>Use Classic</button>{/if}<button id="slow-close" class="secondary" onclick={() => { page.slow = null; }}>Dismiss</button></p>
-    <p class="nudge" id="nudge" role="status" hidden={!page.notice}><span id="nudge-text">{page.notice?.text}</span><span class="nudge-actions" id="nudge-actions">{#if page.notice}{#each page.notice.actions as action}{#if action.href}<a class="button" href={action.href} target="_blank" rel="noopener">{action.label}</a>{:else}<button type="button" class={action.secondary ? 'secondary' : ''} onclick={() => { if (!action.keep) page.notice = null; action.run?.(); }}>{action.label}</button>{/if}{/each}{/if}</span></p>
+    <p class="nudge" id="nudge" role="status" hidden={!page.notice}><span id="nudge-text">{page.notice?.text}</span><span class="nudge-actions" id="nudge-actions">{#if page.notice}{#each page.notice.actions as action}{#if action.href}<a class="button" href={action.href} target="_blank" rel="noopener">{action.label}</a>{:else}<button type="button" class={action.secondary ? 'secondary' : ''} onclick={() => { if (!action.keep) page.notice = null; action.run?.(); }}>{#if action.discord}<DiscordSymbol />{/if}{action.label}</button>{/if}{/each}{/if}</span></p>
     <!-- Guide at the left end, as wide as Soft screen, and the two toggles at the right end. -->
     <div class="sub">
       {#if page.guidable}<span class="sub-start"><button type="button" class="secondary guide-open" style:width={softWidth ? `${softWidth}px` : null} onclick={openGuide}>Guide</button></span>{/if}

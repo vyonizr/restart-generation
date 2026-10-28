@@ -310,6 +310,10 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
+## Discord symbol (web/src/assets/discord-symbol-*.svg)
+
+The buttons that start Discord sign-in carry Discord's symbol, the "Clyde" logo, in the White and Black files of Discord's brand kit (https://discord.com/branding), unmodified. It is a trademark of Discord Inc. and is not covered by this project's license: it is used only to name the service a player signs in with, as Discord's branding guidelines describe, and implies no partnership with or endorsement by Discord ([ADR 0042](docs/adr/0042-the-sign-in-button-carries-discords-own-logo.md)).
+
 ## Svelte
 
 The built page includes the Svelte runtime, under the following license:

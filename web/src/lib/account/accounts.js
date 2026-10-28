@@ -33,9 +33,10 @@ function ask({ title, text, yes, no = 'Cancel' }) {
 }
 export const answerConfirm = yes => askResolve?.(yes);
 
-// The line under the screen: notices, and the offer to sign in after a win. Each action is [label, run, secondary].
-function notice(text, actions = []) {
-  page.notice = { text, actions: actions.map(([label, run, secondary]) => ({ label, run, secondary })) };
+// The line under the screen: notices, and the offer to sign in after a win. Each action is [label, run, secondary]; one that signs in
+// carries Discord's symbol.
+function notice(text, buttons = []) {
+  page.notice = { text, actions: buttons.map(([label, run, secondary]) => ({ label, run, secondary, discord: run === actions.signin })) };
 }
 const dismiss = [['Dismiss', null, true]];
 

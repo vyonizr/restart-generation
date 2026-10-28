@@ -6,6 +6,7 @@
   import { page } from '../page.svelte.js';
   import { actions } from './accounts.js';
   import { changeName } from './login.js';
+  import DiscordSymbol from './DiscordSymbol.svelte';
 
   let open = $state(false), anchor = $state(), chip = $state();
   // The account on a server with Discord sign-in, else the "Online as" name.
@@ -23,7 +24,7 @@
   const items = $derived([
     ...(kind === 'local' ? [{ label: page.onlineNamed ? 'Change name' : 'Set name', run: changeName, off: Boolean(page.nameLogin) }] : []),
     ...(replays ? [{ label: 'Replays', run: () => { page.replays = name; } }] : []),
-    ...(kind === 'guest' ? [{ label: 'Sign in with Discord', run: actions.signin, tone: 'primary' }] : []),
+    ...(kind === 'guest' ? [{ label: 'Sign in with Discord', run: actions.signin, tone: 'primary', discord: true }] : []),
     ...(kind === 'member' ? [
       { label: 'Download my data', run: actions.download },
       { label: 'Sign out', run: actions.signout },
@@ -47,7 +48,7 @@
     <div class="who-menu" id="who-menu" hidden={!open}>
       <p class="who-kind">{LINE[kind]}{#if kind === 'local' && page.playing}{' A new name takes effect the next time you go online.'}{/if}</p>
       {#each items as item (item.label)}
-        <button type="button" class="who-item {item.tone ?? ''}" disabled={item.off} onclick={run(item.run)}>{item.label}</button>
+        <button type="button" class="who-item {item.tone ?? ''}" disabled={item.off} onclick={run(item.run)}>{#if item.discord}<DiscordSymbol />{/if}{item.label}</button>
       {/each}
     </div>
   </div>

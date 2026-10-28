@@ -144,6 +144,16 @@
 .who-item:focus-visible { outline-offset: -3px; }
 @keyframes who-drop { from { opacity: 0; transform: translateY(-6px); } }
 
+/* Discord's symbol before the words of a sign-in button (DiscordSymbol.svelte, docs/adr/0042): as tall as the label's capitals, on its
+   baseline, half an em before the words. It is white, and black where the button turns white: a primary's hover, and a pressed who
+   chip item (which keeps its crimson on hover, as a touch screen keeps a tapped button hovered). */
+.discord-symbol { position: relative; display: inline-block; height: .86em; height: 1cap; aspect-ratio: 126.644 / 96; margin-right: .5em; }
+.discord-symbol img { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .2s; }
+.discord-symbol .on-light { opacity: 0; }
+button:not(.secondary, .who-item):hover .discord-symbol .on-light, .who-item.primary:active .discord-symbol .on-light { opacity: 1; }
+button:not(.secondary, .who-item):hover .discord-symbol .on-dark, .who-item.primary:active .discord-symbol .on-dark { opacity: 0; }
+.who-item .discord-symbol img { transition: none; }
+
 /* The line under the screen: notices, and the offer to sign in */
 .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; max-width: 70ch; font: 15px/1.6 var(--body); color: var(--light-2); text-align: center; }
 .nudge-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }

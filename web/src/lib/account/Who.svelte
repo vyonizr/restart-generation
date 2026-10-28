@@ -2,6 +2,7 @@
 <script>
   import { page } from '../page.svelte.js';
   import { actions } from './accounts.js';
+  import DiscordSymbol from './DiscordSymbol.svelte';
 
   let menu = $state();
 </script>
@@ -24,6 +25,6 @@
     </details>
   {:else}
     {#if page.server?.replays}<button type="button" class="secondary" onclick={() => { page.replays = page.who.name; }}>Replays</button>{/if}
-    <button type="button" class="secondary" onclick={actions.signin}><span>Sign in</span><span class="long">{' with Discord'}</span></button>
+    <button type="button" class="secondary" onclick={actions.signin}><DiscordSymbol /><span>Sign in</span><span class="long">{' with Discord'}</span></button>
   {/if}
 {/if}

@@ -5,6 +5,8 @@
     "web/src/assets/fonts/manrope.woff2": "Manrope 4.504, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-manrope.txt), the Latin subset Google Fonts serves, unmodified",
     "web/src/assets/fonts/roboto-mono.woff2": "Roboto Mono, SIL Open Font License 1.1 (web/src/assets/fonts/OFL-robotomono.txt)",
     "web/public/favicon.svg": "Drawn for this project: the letters RG in Anton on a dark square",
+    "web/src/assets/discord-symbol-white.svg": "Discord's symbol (the Clyde logo), White, unmodified from Discord's brand kit at https://discord.com/branding; Discord's trademark, not under this project's license, used only on the sign-in buttons (ADR 0042)",
+    "web/src/assets/discord-symbol-black.svg": "Discord's symbol (the Clyde logo), Black, unmodified from Discord's brand kit at https://discord.com/branding; Discord's trademark, not under this project's license, used only on the sign-in buttons (ADR 0042)",
     "web/public/favicon.ico": "Made from favicon.svg",
     "web/public/icon-512.png": "Made from favicon.svg: the Discord application icon",
     "web/public/apple-touch-icon.png": "Made from favicon.svg",
