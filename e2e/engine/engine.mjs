@@ -1,6 +1,7 @@
 // What the engine tests share. The engine draws to a canvas the tests don't look at (docs/adr/0025: no pixels), so they wait on its
 // own clock, window.rgStats.time (web/src/lib/game/game.js), which runs as fast as the device lets it, never on the wall clock.
-import { expect } from '../fixtures.mjs';
+import { expect, seed } from '../fixtures.mjs';
+import { tokenOf } from '../../server/seed.js';
 
 // Opens the game page and presses Start once the engine is ready.
 export async function start(page) {
@@ -37,6 +38,33 @@ export async function mainMenu(page, press) {
   await walk(page, press, ['back']);
 }
 export const ONLINE = ['down', 'down', 'select'];
+
+// Pairs of members who are friends both ways, so one can make a friendly room and the other sees it; the arrow keys need the
+// default keys, which a member's saved game may have changed. Each member is in one pair only: a battle a test leaves running holds
+// its people's seats, and their next visit offers to rejoin it in Start's place (docs/adr/0038), so each test that starts a battle
+// takes a pair of its own.
+const plain = seed.accounts.filter(a => a.kind === 'member' && !a.keys).map(a => a.name);
+const friends = (x, y) => seed.friends.some(([a, b, state]) => state === 'both' && ((a === x && b === y) || (a === y && b === x)));
+export const PAIRS = plain.reduce((pairs, x) => {
+  const taken = pairs.flat(), y = plain.find(y => y !== x && friends(x, y) && !taken.includes(y));
+  return taken.includes(x) || !y ? pairs : [...pairs, [x, y]];
+}, []);
+
+// A page of its own, signed in as the seed member `name`, on the Online menu once the Arena login is through, with its key presser.
+// Online opens on Quick Match, with Your Stats, Rankings and Create Room below it; Create Room asks for a hero, then waits for
+// players. A friend's room is listed just above Quick Match, and entering it asks for a hero too.
+export async function online(browser, baseURL, name) {
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [{ origin: baseURL, localStorage: [{ name: 'rg:account', value: JSON.stringify({ name, token: tokenOf(name) }) }] }] } });
+  const page = await context.newPage();
+  await start(page);
+  const keys = byKey(page);
+  await mainMenu(page, keys);
+  await walk(page, keys, ONLINE);
+  await engineTime(page, 3000, { after: true }); // the Arena login
+  return [page, keys];
+}
+export const CREATE_ROOM = ['down', 'down', 'down', 'select', 'select'];
+export const FRIENDS_ROOM = ['up', 'select', 'select'];
 
 // The main menu's Quit (CONTEXT.md "Quit"), confirmed: Back opens Quit's yes/no with No chosen, Down chooses Yes, Select confirms.
 // The engine stops on the last press, so nothing waits after it.

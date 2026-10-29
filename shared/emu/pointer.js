@@ -3,7 +3,9 @@
 // click into arrow presses and Select from what read() says; everything the engine sends is what keys would have produced. The engine
 // facts are in docs/re/re_battle_input.md.
 
-const APP = 0x101b828c; // the engine's app object: +0x8c the UI, +0x9c the battle view while a battle is on
+const APP = 0x101b828c; // the engine's app object: +0x9c the battle view while a battle is on
+// The local player's battle UI state manager, by its vtable and the first entry of it; its +4 is the state now.
+const MANAGER = { vtable: 0x101869a8, first: 0x100b7f90 };
 const SETTER = 0x10073ea0; // FUN_10073ea0: sets the cursor's cell, clamped to the map
 const REFRESH = 0x1008da30; // FUN_1008da30: shows the reach area of the hero under the cursor, or none
 // What the player sees is drawn about 4 px lower than the engine's grid (docs/re/re_battle_input.md "Pixel to cell").
@@ -42,6 +44,17 @@ const SITES = [
   { va: 0x100d5bf0, bytes: 'e9db84fbff' },           // FUN_100d5bf0: the watch states' keys, a jump to the shared handler
   { va: 0x1008da30, bytes: '568bf18b4e108b0157ff50188bf885ff0f841501' }, // FUN_1008da30: the reach area under the cursor
   { va: 0x1008da44, bytes: '00008b879400000085c00f8e070100008b4e28' },
+  // The way from the battle view to the local player's UI state manager (docs/re/re_battle_input.md "The local player and its manager").
+  { va: 0x1002e636, bytes: '897e048b47248b4f20' }, // FUN_1002e3f0, the battle view's setup: its game at +4
+  { va: 0x100130f7, bytes: '51578bc8e8f0440200' }, // FUN_100130a0: the battlefield makes that game with itself
+  { va: 0x10037635, bytes: '8b4c241c898e2c010000' }, // FUN_100375f0: the game keeps the battlefield at +0x12c
+  { va: 0x10006c39, bytes: '8b4f18518b4f1456e8da3a0100' }, // FUN_10006b10: the logic hands its battlefield its player list
+  { va: 0x1001a720, bytes: '8b442408568bf18b4c2408518bce898644010000' }, // FUN_1001a720: which the battlefield keeps at +0x144
+  { va: 0x1002446b, bytes: '85ff740583ff017517837b24ff751f8b4b10896b245f8934a9' }, // FUN_100243c0: a player of kind 0 or 1 is the local one
+  { va: 0x10023d20, bytes: '53568bf18b460c33db85' }, // FUN_10023d20: the local index again, after a player leaves or a snapshot
+  { va: 0x1007565a, bytes: '8b4e1051568bc8e8fa260400eb0233c0896c2444894620' }, // FUN_100754e0: a local player keeps its manager
+  { va: 0x100b7dc2, bytes: 'e8d9db0100eb0233c0894604' }, // FUN_100b7d60, the manager's constructor: its first state, Idle, at +4
+  { va: 0x10044900, bytes: '568bf18b4e0485c9c646380074058b01ff50088b4e0885c9894e04' }, // FUN_10044900: the next state becomes +4
 ];
 // Item kinds (the item's +0x54) and special skill kinds (the hero's skill, [hero+0x58]+0x2c) whose arrows move the cursor freely or
 // pick a direction, as checked in a battle (docs/re/re_battle_input.md "Items" and "Special skills"). Any other kind reads as null.
@@ -64,8 +77,26 @@ export function battlePointer(game) {
   const bytesAt = (va, n) => [...m8.subarray(addr(va), addr(va) + n)].map(b => b.toString(16).padStart(2, '0')).join('');
   if (!SITES.every(s => bytesAt(s.va, s.bytes.length / 2) === s.bytes)) return null;
   if (!STATES.every(s => rd(addr(s.vtable)) === addr(s.first) && rd(addr(s.input) + 4) === addr(s.keys))) return null;
+  if (rd(addr(MANAGER.vtable)) !== addr(MANAGER.first)) return null;
   const states = new Map(STATES.map(s => [addr(s.vtable), s.state]));
   const cell = a => ({ x: ri(a), y: ri(a + 4) });
+
+  // The local player's battle UI state manager, or 0. The battle view's game [bv+4] keeps the battle logic's battlefield at +0x12c,
+  // which keeps the logic's player list at +0x144: +0xc slots, the players by index at [+0x10], and at +0x24 the index of the local
+  // one, -1 for none. That player is a LocalPlayer (kind 0 at +4) or, once it is defeated, the LocalObserver put in its place (kind
+  // 1), and its +0x20 is its manager. It is so offline and online alike, where the app object has no battle logic; the other seats,
+  // AIPlayers offline and RemotePlayers online (bots included), have no manager (docs/re/re_battle_input.md "The local player and
+  // its manager").
+  function manager(bv) {
+    const list = rd(rd(rd(bv + 4) + 0x12c) + 0x144);
+    if (!list) return 0;
+    const i = ri(list + 0x24);
+    if (i < 0 || i >= ri(list + 0xc)) return 0;
+    const player = rd(rd(list + 0x10) + i * 4);
+    if (!player || (ri(player + 4) !== 0 && ri(player + 4) !== 1)) return 0;
+    const M = rd(player + 0x20);
+    return M && rd(M) === addr(MANAGER.vtable) ? M : 0;
+  }
 
   // The state now and what read() needs of it, or null.
   function now() {
@@ -74,7 +105,7 @@ export function battlePointer(game) {
     // A curtain animation (the intro, a phase banner, a rescue, a fight) covers the battlefield; on the Full board it shows the
     // 240 x 320 inset (docs/re/re_screen.md).
     if (m8[rd(bv + 0x2a4) + 0x50] || rd(rd(bv + 0x2a0) + 8) !== 0 || rd(rd(bv + 0x29c) + 0x14) === 1) return null;
-    const S = rd(rd(rd(rd(app + 0x8c) + 0x84) + 0x20) + 4), state = S && states.get(rd(S));
+    const M = manager(bv), S = M && rd(M + 4), state = S && states.get(rd(S));
     if (!state) return null;
     const cursor = rd(S + 0x28);
     if (!cursor || !m8[cursor + 0x5b]) return null; // battle input is dropped while the cursor isn't active

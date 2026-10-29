@@ -57,7 +57,12 @@ function play(fullBoard) {
     for (let node = rd(battleGame() + 0x6c); node; node = rd(node + 4)) { const u = rd(node + 8); if (enemyHero(u)) out.push({ cell: { x: ri(u + 0x38), y: ri(u + 0x3c) }, seat: ri(u + 0x30) }); }
     return out;
   };
-  const uiState = () => rd(rd(rd(rd(app + 0x8c) + 0x84) + 0x20) + 4);
+  // The battle UI state now: the local player's manager's +4, the player found by its index in the player list that the battle view's
+  // game reaches through the battlefield (docs/re/re_battle_input.md "The local player and its manager").
+  const uiState = () => {
+    const list = rd(rd(rd(rd(app + 0x9c) + 4) + 0x12c) + 0x144);
+    return rd(rd(rd(rd(list + 0x10) + ri(list + 0x24) * 4) + 0x20) + 4);
+  };
   // The local player's highlight slot 1 ([[S+0x18]+0x70], 0x24 bytes a slot): on at +0x21, and its cells at +0x18, one dword a cell
   // by rows of +4 columns, the seat whose reach area it holds or 0; [player+0x78] is the slot shown (docs/re/re_battle_input.md
   // "What the engine shows for the cell under the cursor").
