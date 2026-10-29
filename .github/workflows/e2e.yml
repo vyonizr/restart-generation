@@ -1,5 +1,6 @@
-# The end-to-end tests' engine-free tier on every push and pull request (docs/adr/0025). CI has no copy of the game (ADR 0001),
-# so the engine tests skip here. Only tmp/e2e/page/ is uploaded: tmp/e2e/engine/ would hold the game's screens (docs/LEGAL.md).
+# `npm test` and the end-to-end tests' engine-free tier on every push and pull request (docs/adr/0025, docs/adr/0045). CI has no copy
+# of the game (ADR 0001), so the engine tests skip here. Only tmp/e2e/page/ is uploaded: tmp/e2e/engine/ would hold the game's screens
+# (docs/LEGAL.md).
 name: end-to-end tests
 on:
   push:
@@ -12,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # The server's tests need no packages, so they run before the install and fail fast.
+      - run: npm test
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
