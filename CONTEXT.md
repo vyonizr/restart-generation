@@ -194,6 +194,18 @@ _Avoid_: stage, level (a mission is played on a level but isn't one)
 One contest between two to four players on one level.
 _Avoid_: game, round
 
+**Offline battle**:
+A battle the engine plays on its own, with no server: Arcade Mode, a story's mission, or the tutorial. The other players are the engine's own opponents.
+_Avoid_: local game, single-player battle
+
+**Online battle**:
+A ranked or friendly match, played through Arena with the server relaying every player's orders.
+_Avoid_: multiplayer game, network battle
+
+**Room host**:
+The player who made a friendly room and starts its match; the rest are the other players in the room, never its guests, since a guest is a kind of account.
+_Avoid_: owner, creator, server, guest (for the other players in the room)
+
 **Level**:
 One of the game's 18 playfield layouts that a battle is played on. Its look is chosen separately, as the environment.
 _Avoid_: stage, arena
