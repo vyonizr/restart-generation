@@ -33,7 +33,6 @@ export const page = $state({
   input: 'keys',    // what the key legend shows: 'keys', or 'gamepad' after a press on the pad in use (gamepad.js)
   board: 'full',    // the Board view the player chose, 'full' or 'classic'; its default depends on the device (board.js)
   battle: null,     // the Board view of the battle on now, or null outside a battle
-  boardable: true,  // this copy of the engine can show the Full board (until booting it says otherwise)
   guidable: false,  // this copy's info menu can be read, so the page offers the guide (docs/adr/0033)
   pointable: false, // pointer play is on: a desktop, with a copy of the engine that has what it needs (docs/adr/0039)
   guide: null,      // the guide's content (web/src/lib/guide/guide.js) while the Guide dialog is open

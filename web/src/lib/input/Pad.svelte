@@ -1,8 +1,8 @@
 <!-- The touch pad (DESIGN.md "Touch pad", .scratch/touch-controls/spec.md): a round D-pad cut into four wedges with a dead centre where
      the thumb rests; a big round Select and a smaller round Back right of it; and under both, the rarely pressed tools as a labeled
-     bar: Soft screen, Keyboard, Full board, Fullscreen, and the Guide when the copy has one (docs/adr/0033). Shown on touch devices
-     only. pad.js does the pointer handling: bindPad once the game runs, bindIdlePad before it. The hidden typing field raises the
-     system keyboard; the hidden video keeps the screen on (wake.js). -->
+     bar: Soft screen, Keyboard (outside a battle), Full board (during one, docs/adr/0044), Fullscreen, and the Guide when the copy
+     has one (docs/adr/0033). Shown on touch devices only. pad.js does the pointer handling: bindPad once the game runs, bindIdlePad
+     before it. The hidden typing field raises the system keyboard; the hidden video keeps the screen on (wake.js). -->
 <script>
   import { page, padSession } from '../page.svelte.js';
   import { bindPad, bindIdlePad, canFullscreen, toggleFullscreen } from './pad.js';
@@ -53,8 +53,9 @@
   <div class="tools">
     <button id="finish" aria-pressed={page.finish === 'soft'} onclick={toggleFinish}>{@render tool('M4 4h16v16H4zM9.33 4v16M14.67 4v16M4 9.33h16M4 14.67h16')}Soft screen</button>
     <button id="type" hidden={!padSession.current || Boolean(page.battle)} bind:this={typeButton}>{@render tool('M3 6h18v12H3zM6.5 9.5h1M10.5 9.5h1M14.5 9.5h1M17.5 9.5h.5M6.5 12.5h1M10.5 12.5h1M14.5 12.5h1M17.5 12.5h.5M8 15.5h8')}Keyboard</button>
-    <!-- The Full board: the board's frame with the four corner panels a battle has on it. -->
-    {#if page.boardable}<button id="board" aria-pressed={page.board === 'full'} onclick={toggleBoard}>{@render tool('M3 5h18v14H3zM3 5h4v3H3zM17 5h4v3h-4zM3 16h4v3H3zM17 16h4v3h-4z')}Full board</button>{/if}
+    <!-- The Full board: the board's frame with the four corner panels a battle has on it. It takes Keyboard's place in a battle, so
+         the other tools keep theirs. -->
+    {#if page.battle}<button id="board" aria-pressed={page.board === 'full'} onclick={toggleBoard}>{@render tool('M3 5h18v14H3zM3 5h4v3H3zM17 5h4v3h-4zM3 16h4v3H3zM17 16h4v3h-4z')}Full board</button>{/if}
     <button id="fullscreen" hidden={!canFullscreen() || !padSession.current} onclick={toggleFullscreen}>{@render tool('M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5')}Fullscreen</button>
     <!-- The Guide: an open book. -->
     {#if page.guidable}<button id="guide-book" onclick={openGuide}>{@render tool('M3 5h6.5A2.5 2.5 0 0 1 12 7.5V20a2 2 0 0 0-2-2H3zM21 5h-6.5A2.5 2.5 0 0 0 12 7.5V20a2 2 0 0 1 2-2h7z')}Guide</button>{/if}

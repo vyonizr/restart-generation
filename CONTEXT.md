@@ -131,11 +131,11 @@ How the browser client shows the game screen: soft (the default), with the pixel
 _Avoid_: filter, shader, CRT mode, retro mode
 
 **Board view**:
-How the browser client frames a battle: **Full board**, the whole battlefield at once, as the original's replay player showed it, or **Classic**, the phone's 240 × 320 screen, where the battlefield scrolls. Full board is the default on a desktop and Classic on a phone or tablet; the player chooses, at any time, a battle included, the choice stays in their browser, and it never changes the battle itself.
+How the browser client frames a battle: **Full board**, the whole battlefield at once, as the original's replay player showed it, or **Classic**, the phone's 240 × 320 screen, where the battlefield scrolls. Full board is the default on a desktop and Classic on a phone or tablet. The player chooses during a battle, and only then; outside a battle every screen is the phone's 240 × 320. The choice stays in their browser, carries to the next battle, and never changes the battle itself.
 _Avoid_: zoom, widescreen, HD mode, resolution
 
 **Curtain**:
-The engine's gray stone wall with statues that fills a Full board screen around a phone-sized one, such as a menu or a phase banner, which sits at its 240 × 320 size in the middle.
+The engine's gray stone wall with statues that fills a Full board battle's screen around a phone-sized one, such as the battle menu, a story dialog, or a phase banner, which sits at its 240 × 320 size in the middle.
 _Avoid_: frame, border, letterbox, pillarbox, background
 
 **Touch device**:
@@ -143,7 +143,7 @@ A phone or tablet whose main input is a finger; it plays the browser client with
 _Avoid_: mobile, handheld
 
 **Touch pad**:
-The on-screen controls on a touch device: a round D-pad, **Select** and **Back** beside it, and a bar of the rarely pressed **Keyboard**, **Soft screen**, **Full board**, **Fullscreen** (where the browser supports it), and **Guide** (when the copy has one).
+The on-screen controls on a touch device: a round D-pad, **Select** and **Back** beside it, and a bar of the rarely pressed **Soft screen**, **Keyboard** (outside a battle), **Full board** (in a battle), **Fullscreen** (where the browser supports it), and **Guide** (when the copy has one).
 _Avoid_: virtual gamepad, on-screen keyboard
 
 **Custom keys**:
