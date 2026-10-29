@@ -118,9 +118,8 @@ async function main(canvas) {
     if (e instanceof RangeError && !game.m) return fail("This device doesn't have enough free memory for the game. Close other apps and tabs, then reload.", e, false);
     throw e;
   }
-  // false if this copy of the engine doesn't have the bytes the Full board's hooks need (docs/adr/0017)
-  page.boardable = game.board;
   fitCanvas(canvas);
+  // The curtain around the screens a Full board battle narrows to 240 × 320: its menu and story dialogs (docs/adr/0017, 0044).
   if (game.board) loadCurtain(files, REPLAY_WIDTH, REPLAY_HEIGHT).then(c => screen.setCurtain(c), e => console.warn('curtain:', e));
   guideFiles = { ...files };
   currentGuide().then(g => { page.guidable = Boolean(g); }, e => console.warn('guide:', e));

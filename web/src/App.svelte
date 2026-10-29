@@ -25,6 +25,9 @@
 
   // The view the game screen is framed for (board.js): the frame's shape follows it.
   const frame = $derived(frameView());
+  // The Full board toggle shows only during a battle (docs/adr/0044); if it has focus as the battle ends, focus goes back to the game
+  // screen before it goes, so the next keys reach the game.
+  $effect.pre(() => { if (!page.battle && document.activeElement?.matches('.board, #board')) focusOn('screen'); });
   let canvas, screen, cssWidth = $state(0), softWidth = $state(0);
   // Device pixels per game pixel: the grid stays clean only where this is wide enough (GRID_MIN_PITCH).
   const pitch = $derived(cssWidth * devicePixelRatio / FRAMES[frame].width);
@@ -45,7 +48,7 @@
          game runs. -->
     {#if touch}<div class="top-line" hidden={!page.who && !page.onlineName && page.online === null}><WhoChip /><Online where="online-top" /></div>{/if}
     <div class="screen" bind:this={screen} data-finish={page.finish} data-grid={pitch >= GRID_MIN_PITCH ? '' : null}>
-      <canvas id="screen" width="420" height="378" tabindex={page.playing ? 0 : -1} aria-label="Game screen" inert={page.dialogs > 0} bind:this={canvas} use:focusTarget={'screen'}></canvas>
+      <canvas id="screen" width="240" height="320" tabindex={page.playing ? 0 : -1} aria-label="Game screen" inert={page.dialogs > 0} bind:this={canvas} use:focusTarget={'screen'}></canvas>
       <Overlay />
       <Rejoin />
       {#if page.nameLogin}<NameDialog />{/if}
@@ -56,11 +59,11 @@
     {#if touch}<Pad />{/if}
     <p class="slow" id="slow" role="status" hidden={!page.slow}><span id="slow-text">{page.slow}</span>{#if page.slowClassic && page.board === 'full'}<button class="secondary" onclick={useClassic}>Use Classic</button>{/if}<button id="slow-close" class="secondary" onclick={() => { page.slow = null; }}>Dismiss</button></p>
     <p class="nudge" id="nudge" role="status" hidden={!page.notice}><span id="nudge-text">{page.notice?.text}</span><span class="nudge-actions" id="nudge-actions">{#if page.notice}{#each page.notice.actions as action}{#if action.href}<a class="button" href={action.href} target="_blank" rel="noopener">{action.label}</a>{:else}<button type="button" class={action.secondary ? 'secondary' : ''} onclick={() => { if (!action.keep) page.notice = null; action.run?.(); }}>{#if action.discord}<DiscordSymbol />{/if}{action.label}</button>{/if}{/each}{/if}</span></p>
-    <!-- Guide at the left end, as wide as Soft screen, and the two toggles at the right end. -->
+    <!-- Guide at the left end, as wide as Soft screen, and the toggles at the right end: Full board only during a battle. -->
     <div class="sub">
       {#if page.guidable}<span class="sub-start"><button type="button" class="secondary guide-open" style:width={softWidth ? `${softWidth}px` : null} onclick={openGuide}>Guide</button></span>{/if}
       <span class="sub-end">
-        {#if page.boardable}<button type="button" class="secondary finish board" aria-pressed={page.board === 'full'} onclick={() => { toggleBoard(); focusOn('screen'); }}>Full board</button>{/if}
+        {#if page.battle}<button type="button" class="secondary finish board" aria-pressed={page.board === 'full'} onclick={() => { toggleBoard(); focusOn('screen'); }}>Full board</button>{/if}
         <button type="button" class="secondary finish" bind:offsetWidth={softWidth} aria-pressed={page.finish === 'soft'} onclick={() => { toggleFinish(); focusOn('screen'); }}>Soft screen</button>
       </span>
     </div>
