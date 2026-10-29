@@ -199,7 +199,7 @@ const pixels = p => Array.from({ length: p.width * p.height }, (_, i) => [...p.r
 }
 
 // A copy the guide can't read in full has no guide, rather than part of one: a missing file, sheet, text, picture or palette, a
-// picture of another kind or with a run past its row, or a sheet item the engine doesn't know.
+// picture of another kind or with a run past its row, or a sheet item the engine doesn't know. Each says once what it couldn't read.
 {
   const { P_ONE, ...noParagraph } = ENGLISH;
   const broken = [
@@ -214,8 +214,11 @@ const pixels = p => Array.from({ length: p.width * p.height }, (_, i) => [...p.r
   ];
   const noPalette = copy();
   noPalette['base.pak'] = pak({ 'data/base/lang/english.lng': lng(ENGLISH) });
-  for (const files of [...broken, noPalette]) assert.strictEqual(await readGuide(files, 'en'), null);
-  assert.notStrictEqual(await readGuide(copy(), 'en'), null);
+  const warned = [];
+  for (const files of [...broken, noPalette]) assert.strictEqual(await readGuide(files, 'en', w => warned.push(w)), null);
+  assert.strictEqual(warned.length, broken.length + 1);
+  assert.match(warned[0], /menus\.pak/);
+  assert.notStrictEqual(await readGuide(copy(), 'en', w => assert.fail(w)), null);
 }
 
 console.log('guide ok');

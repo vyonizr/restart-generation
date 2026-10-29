@@ -34,6 +34,7 @@ The logic starts as any `ServerBattleLogic` does: it builds the battlefield from
 - `setReplayMode(skip, double)` sets skip-empty (on by default) and double speed (off by default). `playReplay` and `pauseReplay` start and stop the clock.
 - `getTime` is the playback clock in whole seconds, rounded down and capped at `getTotalTime`; the clock itself is an unsigned count of ms after BattleBegin at `logic+0xb8`. `getTotalTime` is the span from the first to the last message time, plus 2 seconds.
 - `setTime(s)` reloads the BattleBegin snapshot and processes, without visuals, every message up to `s` seconds after BattleBegin. A seek took 0.2 to 0.5 s. Seeking straight to the end once left the rank table reversed, so results must not be read from a replay.
+- A seek before the logic has processed BattleBegin, while its battlefield's phase (`+0x94`) is still 0, has no snapshot to reload: the battle never begins and has no seats, its clock runs on, the logic reads finished, and no later seek mends it. In the seed's played battles that is the first 2 frames after the logic exists (5 frames after `init`) in the 2-player ones and the first 4 in the 4-player one (measured), so `GameHost.replayLoaded` waits for the phase to be 1 or more.
 - The engine never stops on its own. After the last message the logic finishes the battle and stays there. `isReplayVisualizationInProgress` tells whether the battlefield is still animating.
 - The clock can run ahead of the picture when moves come faster than their animations, as with bots.
 

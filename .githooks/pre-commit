@@ -1,3 +1,6 @@
 #!/bin/sh
-# Refuses a commit that adds what docs/LEGAL.md forbids. Turn it on once per clone with: npm run hooks
+# Refuses a commit that adds what docs/LEGAL.md forbids, and, on development, the commit that finishes a merge with conflicts of a
+# commit that hasn't passed `npm run check` (docs/adr/0045; pre-merge-commit gates the others). Turn it on once per clone with:
+# npm run hooks
+node tools/check.mjs --merge-gate || exit 1
 exec node tools/legal-check.mjs --staged

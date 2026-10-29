@@ -2,6 +2,7 @@
 // two ticks, and the engine's own cursor moved to a cell without arrow presses. The engine has no pointer input, so a page turns a
 // click into arrow presses and Select from what read() says; everything the engine sends is what keys would have produced. The engine
 // facts are in docs/re/re_battle_input.md.
+import { changedSite, siteName } from './host.js';
 
 const APP = 0x101b828c; // the engine's app object: +0x9c the battle view while a battle is on
 // The local player's battle UI state manager, by its vtable and the first entry of it; its +4 is the state now.
@@ -13,49 +14,52 @@ const DRAW_OFFSET = 4;
 
 // The battle UI states pointer play applies to, by their vtable, with the first entry of it and the input vtable at S+8 whose second
 // entry handles the state's keys (docs/re/re_battle_input.md "The states"). While the local player isn't acting, in IdleUIState
-// (others' turns, the intro) and ObserverUIState (after a defeat), the pointer only moves the cursor ('watch'): both states' keys
-// go to the shared handler, which has no commit there ("Others' turns and the observer").
+// (others' turns, the intro) and ObserverUIState (once the local player is defeated), the pointer only moves the cursor ('watch'):
+// both states' keys go to the shared handler, which has no commit there ("Others' turns and the defeated player").
 const STATES = [
-  { state: 'tile', vtable: 0x10186860, first: 0x100b2bb0, input: 0x10186858, keys: 0x100d5410 },
-  { state: 'tileItem', vtable: 0x10188ea0, first: 0x100e2ae0, input: 0x10188e98, keys: 0x100d5410 },
-  { state: 'move', vtable: 0x101868b4, first: 0x100b5180, input: 0x101868ac, keys: 0x100b5df0 },
-  { state: 'cannon', vtable: 0x10186964, first: 0x100b7d40, input: 0x1018695c, keys: 0x100b76f0 },
-  { state: 'item', vtable: 0x10186914, first: 0x100b71c0, input: 0x1018690c, keys: 0x100b6710 },
-  { state: 'skill', vtable: 0x101892e0, first: 0x100ea150, input: 0x101892d8, keys: 0x100e9e60 },
-  { state: 'watch', vtable: 0x101880d4, first: 0x100d5c20, input: 0x101880cc, keys: 0x100d5bf0 },
-  { state: 'watch', vtable: 0x1018800c, first: 0x100cfeb0, input: 0x10188004, keys: 0x100d5bf0 },
+  { state: 'tile', name: 'PlaceTile', vtable: 0x10186860, first: 0x100b2bb0, input: 0x10186858, keys: 0x100d5410 },
+  { state: 'tileItem', name: 'UseTileItem', vtable: 0x10188ea0, first: 0x100e2ae0, input: 0x10188e98, keys: 0x100d5410 },
+  { state: 'move', name: 'MoveUnit', vtable: 0x101868b4, first: 0x100b5180, input: 0x101868ac, keys: 0x100b5df0 },
+  { state: 'cannon', name: 'FireCannon', vtable: 0x10186964, first: 0x100b7d40, input: 0x1018695c, keys: 0x100b76f0 },
+  { state: 'item', name: 'UseItem', vtable: 0x10186914, first: 0x100b71c0, input: 0x1018690c, keys: 0x100b6710 },
+  { state: 'skill', name: 'UseSpecialSkill', vtable: 0x101892e0, first: 0x100ea150, input: 0x101892d8, keys: 0x100e9e60 },
+  { state: 'watch', name: 'IdleUIState', vtable: 0x101880d4, first: 0x100d5c20, input: 0x101880cc, keys: 0x100d5bf0 },
+  { state: 'watch', name: 'ObserverUIState', vtable: 0x1018800c, first: 0x100cfeb0, input: 0x10188004, keys: 0x100d5bf0 },
 ];
 // The code whose fields and rules read() and jump() rely on, checked as ADR 0017 checks its hooks: the setter whole, since jump()
 // runs it, and the start of each other function, the reach area's refresh included, which jump() runs in a watch state.
 const SITES = [
-  { va: 0x10073ea0, bytes: '8b4424048b108951248b40048a54240889412833c03ad0742b' }, // FUN_10073ea0, the cursor's cell setter
-  { va: 0x10073eb9, bytes: '3941247d038941243941287d038941288b41048b5020395124' },
-  { va: 0x10073ed2, bytes: '7c044a8951248b40243941287c0448894128c20800' },
-  { va: 0x10073fd0, bytes: '568bf18a465b84c00f84' }, // FUN_10073fd0: an arrow moves the cursor, while its "active" byte is set
-  { va: 0x100d51e0, bytes: '56578bf1e8d7f6ffff8b' }, // FUN_100d51e0: an arrow moves the tile piece
-  { va: 0x100d48c0, bytes: '83ec105355568bf18b46' }, // FUN_100d48c0: the piece's anchor is clamped by its shape
-  { va: 0x100b6710, bytes: '64a1000000006aff68a6' }, // FUN_100b6710: the item state's keys
-  { va: 0x100b6fc0, bytes: '83ec0c568bf1e8f56dfd' }, // FUN_100b6fc0: the item state's start, by the item's kind
-  { va: 0x100e9920, bytes: '83ec18568bf18a869c00' }, // FUN_100e9920: the special skill state's arrows
-  { va: 0x100ea2a0, bytes: '6aff64a10000000068c0' }, // FUN_100ea2a0: the special skill state's start, by the skill's kind
-  { va: 0x100251a0, bytes: '5156578d4424085083c1' }, // FUN_100251a0: a seat's hero, whose corner panel is drawn
-  { va: 0x1000cf60, bytes: '8b4130c3' },             // FUN_1000cf60: a hero's seat
-  { va: 0x1008a500, bytes: '8b442408538b5c240856' }, // FUN_1008a500: a corner panel's place
-  { va: 0x100d5bf0, bytes: 'e9db84fbff' },           // FUN_100d5bf0: the watch states' keys, a jump to the shared handler
-  { va: 0x1008da30, bytes: '568bf18b4e108b0157ff50188bf885ff0f841501' }, // FUN_1008da30: the reach area under the cursor
-  { va: 0x1008da44, bytes: '00008b879400000085c00f8e070100008b4e28' },
+  { va: 0x10073ea0, bytes: '8b4424048b108951248b40048a54240889412833c03ad0742b', what: "FUN_10073ea0, the cursor's cell setter" },
+  { va: 0x10073eb9, bytes: '3941247d038941243941287d038941288b41048b5020395124', what: "FUN_10073ea0, the cursor's cell setter, its middle" },
+  { va: 0x10073ed2, bytes: '7c044a8951248b40243941287c0448894128c20800', what: "FUN_10073ea0, the cursor's cell setter, its end" },
+  { va: 0x10073fd0, bytes: '568bf18a465b84c00f84', what: 'FUN_10073fd0, where an arrow moves the cursor while its "active" byte is set' },
+  { va: 0x100d51e0, bytes: '56578bf1e8d7f6ffff8b', what: 'FUN_100d51e0, where an arrow moves the tile piece' },
+  { va: 0x100d48c0, bytes: '83ec105355568bf18b46', what: "FUN_100d48c0, where the piece's anchor is clamped by its shape" },
+  { va: 0x100b6710, bytes: '64a1000000006aff68a6', what: "FUN_100b6710, the item state's keys" },
+  { va: 0x100b6fc0, bytes: '83ec0c568bf1e8f56dfd', what: "FUN_100b6fc0, the item state's start, by the item's kind" },
+  { va: 0x100e9920, bytes: '83ec18568bf18a869c00', what: "FUN_100e9920, the special skill state's arrows" },
+  { va: 0x100ea2a0, bytes: '6aff64a10000000068c0', what: "FUN_100ea2a0, the special skill state's start, by the skill's kind" },
+  { va: 0x100251a0, bytes: '5156578d4424085083c1', what: "FUN_100251a0, a seat's hero, whose corner panel is drawn" },
+  { va: 0x1000cf60, bytes: '8b4130c3', what: "FUN_1000cf60, a hero's seat" },
+  { va: 0x1008a500, bytes: '8b442408538b5c240856', what: "FUN_1008a500, a corner panel's place" },
+  { va: 0x100d5bf0, bytes: 'e9db84fbff', what: "FUN_100d5bf0, the watch states' keys, a jump to the shared handler" },
+  { va: 0x1008da30, bytes: '568bf18b4e108b0157ff50188bf885ff0f841501', what: 'FUN_1008da30, the reach area under the cursor' },
+  { va: 0x1008da44, bytes: '00008b879400000085c00f8e070100008b4e28', what: 'FUN_1008da30, the reach area under the cursor, further on' },
   // The way from the battle view to the local player's UI state manager (docs/re/re_battle_input.md "The local player and its manager").
-  { va: 0x1002e636, bytes: '897e048b47248b4f20' }, // FUN_1002e3f0, the battle view's setup: its game at +4
-  { va: 0x100130f7, bytes: '51578bc8e8f0440200' }, // FUN_100130a0: the battlefield makes that game with itself
-  { va: 0x10037635, bytes: '8b4c241c898e2c010000' }, // FUN_100375f0: the game keeps the battlefield at +0x12c
-  { va: 0x10006c39, bytes: '8b4f18518b4f1456e8da3a0100' }, // FUN_10006b10: the logic hands its battlefield its player list
-  { va: 0x1001a720, bytes: '8b442408568bf18b4c2408518bce898644010000' }, // FUN_1001a720: which the battlefield keeps at +0x144
-  { va: 0x1002446b, bytes: '85ff740583ff017517837b24ff751f8b4b10896b245f8934a9' }, // FUN_100243c0: a player of kind 0 or 1 is the local one
-  { va: 0x10023d20, bytes: '53568bf18b460c33db85' }, // FUN_10023d20: the local index again, after a player leaves or a snapshot
-  { va: 0x1007565a, bytes: '8b4e1051568bc8e8fa260400eb0233c0896c2444894620' }, // FUN_100754e0: a local player keeps its manager
-  { va: 0x100b7dc2, bytes: 'e8d9db0100eb0233c0894604' }, // FUN_100b7d60, the manager's constructor: its first state, Idle, at +4
-  { va: 0x10044900, bytes: '568bf18b4e0485c9c646380074058b01ff50088b4e0885c9894e04' }, // FUN_10044900: the next state becomes +4
+  { va: 0x1002e636, bytes: '897e048b47248b4f20', what: "FUN_1002e3f0, the battle view's setup: its game at +4" },
+  { va: 0x100130f7, bytes: '51578bc8e8f0440200', what: 'FUN_100130a0, where the battlefield makes that game with itself' },
+  { va: 0x10037635, bytes: '8b4c241c898e2c010000', what: 'FUN_100375f0, where the game keeps the battlefield at +0x12c' },
+  { va: 0x10006c39, bytes: '8b4f18518b4f1456e8da3a0100', what: 'FUN_10006b10, where the logic hands its battlefield its player list' },
+  { va: 0x1001a720, bytes: '8b442408568bf18b4c2408518bce898644010000', what: 'FUN_1001a720, where the battlefield keeps that list at +0x144' },
+  { va: 0x1002446b, bytes: '85ff740583ff017517837b24ff751f8b4b10896b245f8934a9', what: 'FUN_100243c0, where a player of kind 0 or 1 is the local one' },
+  { va: 0x10023d20, bytes: '53568bf18b460c33db85', what: 'FUN_10023d20, the local index again, after a player leaves or a snapshot' },
+  { va: 0x1007565a, bytes: '8b4e1051568bc8e8fa260400eb0233c0896c2444894620', what: 'FUN_100754e0, where a local player keeps its manager' },
+  { va: 0x100b7dc2, bytes: 'e8d9db0100eb0233c0894604', what: "FUN_100b7d60, the manager's constructor: its first state, Idle, at +4" },
+  { va: 0x10044900, bytes: '568bf18b4e0485c9c646380074058b01ff50088b4e0885c9894e04', what: 'FUN_10044900, where the next state becomes +4' },
 ];
+// Ticks of a battle past its curtains (about 5 s of engine time, at the engine's 30 frames a second) after which afterTick() warns,
+// if the local player's battle UI state wasn't found once in them. Online the state comes 6 or 7 ticks after the battle view.
+const FIND_TICKS = 150;
 // Item kinds (the item's +0x54) and special skill kinds (the hero's skill, [hero+0x58]+0x2c) whose arrows move the cursor freely or
 // pick a direction, as checked in a battle (docs/re/re_battle_input.md "Items" and "Special skills"). Any other kind reads as null.
 const ITEM_FREE = new Set([0, 8, 0x11, 0x15]), ITEM_DIRECTION = new Set([9]);
@@ -68,16 +72,22 @@ export function cellAt(px, py, { camera, tile }) {
   return { x: Math.floor((px + camera.x) / tile.w), y: Math.floor((py - DRAW_OFFSET + camera.y) / tile.h) };
 }
 
-// Arms pointer play on a booted GameHost. Returns null when this copy lacks the bytes the reads and writes rely on, or the engine
-// plays a replay; the page then offers no pointer play.
-export function battlePointer(game) {
+// Arms pointer play on a booted GameHost. Returns null in a replay, which has no local player, and, with one warning through warn
+// that names the first check that failed, when this copy lacks the bytes the reads and writes rely on; the page then offers no
+// pointer play.
+export function battlePointer(game, warn = game.warn) {
   const m = game.m;
   if (game.replay !== null || !m) return null;
   const cpu = m.cpu, m8 = cpu.m8, rd = a => cpu.rd32(a) >>> 0, ri = a => cpu.rd32(a) | 0, addr = va => m.addr(va) >>> 0;
-  const bytesAt = (va, n) => [...m8.subarray(addr(va), addr(va) + n)].map(b => b.toString(16).padStart(2, '0')).join('');
-  if (!SITES.every(s => bytesAt(s.va, s.bytes.length / 2) === s.bytes)) return null;
-  if (!STATES.every(s => rd(addr(s.vtable)) === addr(s.first) && rd(addr(s.input) + 4) === addr(s.keys))) return null;
-  if (rd(addr(MANAGER.vtable)) !== addr(MANAGER.first)) return null;
+  const hex = va => `0x${va.toString(16)}`;
+  const off = why => { warn(`pointer play unavailable: ${why}`); return null; };
+  const site = changedSite(m, SITES);
+  if (site) return off(`unexpected bytes at ${siteName(site)}`);
+  const vtable = STATES.find(s => rd(addr(s.vtable)) !== addr(s.first));
+  if (vtable) return off(`the ${vtable.name} state's vtable at ${hex(vtable.vtable)} doesn't start with ${hex(vtable.first)}`);
+  const input = STATES.find(s => rd(addr(s.input) + 4) !== addr(s.keys));
+  if (input) return off(`the ${input.name} state's input vtable at ${hex(input.input)} doesn't hand its keys to ${hex(input.keys)}`);
+  if (rd(addr(MANAGER.vtable)) !== addr(MANAGER.first)) return off(`the battle UI state manager's vtable at ${hex(MANAGER.vtable)} doesn't start with ${hex(MANAGER.first)}`);
   const states = new Map(STATES.map(s => [addr(s.vtable), s.state]));
   const cell = a => ({ x: ri(a), y: ri(a + 4) });
 
@@ -98,14 +108,19 @@ export function battlePointer(game) {
     return M && rd(M) === addr(MANAGER.vtable) ? M : 0;
   }
 
+  // The battle view while a battle is on, else 0.
+  const battleView = () => { const app = rd(addr(APP)); return app && rd(app + 0x9c); };
+  // Whether a curtain animation (the intro, a phase banner, a rescue, a fight) covers the battlefield; on the Full board it shows the
+  // 240 x 320 inset (docs/re/re_screen.md).
+  const covered = bv => m8[rd(bv + 0x2a4) + 0x50] || rd(rd(bv + 0x2a0) + 8) !== 0 || rd(rd(bv + 0x29c) + 0x14) === 1;
+  // The local player's battle UI state if it is one of STATES, else 0.
+  const stateNow = bv => { const M = manager(bv), S = M && rd(M + 4); return S && states.has(rd(S)) ? S : 0; };
+
   // The state now and what read() needs of it, or null.
   function now() {
-    const app = rd(addr(APP)), bv = app && rd(app + 0x9c);
-    if (!bv) return null;
-    // A curtain animation (the intro, a phase banner, a rescue, a fight) covers the battlefield; on the Full board it shows the
-    // 240 x 320 inset (docs/re/re_screen.md).
-    if (m8[rd(bv + 0x2a4) + 0x50] || rd(rd(bv + 0x2a0) + 8) !== 0 || rd(rd(bv + 0x29c) + 0x14) === 1) return null;
-    const M = manager(bv), S = M && rd(M + 4), state = S && states.get(rd(S));
+    const bv = battleView();
+    if (!bv || covered(bv)) return null;
+    const S = stateNow(bv), state = S && states.get(rd(S));
     if (!state) return null;
     const cursor = rd(S + 0x28);
     if (!cursor || !m8[cursor + 0x5b]) return null; // battle input is dropped while the cursor isn't active
@@ -161,6 +176,10 @@ export function battlePointer(game) {
     return false;
   }
 
+  // What afterTick() knows of the battle on: its battle view, its ticks so far that no curtain covered, and whether it is settled
+  // (the local player's state was found, or the warning given).
+  let checked = 0, uncovered = 0, settled = false;
+
   return {
     read() {
       const s = now();
@@ -197,6 +216,19 @@ export function battlePointer(game) {
         if (s.state === 'watch') { cpu.r[1] = s.S; cpu.call(addr(REFRESH)); }
       } finally { cpu.r[1] = ecx; cpu.r[4] = esp; }
       return true;
+    },
+    // After every engine tick: warns once per battle, naming it by describe(), when FIND_TICKS of its ticks went by past its
+    // curtains and the local player's battle UI state wasn't found in one of them. Pointer play then does nothing in that battle,
+    // as it once did online, before the route of docs/re/re_battle_input.md "The local player and its manager".
+    afterTick(describe) {
+      const bv = battleView();
+      if (bv !== checked) { checked = bv; uncovered = 0; settled = false; }
+      if (!bv || settled || covered(bv)) return;
+      if (stateNow(bv)) settled = true;
+      else if (++uncovered >= FIND_TICKS) {
+        settled = true;
+        warn(`pointer play found no battle UI state of the local player in ${describe()}, ${FIND_TICKS} ticks past its curtains: a click does nothing in it`);
+      }
     },
   };
 }

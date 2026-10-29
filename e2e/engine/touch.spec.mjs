@@ -1,5 +1,6 @@
 // A touch device (CONTEXT.md "Touch pad"): the pad's buttons reach the engine, shown by quitting the game with the pad alone, and
 // Soft screen switches the screen finish. Runs only in the engine-touch project (playwright.config.mjs).
+// check-paths: web/src/lib/input/{Pad.svelte,pad.js,pads.js,presses.js} web/src/lib/game/finish.js web/src/lib/device.js
 import { test, expect } from '../fixtures.mjs';
 import { start, mainMenu, quitFromMainMenu } from './engine.mjs';
 

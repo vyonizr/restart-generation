@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { buildPage } from '../tools/ensure-web.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = path.join(root, 'data', 'e2e');
@@ -25,23 +26,6 @@ const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.
 // Discord mode with made-up credentials: the tests sign in with seed tokens and never reach Discord. A run makes a guest per
 // browser context, more than the 30 an address may make in an hour.
 const discord = url => ({ RG_DISCORD_CLIENT_ID: 'e2e', RG_DISCORD_CLIENT_SECRET: 'e2e', RG_PUBLIC_URL: url, RG_GUESTS_PER_IP_HOUR: '100000' });
-
-// The newest page source (web/ but its build output, shared/, the build's config) against the last build, so an unchanged page
-// isn't built again. tools/showcase/showcase.mjs builds it the same way.
-export function buildPage() {
-  const built = path.join(root, 'web', 'dist', 'index.html');
-  const newest = dir => fs.readdirSync(dir, { withFileTypes: true }).reduce((t, e) => {
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) return e.name === 'dist' && dir.endsWith('web') ? t : Math.max(t, newest(p));
-    return Math.max(t, fs.statSync(p).mtimeMs);
-  }, 0);
-  const configs = ['vite.config.mjs', 'svelte.config.mjs', 'package-lock.json'].map(f => fs.statSync(path.join(root, f)).mtimeMs);
-  const sources = Math.max(newest(path.join(root, 'web')), newest(path.join(root, 'shared')), ...configs);
-  if (fs.existsSync(built) && fs.statSync(built).mtimeMs >= sources) return;
-  console.log('e2e: building the page (web/dist)…');
-  const r = spawnSync(process.execPath, [path.join(root, 'node_modules', 'vite', 'bin', 'vite.js'), 'build'], { cwd: root, stdio: 'inherit' });
-  if (r.status !== 0) throw new Error('the page did not build');
-}
 
 function runSeed(env, args) {
   const r = spawnSync(process.execPath, [path.join(root, 'server', 'seed.js'), ...args], { cwd: root, env, encoding: 'utf8' });

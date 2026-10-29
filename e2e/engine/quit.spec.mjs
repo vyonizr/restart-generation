@@ -1,4 +1,5 @@
 // Quit (CONTEXT.md): confirming Quit on the main menu ends the engine, and the page starts over as a refresh would.
+// check-paths: web/src/lib/game/game.js web/src/lib/account/**
 import { test, expect } from '../fixtures.mjs';
 import { start, mainMenu, quitFromMainMenu, byKey } from './engine.mjs';
 

@@ -9,6 +9,7 @@
 // commit changed, so only the files a commit touches are read. It then checks the new commits and pushes only if they pass, and never
 // with force: if the public main has commits this checkout can't match, it stops. Every run also copies the public release tags onto
 // the source commits they came from, as local tags it never pushes, so a server run from this checkout reports its version (ADR 0027).
+// --push also needs the branch's head to have passed every suite: `npm run check -- --all` on it (docs/adr/0045) leaves the stamp.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,6 +17,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { scrub, scrubbable, DROP } from './scrub-tree.mjs';
 import { USER, EMAIL, PUBLIC_REMOTE, checkPublished } from './publish-check.mjs';
+import { readStamp } from './check.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -30,6 +32,13 @@ const git = (args, { input, env, buffer } = {}) => {
   return buffer ? r.stdout : r.stdout.toString('utf8').trim();
 };
 const list = text => text.split('\n').filter(Boolean);
+
+// 0. Every suite, the engine's included, passed on the commit to publish (docs/adr/0045). CI can't run the engine (ADR 0001), so this
+// machine's stamp is the only proof. Checked first, so a refused push fetches nothing.
+const head = git(['rev-parse', branch]);
+const checked = readStamp(head)?.mode === 'all';
+const unchecked = `${branch} ${head.slice(0, 8)} has not passed \`npm run check -- --all\`: check it out, run that, and publish again.`;
+if (argv.includes('--push') && !checked) { console.error(`${unchecked} Nothing was pushed.`); process.exit(1); }
 
 // Reads many objects with one git process: Map of id to Buffer.
 function readObjects(ids) {
@@ -145,7 +154,10 @@ if (problems.length) {
   console.error('Fix it in this checkout and run again. Nothing was pushed.');
   process.exit(1);
 }
-if (!argv.includes('--push')) { console.log('\nAll checks passed. Run again with --push to publish them.'); process.exit(0); }
+if (!argv.includes('--push')) {
+  console.log(checked ? '\nAll checks passed. Run again with --push to publish them.' : `\nAll checks passed here, but --push would refuse: ${unchecked}`);
+  process.exit(0);
+}
 // The pre-push hook (tools/publish-check.mjs) would run the checks that just passed on the same commits again.
 git(['push', '--quiet', '--no-verify', remote, `${tip}:refs/heads/main`]);
 git(['update-ref', PUBLIC, tip]);

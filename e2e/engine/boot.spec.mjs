@@ -1,5 +1,7 @@
 // A server that sends the game to every visitor (one that isn't public, ADR 0031): the page fetches it, boots the engine, and Start
 // hands the game screen the keys.
+// check-paths: web/src/{main.js,App.svelte} web/src/lib/page.svelte.js web/src/lib/game/{game.js,Overlay.svelte,progress.js,screen.js}
+// check-paths: server/{gateway,sendgame}.js web/src/lib/legal/** vite.config.mjs svelte.config.mjs
 import { test, expect, asPublicServer } from '../fixtures.mjs';
 import { engineTime } from './engine.mjs';
 

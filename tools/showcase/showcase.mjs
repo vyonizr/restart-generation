@@ -21,7 +21,7 @@ import { scenes } from './shots.mjs';
 import { cards } from './cards.mjs';
 import { preview } from './preview.mjs';
 import { takeStills } from './stills.mjs';
-import { buildPage } from '../../e2e/global-setup.mjs';
+import { buildPage } from '../ensure-web.mjs';
 
 const OUT = path.join(root, 'tmp', 'showcase');
 const argv = process.argv.slice(2);

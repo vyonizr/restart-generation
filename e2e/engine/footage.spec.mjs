@@ -1,5 +1,6 @@
 // Footage (CONTEXT.md, docs/adr/0028): a played seed replay exported from its page as an MP4 file. The file shows the game, so it
 // stays in this test's output under tmp/e2e/engine/ and is never uploaded (docs/LEGAL.md rule 2); the test reads only its tracks.
+// check-paths: web/src/lib/replay/{footage.js,ExportFootage.svelte,replay-flow.js} web/src/lib/game/audio.js package-lock.json
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { Input, BlobSource, ALL_FORMATS } from 'mediabunny';

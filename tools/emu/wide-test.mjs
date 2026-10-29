@@ -8,6 +8,8 @@
 // During a rescue or a fight, the curtain's hole must show the board that lay under it (docs/adr/0029), on the Full board and in the
 // engine's replay player, which plays the seed's played replays from data/e2e/ or data/dev/. The Full board's fight is on other keys
 // in the same battle, played on the Full board and on a stock engine, which must play the fight on the same frames.
+// check-paths: shared/emu/host.js web/src/lib/game/board.js shared/emu/{cpu,fpu,jit,machine,fast,win32,jni,pe}.js shared/game.mjs
+// check-paths: server/replays.js
 import assert from 'assert';
 import fs from 'fs';
 import { fileURLToPath } from 'url';

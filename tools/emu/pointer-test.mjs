@@ -4,7 +4,9 @@
 // and commits with Select. The orders the engine sends must be for the cells pointed at: the tile piece moved by arrows and dropped,
 // the hero moved along a trail and by a jump, an attack on the enemy hero next to it, and both cannons aimed by jumps. In another
 // player's turn the cursor goes onto enemy heroes by a jump and along a trail, the engine shows each one's reach area, and nothing
-// is sent.
+// is sent. Every warning of the engine and the pointer throws: a site whose bytes differ, and the warning of a battle in which the
+// pointer never found the local player's battle UI state, which the pointer checks after every tick from the battle's start.
+// check-paths: shared/emu/pointer.js shared/emu/host.js web/src/lib/input/**
 import assert from 'assert';
 import { loadGame } from '../../shared/game.mjs';
 import { GameHost, VK, UNLOCKS, WIDTH, HEIGHT, REPLAY_WIDTH, REPLAY_HEIGHT } from '../../shared/emu/host.js';
@@ -27,11 +29,11 @@ function play(fullBoard) {
   game.boot();
   game.fullBoard = fullBoard;
   const cpu = game.m.cpu, rd = a => cpu.rd32(a) >>> 0, ri = a => cpu.rd32(a) | 0, app = rd(game.m.addr(0x101b828c));
-  let pulled = 0;
-  const tick = () => { game.tick(); while (pulled * 64 < game.time) { game.pullSound(); pulled++; } };
-  for (let t = 1; t <= 900; t++) { const k = INTO.get(t); if (k) { game.key(true, VK[k]); tick(); game.key(false, VK[k]); } tick(); }
   const pointer = battlePointer(game);
   assert.ok(pointer, `${view}: this engine copy has no pointer play`);
+  let pulled = 0;
+  const tick = () => { game.tick(); pointer.afterTick(() => `the Arcade battle on ${view}`); while (pulled * 64 < game.time) { game.pullSound(); pulled++; } };
+  for (let t = 1; t <= 900; t++) { const k = INTO.get(t); if (k) { game.key(true, VK[k]); tick(); game.key(false, VK[k]); } tick(); }
 
   // What our seat sends, decoded as FUN_1000bb40 sends it (docs/re/re_battle_input.md "The hero turn"), and how many messages it sent.
   const sent = [];

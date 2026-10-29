@@ -112,13 +112,15 @@ function spec(text) {
   return { path: m[1], frame: Number(m[2] ?? 0), palette: m[3] == null ? null : Number(m[3]) };
 }
 
-// The copy's guide, or null when it can't be read. `language` is the code the page passes the engine.
-export async function readGuide(files, language) {
+// The copy's guide, or null when it can't be read, with a warning through warn that names what is missing. `language` is the code
+// the page passes the engine.
+export async function readGuide(files, language, warn = console.warn) {
   try {
     return await read(files, language);
   } catch (e) {
-    if (e instanceof Unreadable) return null;
-    throw e;
+    if (!(e instanceof Unreadable)) throw e;
+    warn(`guide unavailable: can't read ${e.message} in this copy`);
+    return null;
   }
 }
 

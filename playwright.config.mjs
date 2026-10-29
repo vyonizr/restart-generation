@@ -14,9 +14,8 @@ const touch = { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, ch
 export default defineConfig({
   testDir: 'e2e',
   globalSetup: './e2e/global-setup.mjs',
-  // A test that passes only on its retry is flaky, and flaky is a failure to fix (docs/adr/0025).
-  retries: CI ? 1 : 0,
-  failOnFlakyTests: true,
+  // No retries, in CI too: a test that fails once is a failure to fix, flaky or not (docs/adr/0025, docs/adr/0045).
+  retries: 0,
   forbidOnly: CI,
   reporter: CI ? [['github'], ['list']] : 'list',
   use: { trace: 'retain-on-failure', screenshot: 'only-on-failure' },

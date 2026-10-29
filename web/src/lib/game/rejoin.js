@@ -122,8 +122,7 @@ export function rejoinPad(control) {
 // Rejoin, once the engine runs (game.js): arms the quiet replay, holds the player's input and drives the menus. The game loop calls
 // beforeTick() and afterTick() around every engine tick for as long as afterTick() returns true.
 export function startRejoin({ game, snap, input, presses, login }) {
-  const quiet = quietReplay(game);
-  if (!quiet) console.warn('rejoin: the history replays with visuals on: unexpected engine bytes');
+  const quiet = quietReplay(game); // null, with a warning that names the engine bytes, where the history replays with visuals on
   const drive = createDrive(), wall0 = performance.now(), time0 = game.time;
   const queue = []; // the drive's keys still to press, one at a time, each held for one tick
   let down = null, driving = true, over = false, resynced = false;
