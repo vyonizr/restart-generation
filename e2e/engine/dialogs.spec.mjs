@@ -1,8 +1,7 @@
 // The dialogs the page opens over the game screen: the name a server without accounts asks for when the player goes online
 // (ADR 0009), and the CPU question at a friendly Start with 2 or 3 people in the room (ADR 0008, ADR 0037).
-import { test, expect, seed } from '../fixtures.mjs';
-import { start, mainMenu, walk, engineTime, byKey, ONLINE } from './engine.mjs';
-import { tokenOf } from '../../server/seed.js';
+import { test, expect } from '../fixtures.mjs';
+import { mainMenu, walk, engineTime, byKey, ONLINE, PAIRS, online, CREATE_ROOM, FRIENDS_ROOM } from './engine.mjs';
 
 test('on a server without accounts, going online asks for a name; Cancel goes back, and a name logs in', async ({ page }) => {
   await page.goto(process.env.E2E_NAMES_URL);
@@ -24,30 +23,13 @@ test('on a server without accounts, going online asks for a name; Cancel goes ba
   await expect.poll(async () => (await (await page.request.get(`${process.env.E2E_NAMES_URL}/status`)).json()).online, { timeout: 30000 }).toBe(1);
 });
 
-// Two members who are friends both ways, so one can make a room and the other sees it; the arrow keys need the default keys, which
-// a member's saved game may have changed.
-const plain = seed.accounts.filter(a => a.kind === 'member' && !a.keys).map(a => a.name);
-const friends = (x, y) => seed.friends.some(([a, b, state]) => state === 'both' && ((a === x && b === y) || (a === y && b === x)));
-const [host, guest] = plain.flatMap(x => plain.filter(y => y !== x && friends(x, y)).map(y => [x, y]))[0];
-
 test('with 2 people in a friendly room, Start asks whether CPU players fill the empty seats, and Yes starts the battle', async ({ browser, baseURL }) => {
   test.setTimeout(300000); // two engines on one machine, then the bots' start
-  const online = async name => {
-    const context = await browser.newContext({ storageState: { cookies: [], origins: [{ origin: baseURL, localStorage: [{ name: 'rg:account', value: JSON.stringify({ name, token: tokenOf(name) }) }] }] } });
-    const page = await context.newPage();
-    await start(page);
-    const keys = byKey(page);
-    await mainMenu(page, keys);
-    await walk(page, keys, ONLINE);
-    await engineTime(page, 3000, { after: true }); // the Arena login
-    return [page, keys];
-  };
-  // Online opens on Quick Match, with Your Stats, Rankings and Create Room below it; Create Room asks for a hero, then waits for
-  // players. A friend's room is listed just above Quick Match, and entering it asks for a hero too.
-  const [page, keys] = await online(host);
-  await walk(page, keys, ['down', 'down', 'down', 'select', 'select']);
-  const [other, otherKeys] = await online(guest);
-  await walk(other, otherKeys, ['up', 'select', 'select']);
+  const [host, guest] = PAIRS[0];
+  const [page, keys] = await online(browser, baseURL, host);
+  await walk(page, keys, CREATE_ROOM);
+  const [other, otherKeys] = await online(browser, baseURL, guest);
+  await walk(other, otherKeys, FRIENDS_ROOM);
   await engineTime(page, 3000, { after: true }); // the room lists the guest, and Start appears
   await keys('select');
   const dialog = page.getByRole('dialog', { name: 'Fill the empty seats with CPU players?' });
