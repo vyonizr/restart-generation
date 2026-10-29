@@ -1,5 +1,6 @@
 // A server that sends no game: the player picks their own copy (RG_PICK, else RG_GAME: the standalone .zip or its folder), the
 // engine boots from it, and the browser keeps it, so the next visit doesn't ask again.
+// check-paths: web/src/lib/game/{game-files.js,Overlay.svelte} shared/{game.mjs,zip.js,pak.js}
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from '../fixtures.mjs';

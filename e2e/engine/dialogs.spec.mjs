@@ -1,5 +1,7 @@
 // The dialogs the page opens over the game screen: the name a server without accounts asks for when the player goes online
 // (ADR 0009), and the CPU question at a friendly Start with 2 or 3 people in the room (ADR 0008, ADR 0037).
+// check-paths: server/{gateway,snap,bots,battle,mt,gamemsg,aiprofiles}.js server/bot.mjs shared/{snap,snap-ids}.js
+// check-paths: web/src/lib/account/{NameDialog.svelte,login.js,online.js} web/src/lib/game/{BotsDialog.svelte,bots.js} web/src/lib/components/**
 import { test, expect } from '../fixtures.mjs';
 import { mainMenu, walk, engineTime, byKey, ONLINE, PAIRS, online, CREATE_ROOM, FRIENDS_ROOM } from './engine.mjs';
 

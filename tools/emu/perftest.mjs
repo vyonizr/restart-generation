@@ -6,6 +6,7 @@
 // baseline instead and skips that check. With --replay <id>, it also plays a replay from this machine's data/ (one only
 // a development server keeps, so it can't be committed) at normal speed on Classic and reports its counts, without a budget.
 // Usage: node tools/emu/perftest.mjs [--update] [--replay <id>]
+// check-paths: shared/emu/{cpu,fpu,jit,machine,fast,win32,jni,pe,host}.js tools/emu/{scenarios,fasttest}.mjs tools/emu/perf-baseline.json
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';

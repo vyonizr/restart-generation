@@ -1,6 +1,7 @@
 // Self-check for the effect-list patch (EFFECT_ONCE in host.js, docs/re/re_render.md "The battle view's effects"), on the engine
 // of the copy in RG_GAME: npm run test:effects. A new effect is added once, at the end of the list, even when earlier entries are
 // free; the stock engine also copies it into every free entry, which made a late egg hit draw its splat thousands of times a frame.
+// check-paths: shared/emu/host.js
 import assert from 'assert';
 import { loadGame } from '../game.mjs';
 import { GameHost } from './host.js';

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Refuses a merge into development of a commit that hasn't passed `npm run check` (docs/adr/0045). It reads the check's stamp and
+# runs no test. A fast-forward makes no merge commit and skips it: merge into development with --no-ff. Turn it on once per clone
+# with: npm run hooks
+exec node tools/check.mjs --merge-gate

@@ -1,5 +1,7 @@
 // The Board view (CONTEXT.md, docs/adr/0017, docs/adr/0044): a battle's view only. Outside a battle the screen is the phone's
 // 240 × 320 with no switch; in one, the Full board by default on a desktop, and a switch beside Soft screen that applies at once.
+// check-paths: shared/emu/host.js web/src/lib/game/{board,curtain,screen,game}.js web/src/App.svelte web/src/lib/input/Pad.svelte
+// check-paths: web/src/styles/stage.css
 import { test, expect } from '../fixtures.mjs';
 import { start, mainMenu, walk, byKey } from './engine.mjs';
 

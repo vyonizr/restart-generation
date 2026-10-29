@@ -3,7 +3,8 @@
 //   node tools/legal-check.mjs --staged        only what is staged (the pre-commit hook)
 //   node tools/legal-check.mjs --history [rev] every file of every commit that rev reaches (default HEAD)
 //   node tools/legal-check.mjs --install-hook  make git run this before each commit here, tools/commit-format.mjs on its message,
-//                                              and tools/publish-check.mjs before each push (core.hooksPath = .githooks)
+//                                              tools/check.mjs --merge-gate before a merge into development, and
+//                                              tools/publish-check.mjs before each push (core.hooksPath = .githooks)
 //   (rev may be a range, a..b. checkHistory() takes any git rev-list arguments: tools/publish-check.mjs checks only what a push sends)
 // Exit code 1 if anything is refused. It cannot recognize a screenshot or a recording of the game; docs/LEGAL.md says what a
 // contributor must not add, and an exception goes in tools/legal-allow.json with its provenance.
@@ -91,7 +92,7 @@ export function checkHistory(revs) {
 function run(argv) {
   if (argv.includes('--install-hook')) {
     const r = spawnSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root });
-    console.log(r.status === 0 ? 'git will run tools/legal-check.mjs --staged before each commit, tools/commit-format.mjs on its message, and tools/publish-check.mjs before each push.' : 'not a git checkout: nothing installed.');
+    console.log(r.status === 0 ? 'git will run tools/legal-check.mjs --staged before each commit, tools/commit-format.mjs on its message, tools/check.mjs --merge-gate before a merge into development, and tools/publish-check.mjs before each push.' : 'not a git checkout: nothing installed.');
     return r.status === 0 ? 0 : 1;
   }
   let problems;
