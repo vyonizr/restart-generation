@@ -410,9 +410,14 @@ export class GameHost {
   get time() { return this.m.win.now - this.clock0; }
 
   // The replay player's controls, in player mode only (docs/re/re_replay.md "Playback"). Times are whole seconds from BattleBegin.
-  // None may be called before replayLoaded: they reach the replay's battle logic, which the engine builds a few frames in.
+  // None may be called before replayLoaded: they reach the replay's battle logic, which the engine builds a few frames in, and a seek
+  // reloads the snapshot the logic keeps at BattleBegin, a few frames later still. A seek before it leaves a battle that never
+  // begins, so the replay is loaded once its battlefield's phase is 1 or more.
   get replayLogic() { const app = this.m.cpu.rd32(this.m.addr(APP)) >>> 0; return app ? this.m.cpu.rd32(app + 0x110) >>> 0 : 0; }
-  get replayLoaded() { return this.replayLogic !== 0; }
+  get replayLoaded() {
+    const logic = this.replayLogic, bf = logic && this.m.cpu.rd32(logic + 0x14) >>> 0;
+    return Boolean(bf) && (this.m.cpu.rd32(bf + 0x94) | 0) >= 1;
+  }
   #replayCall(name, ...args) { return this.call(`_Java_rg_natives_NativeGameEngine_${name}`, this.jni.ref(this.engine), ...args); }
   get replayTime() { return this.#replayCall('getTime@8') | 0; }
   // The same clock in ms, as the logic keeps it (logic+0xb8), for a slider that moves between whole seconds; past the end it runs on.

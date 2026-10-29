@@ -6,8 +6,9 @@
 // started with a replay (shared/emu/host.js). Times are whole seconds from BattleBegin; `position` is the same clock in fractional
 // seconds, for the slider's thumb.
 const STEP_S = 5; // what the arrow keys and the D-pad seek by
-// A replay builds its battle within a few frames (about 165 ms of engine time); one that hasn't after this much never will, such as
-// damaged data or a seed replay's placeholder (docs/adr/0023). Engine time, so a slow device isn't given up on sooner.
+// A replay builds its battle within a few frames (230 to 300 ms of engine time, to BattleBegin, GameHost.replayLoaded); one that
+// hasn't after this much never will, such as damaged data or a seed replay's placeholder (docs/adr/0023). Engine time, so a slow
+// device isn't given up on sooner.
 export const LOAD_LIMIT_MS = 10000;
 // Over: the clock at the end, nothing left to animate, and the battle finished. The original player stopped as soon as nothing was
 // animating, but a battle whose moves came faster than their animations, as with bots, still has moves to show once the clock is at

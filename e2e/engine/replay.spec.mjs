@@ -1,5 +1,6 @@
 // Replays (CONTEXT.md) played back by the engine on their page: the seed's played battles, which Bots really played
 // (global-setup.mjs keeps them in data/e2e/), and a seed placeholder, which the engine can't build.
+// check-paths: web/src/lib/replay/** web/src/replay.js web/replay/index.html shared/replay-text.js shared/emu/host.js server/replay.js server/replaypage.js server/replays.js server/witness.mjs
 import { test, expect, seed, factsLine, playButton } from '../fixtures.mjs';
 import { markLabel } from '../../shared/replay-text.js';
 import { markTarget } from '../../web/src/lib/replay/replay-flow.js';
@@ -56,19 +57,22 @@ test('a played replay runs to its end at double speed, and offers to watch it ag
   await expect(again).toBeFocused();
 });
 
-// Defeated seats and the winner's crown (.scratch/defeated-seats/): in the seed's battle with the most players, every seat starts in
-// play; a seek to the end shows at once each seat the engine defeated by then, and the end gives each winner the crown.
+// Defeated seats and the winner's crown (.scratch/defeated-seats/): in the seed's battle with the most players, a seek to the end
+// shows at once each seat the engine defeated by then, the end gives each winner the crown, and Watch again puts every seat back in
+// play. The seek comes in the first frame the replay plays, as the controls work from then on: a seek reloads the snapshot the
+// engine keeps at BattleBegin (docs/re/re_replay.md "Playback"), and one before it would leave a battle with no seats.
 test('a seek to the end shows the defeated seats, and the end crowns the winner', async ({ page, errors }) => {
   const metas = await Promise.all(seed.played.map(async ({ id }) => ({ id, ...(await (await page.request.get(`replay/${id}/data`)).json()).meta })));
   const meta = metas.reduce((a, b) => b.players.length > a.players.length ? b : a);
   expect(meta.players.length).toBeGreaterThan(2);
   await watch(page, meta.id);
-  await expect(playButton(page)).toHaveAccessibleName('Pause', { timeout: 30000 });
+  // Checked every frame, not at the expect's pace, so that the seek can't come any later.
+  await page.waitForFunction(() => document.querySelector('[aria-label="Replay controls"] [aria-label="Pause"]'), null, { polling: 'raf', timeout: 30000 });
   const seat = n => page.getByRole('list', { name: 'Players by seat' }).getByRole('listitem').filter({ has: page.getByLabel(`Seat ${n}`, { exact: true }) });
-  for (const p of meta.players) await expect(seat(p.seat)).not.toHaveAttribute('data-defeated');
 
   await page.getByRole('slider', { name: 'Time' }).press('End');
-  await expect(page.getByRole('status').getByRole('button', { name: 'Watch again' })).toBeVisible({ timeout: 30000 });
+  const again = page.getByRole('status').getByRole('button', { name: 'Watch again' });
+  await expect(again).toBeVisible({ timeout: 30000 });
   for (const p of meta.players) {
     const won = meta.result.winners.includes(p.seat);
     if (won) {
@@ -79,6 +83,11 @@ test('a seek to the end shows the defeated seats, and the end crowns the winner'
       await expect(seat(p.seat)).toContainText(', defeated');
     }
   }
+
+  // Watch again plays from 0, where no seat has fallen yet: the seek undoes every defeat at once.
+  await again.click();
+  await expect(playButton(page)).toHaveAccessibleName('Pause');
+  for (const p of meta.players) await expect(seat(p.seat)).not.toHaveAttribute('data-defeated');
   expect(errors).toEqual([]);
 });
 
