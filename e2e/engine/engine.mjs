@@ -52,9 +52,11 @@ export const PAIRS = plain.reduce((pairs, x) => {
 
 // A page of its own, signed in as the seed member `name`, on the Online menu once the Arena login is through, with its key presser.
 // Online opens on Quick Match, with Your Stats, Rankings and Create Room below it; Create Room asks for a hero, then waits for
-// players. A friend's room is listed just above Quick Match, and entering it asks for a hero too.
-export async function online(browser, baseURL, name) {
+// players. A friend's room is listed just above Quick Match, and entering it asks for a hero too. With `debug`, the page fills
+// window.rgDebug as it boots (docs/agents/engine-debugging.md).
+export async function online(browser, baseURL, name, { debug = false } = {}) {
   const context = await browser.newContext({ storageState: { cookies: [], origins: [{ origin: baseURL, localStorage: [{ name: 'rg:account', value: JSON.stringify({ name, token: tokenOf(name) }) }] }] } });
+  if (debug) await context.addInitScript(() => { window.rgDebug = {}; });
   const page = await context.newPage();
   await start(page);
   const keys = byKey(page);
