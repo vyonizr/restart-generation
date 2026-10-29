@@ -19,30 +19,30 @@ A battle's screens are UI states run by the local player's manager `M` (vtable `
 
 Every key handler first calls the shared one, `FUN_1008e0d0`, which opens chat (`0x52`) and the battle menu (Back, `0x4f`) and, while the state's byte `S+0x2c` is set, passes the event to the cursor (`FUN_10073fd0`, below). The shared constructor `FUN_1008d5a0` sets `S+0x2c`; the two special skills that choose a direction clear it (static).
 
-The other states of a battle take no battle input of their own: IdleUIState (`0x101880d4`, others' turns, the intro) and ObserverUIState (`0x1018800c`, after a defeat), where only the cursor moves ("Others' turns and the observer", below), AutoSelectActionUIState (`0x1018807c`, after a move, which picks the next state), AttackUIState (`0x10188e50`, a full special power), the battle menu, a story message, and chat entry (TextMessageUIState, made by `FUN_100c28c0`). Measured: from the tick after a Select that sent its order, the state is AutoSelectAction or Idle.
+The other states of a battle take no battle input of their own: IdleUIState (`0x101880d4`, others' turns, the intro) and ObserverUIState (`0x1018800c`, after a defeat), where only the cursor moves ("Others' turns and the defeated player", below), AutoSelectActionUIState (`0x1018807c`, after a move, which picks the next state), AttackUIState (`0x10188e50`, a full special power), the battle menu, a story message, and chat entry (TextMessageUIState, made by `FUN_100c28c0`). Measured: from the tick after a Select that sent its order, the state is AutoSelectAction or Idle.
 
 ### The local player and its manager
 
 `M` belongs to the local player, in the battle logic's player list. A host reaches that list from the battle view, the same way offline and online (static, measured below):
 
-- **The battle logic isn't in the app object online.** Offline it is `[app+0x114]` while a battle is on ([`re_screen.md`](re_screen.md) "Changing the size while the engine runs"). That pointer is set by the local battle's own screen (`FUN_100c2d70`, from its `+0x84`). Online the arena game state (`FUN_100ec440`) holds the client's logic at its own `+0x24`, and `[app+0x114]` stayed 0 on the host and the guest (measured).
+- **The battle logic isn't in the app object online.** Offline it is `[app+0x114]` while a battle is on ([`re_screen.md`](re_screen.md) "Changing the size while the engine runs"). That pointer is set by the offline battle's own screen (`FUN_100c2d70`, from its `+0x84`). Online the arena game state (`FUN_100ec440`) holds the client's logic at its own `+0x24`, and `[app+0x114]` stayed 0 on the room host's engine and on the other player's in the room (measured).
 - **From the battle view to the list.** The logic's battlefield is at `logic+0x14`. When its visuals are made (`FUN_100130a0`), the battlefield builds a game for the battle view (`FUN_100375f0`), which keeps the battlefield at its `+0x12c`. It then sets the battle view up with that game (`FUN_1002e3f0`), which keeps it at `bv+4`. The logic's setup (`FUN_10006b10`, run by both the local logic and, after the snapshot, the client's) hands the battlefield the logic's player list `logic+0x18`, which it keeps at `+0x144` (`FUN_1001a720`).
 - **The player list.** The players by index at `[+0x10]`, `+0xc` slots of them, and the index of the local player at `+0x24`, −1 while there is none. A player's kind is at `+4`, its index at `+8`, the list at `+0x18`.
 - **How a player is added** (`FUN_100243c0`). The list makes the player by its kind (`FUN_10073180`; the kinds are in [`re_rules.md`](re_rules.md): 0 LocalPlayer, 1 LocalObserver, 2 AIPlayer, 3 RemotePlayer, 4 RemoteObserver, 5 unnamed). It runs the player's setup, the fourth entry of its vtable, and stores it at its index. A player of kind 0 or 1 becomes the local one if there is none yet.
 - **When the index is looked for again** (`FUN_10023d20`). After a player leaves the list (`FUN_10023d70`) and after a snapshot is loaded (`FUN_100246e0`), the list looks for the local index again: the next index below the old one, going round, whose player is of kind 0 or 1, or −1.
 - **The manager.** A local player's setup (`FUN_100754e0`) makes its cursor, keeps it at `+0x68`, and makes `M` (`FUN_100b7d60`), which it keeps at `+0x20`. `M` keeps the game at `+0x3c` and the player at `+0x40`. Its constructor starts it in IdleUIState at `+4`. A new state is first put at `M+8`, and `FUN_10044900` moves it to `+4`.
 - **Which players have one.** Only LocalPlayer (vtable `0x1017fb18`), LocalObserver (`0x101867c8`) and kind 5 (`0x101867a4`) run that setup; `FUN_100b7d60` has no other caller. Kind 5 isn't counted as local by the list, and we haven't seen one. AIPlayers (`0x101867ec`) and RemotePlayers have no manager.
-- **A defeat.** A LocalPlayer that is knocked out is replaced at the same index by a LocalObserver (`FUN_100245b0`). The old player leaves the list, which sets the index to −1, and the new one sets it back. The observer's setup makes a new `M` and puts ObserverUIState in it (`FUN_100b0e10`).
+- **A defeat.** A LocalPlayer that is defeated is replaced at the same index by a LocalObserver (`FUN_100245b0`). The old player leaves the list, which sets the index to −1, and the new one sets it back. The LocalObserver's setup makes a new `M` and puts ObserverUIState in it (`FUN_100b0e10`).
 - **Online.** The server sends every person as a RemotePlayer. The client's logic turns the one at its own index into the kind its JoinInfo gave, LocalPlayer ([`re_rules.md`](re_rules.md)). So the local player is in the list at the client's own index, as offline.
 
-So `M = [P+0x20]`, with the list `L = [[[bv+4]+0x12c]+0x144]`, `P = [[L+0x10] + 4·[L+0x24]]`, and `[P+4]` 0 or 1. `pointer.js` reads it so and checks the code above as it checks its other sites.
+So `M = [P+0x20]`, with the list `L = [[[bv+4]+0x12c]+0x144]`, `P = [[L+0x10] + 4·[L+0x24]]`, and `[P+4]` 0 or 1. `pointer.js` reads it so and checks the code above as it checks its other sites. Online the route gives nothing for the first few ticks of a battle (below), so a page that finds no state on this route in 150 ticks past a battle's curtains warns once for that battle (`afterTick` in `pointer.js`): the route no longer holds there.
 
-An earlier route, `[[app+0x8c]+0x84]`, gave this player only by luck. `[app+0x8c]` is a 0x28-byte object made on first use (app slot 0x23, `FUN_10005710`), so `+0x84` is past its end. In the Arcade battle the player list lay 0x40 bytes after it, and the list's `+0x44` held the local player (measured). Online it held 0 on the host and, on the guest, an object that led to no battle state (measured with the throwaway `tmp/pointer-modes/`), so pointer play read no state in online battles.
+An earlier route, `[[app+0x8c]+0x84]`, gave this player only by luck. `[app+0x8c]` is a 0x28-byte object made on first use (app slot 0x23, `FUN_10005710`), so `+0x84` is past its end. In the Arcade battle the player list lay 0x40 bytes after it, and the list's `+0x44` held the local player (measured). Online it held 0 on the room host's engine and, on the other player's in the room, an object that led to no battle state (measured with the throwaway `tmp/pointer-modes/`), so pointer play read no state in online battles.
 
 Measured every tick of a battle against a scan of memory for every `M` whose `+4` is a battle state (the throwaway `tmp/pointer-online/`, gitignored):
 
-- **Offline**, the Arcade battle above, on each board view to its end (11,814 battle ticks): the route gave `M` on every tick, and each of 270 scans, one every 50 ticks, found that one `M` and no other. The battlefield it went through was `[app+0x114]+0x14` on every tick. The local index was 1 of 5 slots, the CPUs AIPlayers at 2 to 4. The LocalPlayer's `M` showed Idle, PlaceTile, MoveUnit and FireCannon. When the local player was knocked out (tick 12436, "Observer" below), a LocalObserver took index 1 with a new `M`, which showed ObserverUIState until the battle ended. With the battle view gone, the route then gave nothing.
-- **Online**, a friendly room of two people and two bots (two pages of the browser client on one server, set up as `e2e/engine/dialogs.spec.mjs` does), on the host and the guest, Full board: from the tick the battle view was set, the route gave nothing for 6 ticks on the host and 7 on the guest, while the local index was still −1 (before the client's own PlayerJoined), and then `M` on every tick of the first 2,745 (host) and 2,753 (guest) ticks of battle. Each of 9 scans per page, one every 300 ticks, found that one `M` and no other. The local index was 1 on the host and 4 on the guest, of 5 slots, the player a LocalPlayer; its `M` showed Idle, PlaceTile, MoveUnit and FireCannon. A defeat and a battle's end online weren't reached in this run.
+- **Offline**, the Arcade battle above, on each board view to its end (11,814 battle ticks): the route gave `M` on every tick, and each of 270 scans, one every 50 ticks, found that one `M` and no other. The battlefield it went through was `[app+0x114]+0x14` on every tick. The local index was 1 of 5 slots, the CPUs AIPlayers at 2 to 4. The LocalPlayer's `M` showed Idle, PlaceTile, MoveUnit and FireCannon. When the local player was defeated (tick 12436, "The defeated player" below), a LocalObserver took index 1 with a new `M`, which showed ObserverUIState until the battle ended. With the battle view gone, the route then gave nothing.
+- **Online**, a friendly room of two people and two bots (two pages of the browser client on one server, set up as `e2e/engine/dialogs.spec.mjs` does), on the room host's page and the other player's in the room, Full board: from the tick the battle view was set, the route gave nothing for 6 ticks on the room host's and 7 on the other player's, while the local index was still −1 (before the client's own PlayerJoined), and then `M` on every tick of the first 2,745 (room host) and 2,753 (the other player) ticks of battle. Each of 9 scans per page, one every 300 ticks, found that one `M` and no other. The local index was 1 on the room host's and 4 on the other player's, of 5 slots, the player a LocalPlayer; its `M` showed Idle, PlaceTile, MoveUnit and FireCannon. A defeat and a battle's end online weren't reached in this run.
 
 ### When no input applies
 
@@ -158,17 +158,17 @@ Measured, each with the hero's skill written into its hero data (`[hero+0x58]+0x
 
 ## Online play
 
-Nothing a client sends depends on how the cursor got to its cell, except MoveUnit's path, which is the route the cursor took or the engine's shortest path after the setter (spike, measured). A target order carries the cursor's cell. Run online: only where the local player's manager is ("The local player and its manager"), on the host and the guest of a friendly room with bots. The orders a pointer produces online weren't checked in this note.
+Nothing a client sends depends on how the cursor got to its cell, except MoveUnit's path, which is the route the cursor took or the engine's shortest path after the setter (spike, measured). A target order carries the cursor's cell. Run online: only where the local player's manager is ("The local player and its manager"), on the room host's page and the other player's in a friendly room with bots. The orders a pointer produces online weren't checked in this note.
 
-## Others' turns and the observer
+## Others' turns and the defeated player
 
 What the cursor does while the local player isn't acting: in IdleUIState (`0x101880d4`: the intro and the other players' turns) and in ObserverUIState (`0x1018800c`, after the local player is defeated). Measured in the same Arcade battle, on the Full board and on Classic, mostly with two engines in lockstep where only one gets the input under test (the throwaway `tmp/pointer/info-harness.mjs`, gitignored). Pointer play moves the cursor in both (`pointer.js` reads them as `watch`), and `tools/emu/pointer-test.mjs` checks the reach area under a jump and an arrow in another player's turn.
 
 ### The two states
 
 - **The name.** The state at `0x101880d4` names itself IdleUIState (static, `FUN_100d59e0`); earlier notes called it InfoUIState. The engine's InfoUIState is a different state (vtable `0x10188138`) that builds the info menu; it isn't a battle state.
-- **Input.** Both states' key handler, the second entry of the input vtables `0x101880cc` and `0x10188004`, is `FUN_100d5bf0`, a single jump to the shared one, `FUN_1008e0d0` (static). The first entries of their own vtables are `0x100d5c20` (Idle) and `0x100cfeb0` (Observer). Their update is the shared `FUN_1008e2f0`. Idle's start sets the cursor's kind to 0 and then runs the shared start. Its draw is the shared draw plus the acting hero's face in its corner panel (`FUN_100d5ae0`). Observer's start and draw are the shared ones (static).
-- **The cursor** is the same object as in the other states, `[S+0x28]`, which is also the local player's `[player+0x68]` with `player = [S+0x18]`. Its active byte `+0x5b` and drawn byte `+0x5a` were 1 throughout, in the intro, in others' turns and in Observer (measured).
+- **Input.** Both states' key handler, the second entry of the input vtables `0x101880cc` and `0x10188004`, is `FUN_100d5bf0`, a single jump to the shared one, `FUN_1008e0d0` (static). The first entries of their own vtables are `0x100d5c20` (Idle) and `0x100cfeb0` (ObserverUIState). Their update is the shared `FUN_1008e2f0`. Idle's start sets the cursor's kind to 0 and then runs the shared start. Its draw is the shared draw plus the acting hero's face in its corner panel (`FUN_100d5ae0`). ObserverUIState's start and draw are the shared ones (static).
+- **The cursor** is the same object as in the other states, `[S+0x28]`, which is also the local player's `[player+0x68]` with `player = [S+0x18]`. Its active byte `+0x5b` and drawn byte `+0x5a` were 1 throughout, in the intro, in others' turns and in ObserverUIState (measured).
 - **Its kind is 0** in both states, over heroes too (measured). Kind 0 is drawn in the acting seat's colour rather than the owner's (static, `FUN_10073ac0`; measured red in red's turn, green in green's). It is an arrowhead on each side of the cell with a jagged blob in that colour over the right one. The hero turn's kind 1 is four corner marks. No kind is set apart for looking at things.
 - **Arrows and the setter** both move the cursor's cell at `+0x24` and `+0x28` (measured in both states).
 
@@ -200,9 +200,9 @@ Measured, a cursor moved by an arrow onto each target and read 2 and 40 ticks la
 **A name label** is started once a tick, so it follows the setter too (static, `FUN_1008d900`, its state at `[app+0x128]`).
 
 - While the cursor is on a unit it can see, the engine waits the setting `HeroNameDisplayDelay`. It then types the owner's player name above the unit, a letter every `HeroNameDisplaySpeed` ms.
-- Measured: after a jump onto a hero, the label's state went from waiting to shown within 40 ticks, but no pixel changed. [INFERENCE] This local battle's players have empty names; online, the names would show.
+- Measured: after a jump onto a hero, the label's state went from waiting to shown within 40 ticks, but no pixel changed. [INFERENCE] This offline battle's players have empty names; online, the names would show.
 
-**Select does nothing** (measured: a tap, a 20-tick hold, Enter and Space each left the frame identical to the twin's and sent nothing). Back opens the battle menu, in Observer too. The shared handler knows only chat, the battle menu (Back, or code `0x54` twice within 500 ms), and the cursor's arrows (static).
+**Select does nothing** (measured: a tap, a 20-tick hold, Enter and Space each left the frame identical to the twin's and sent nothing). Back opens the battle menu, in ObserverUIState too. The shared handler knows only chat, the battle menu (Back, or code `0x54` twice within 500 ms), and the cursor's arrows (static).
 
 ### The camera
 
@@ -210,7 +210,7 @@ The local player's update turns the camera toward its cursor every tick unless `
 
 - **Idle on Classic:** arrows took the cursor to (8,8), and the camera glided to (130, 17). It stayed there through the turns of the three other players and into the cannon phase. The twin, whose cursor stayed on our hero, kept (−40, −40) all along.
 - **Other heroes** never moved the camera: on Classic a player sees the others' moves only where its own cursor is.
-- **Observer on Classic:** arrows and the setter both moved the camera.
+- **A defeated player on Classic:** arrows and the setter both moved the camera.
 - **On the Full board** the camera stays put on this map.
 
 ### What a moved cursor carries into the next state
@@ -226,12 +226,12 @@ The local player's update turns the camera toward its cursor every tick unless `
 - **Tick 814:** the engine puts the cursor on (1,2), the local castle's cell, over any earlier move.
 - **A move after 814** carries into tile placement: anchor (0,2) against (1,2) in the twin.
 
-### Observer
+### The defeated player
 
-In this local battle, Observer came at tick 12436, once the local player was knocked out, and lasted until about 12531, when the battle ended by itself (measured, both views).
+In this offline battle, ObserverUIState came at tick 12436, once the local player was defeated, and lasted until about 12531, when the battle ended by itself (measured, both views).
 
 - **What worked as in Idle (measured):** arrows; an enemy hero's reach area on an arrow onto it; the setter leaving the old area; Select doing nothing; Back opening the menu; the camera following the cursor on Classic.
-- [INFERENCE] Online, Observer lasts until the others finish the battle.
+- [INFERENCE] In an online battle, ObserverUIState lasts until the others finish the battle.
 
 ### Is a cursor moved in these states safe?
 

@@ -8,9 +8,11 @@ import { createPlay, screenPoint, boardCell, hovers } from './pointer-logic.js';
 import { padKey } from './keys.js';
 import { page } from '../page.svelte.js';
 
-// Arms pointer play on the canvas, or returns null where this copy lacks the engine bytes it relies on (shared/emu/pointer.js).
-// blocked() is true while the page drives the keys itself (a rejoin). The game loop calls afterTick() after every engine tick.
-export function attachPointer({ game, canvas, presses, blocked }) {
+// Arms pointer play on the canvas, or returns null where this copy lacks the engine bytes it relies on (shared/emu/pointer.js, which
+// warns which). blocked() is true while the page drives the keys itself (a rejoin). The game loop calls afterTick() after every
+// engine tick; outside a rejoin it also has the battle pointer warn once in a battle where it never finds the local player's input,
+// a battle that describe() names. `battle` is the battle pointer itself, for window.rgDebug (game.js).
+export function attachPointer({ game, canvas, presses, blocked, describe }) {
   const battle = battlePointer(game);
   if (!battle) return null;
   let view = null; // the battle's state as the frame on screen shows it, or null where the pointer does nothing
@@ -37,9 +39,11 @@ export function attachPointer({ game, canvas, presses, blocked }) {
   canvas.addEventListener('pointerleave', () => play.leave());
   canvas.addEventListener('contextmenu', e => e.preventDefault()); // the right button is the game's over the game screen
   return {
+    battle,
     afterTick() {
       view = battle.read();
       play.tick(view, game.time);
+      if (!blocked()) battle.afterTick(describe);
     },
   };
 }

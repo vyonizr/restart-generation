@@ -49,7 +49,7 @@ The call chain (observed) runs as follows:
 4. The client replies with RESPONSE 0x1d on 0x11: `01 1d`, a u8 result (0, because player+0x28 is now set), and
    a u32 0.
 
-- Friendly lobbies set it locally too: the host presses key 4 in `FUN_100eadd0`, which sends
+- Friendly lobbies set it locally too: the room host presses key 4 in `FUN_100eadd0`, which sends
   FRIENDLY_CASINO_START (`FUN_10046e00`) and calls +0x1c.
 - A locked player can't back out: key 5 in `FUN_100eadd0` runs cancel only if `player->+0x94()` (`FUN_1009bb40`,
   player+0x28) is 0.
@@ -173,7 +173,7 @@ The handshake runs in the following steps:
 | 5 | S->all | PlayerJoined(index, team, type 3, info{name, hero...}), sender 0 | Server case 4 end, through logic v10 (process + broadcast) |
 | 6 | S->all | BattleBegin (type 1) once no connection is still handshaking (or the 40 s deadline passed) and the game has enough players (`FUN_10024c00` / Mac `FUN_00024fde`); otherwise the server quits | `FUN_1000ddf0` / Mac `ServerBattleLogic_v6_0cebc8` |
 
-Category (Mac `FUN_000bd60e`): type 0/2 -> 0, 3 -> 1 (remote player), 1/4/5 -> 2 (observer), -2 -> -2.
+Category (Mac `FUN_000bd60e`): type 0/2 -> 0, 3 -> 1 (remote player), 1/4/5 -> 2 (the observer kinds, LocalObserver and RemoteObserver among them), -2 -> -2.
 The server adds all table connections before ticking. Otherwise the first finished handshake would trigger
 BattleBegin with one player, and `FUN_00024fde` would end the game (inferred).
 

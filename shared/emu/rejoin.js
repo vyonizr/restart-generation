@@ -3,6 +3,7 @@
 // busy for minutes. While a rejoin is pending, the replay runs with the visuals off instead, and they come back on with nothing
 // queued before the engine marks itself joined, so it plays on from the battle's current state. The page arms it at Rejoin only, so
 // a page that isn't rejoining runs the engine as it always did.
+import { changedSite, siteName } from './host.js';
 
 // State 4 of the join (FUN_100e17a0) turns the visuals back on before it replays the history, by pushing 0 for FUN_10016300 at
 // 0x100e1896; pushing 1 keeps them off. The next instruction is matched too, as the in-memory patches match theirs (docs/adr/0007).
@@ -10,18 +11,18 @@ export const QUIET = { what: 'history replay without visuals', va: 0x100e1896, f
 // After the replay, at 0x100e1988, state 4 loads the handshake object (logic+0x38, the logic in ESI) to set state 6. The visuals go
 // back on there, inside the same engine frame: turned on after that frame instead, the page's engine reports that frame as its last
 // (tick returns 0), which the page takes for Quit.
-const REPLAYED = { va: 0x100e1988, bytes: '8b4e38c74104060000' };
+const REPLAYED = { va: 0x100e1988, bytes: '8b4e38c74104060000', what: 'state 4 of the join setting state 6 after the replay' };
 const JOIN_MACHINE = [0x100e17a0, 0x100e1ad0]; // FUN_100e17a0, up to the next function
 const VISUALS = 0x10016300; // thiscall on the battlefield: 1 turns its visuals off, 0 on with an empty visualizer
 const BATTLEFIELD = 0x14;   // logic+0x14
 const ESI = 6;
 
-const hexAt = (cpu, at, n) => [...cpu.m8.subarray(at, at + n)].map(b => b.toString(16).padStart(2, '0')).join('');
-
-// Arms the quiet replay in a booted engine (game: a GameHost) and returns its handle, or null for a copy without the original bytes.
+// Arms the quiet replay in a booted engine (game: a GameHost) and returns its handle, or null for a copy without the original bytes,
+// with a warning through game.warn that names the first site that differs.
 export function quietReplay(game) {
-  const m = game.m, cpu = m.cpu, at = m.addr(QUIET.va), size = QUIET.from.length / 2;
-  if (hexAt(cpu, at, size) !== QUIET.from || hexAt(cpu, m.addr(REPLAYED.va), REPLAYED.bytes.length / 2) !== REPLAYED.bytes) return null;
+  const m = game.m, cpu = m.cpu, at = m.addr(QUIET.va);
+  const changed = changedSite(m, [{ va: QUIET.va, bytes: QUIET.from, what: QUIET.what }, REPLAYED]);
+  if (changed) { game.warn(`rejoin: the history replays with visuals on: unexpected bytes at ${siteName(changed)}`); return null; }
   // The emulator caches decoded and compiled code, and a cached block may hold the old bytes or run past the watch. A block ends at
   // the first control transfer, so none starts outside the function: dropping what is cached for the whole function is enough.
   const write = bytes => {

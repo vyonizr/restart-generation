@@ -17,6 +17,7 @@ import { botQuestion } from './bots.js';
 import { watchGamepad, gamepadSound } from '../input/gamepad.js';
 import { createPresses } from '../input/presses.js';
 import { attachPointer } from '../input/pointer.js';
+import { battlePointer } from '../../../../shared/emu/pointer.js';
 import { replaySaved, battleJoined } from '../replay/replay-notice.js';
 import { startOnlineCount, serverStatus } from '../account/online.js';
 import { frameView, FRAMES } from './board.js';
@@ -119,6 +120,10 @@ async function main(canvas) {
     throw e;
   }
   fitCanvas(canvas);
+  // window.rgDebug (docs/agents/engine-debugging.md): a script that set it to an object before the page ran (Playwright's
+  // addInitScript) gets the GameHost, the battle pointer once Start is pressed, and the page state in it. Otherwise nothing is exposed.
+  const debug = typeof window.rgDebug === 'object' && window.rgDebug;
+  if (debug) Object.assign(debug, { game, battle: null, page });
   // The curtain around the screens a Full board battle narrows to 240 × 320: its menu and story dialogs (docs/adr/0017, 0044).
   if (game.board) loadCurtain(files, REPLAY_WIDTH, REPLAY_HEIGHT).then(c => screen.setCurtain(c), e => console.warn('curtain:', e));
   guideFiles = { ...files };
@@ -173,9 +178,12 @@ async function main(canvas) {
   padSession.current = { game, input, audio, presses };
   // Rejoin was the Start press: the page drives the menus back to the battle while the player's input waits (rejoin.js).
   let rejoin = rejoining ? startRejoin({ game, snap, input, presses, login }) : null;
-  // Pointer play on a desktop (docs/adr/0039); a touch device plays with the touch pad. It waits while a rejoin drives the menus.
-  const pointer = touch ? null : attachPointer({ game, canvas, presses, blocked: () => rejoin !== null });
+  // Pointer play on a desktop (docs/adr/0039); a touch device plays with the touch pad. It waits while a rejoin drives the menus. A
+  // battle is online while the page's SNAP client is in a room, a friendly room or a battle's table (server/casino.js).
+  const describe = () => `${snap.inRoom ? `the online battle in the room ${JSON.stringify(snap.room)}` : 'an offline battle'} on ${game.battleFull ? 'the Full board' : 'Classic'}`;
+  const pointer = touch ? null : attachPointer({ game, canvas, presses, blocked: () => rejoin !== null, describe });
   page.pointable = Boolean(pointer);
+  if (debug) debug.battle = pointer ? pointer.battle : touch ? battlePointer(game) : null;
 
   // Settings, achievements and saves: every 5 s, and the moment the page hides, since a hidden phone tab may never come back.
   // The settings file also holds the custom keys, which the controls legend and the touch pad follow.

@@ -37,18 +37,19 @@ const EFFECT_ONCE = { what: 'a battle effect added once', va: 0x1002ea2b, from: 
 // player's size, so the whole battlefield is on it. The engine is booted at that size, which fixes the frame buffer's size, and is
 // given the phone's 240 x 320 straight away, so that everything outside a battle is laid out and drawn as on a stock engine.
 // Hooks run their JavaScript just before the instruction at `va`; they are installed only if every site has these bytes, otherwise
-// the engine boots stock and the page has no Full board. `hook` names the GameHost handler.
+// the engine boots stock and the page has no Full board, with a warning that names the first site that differs. `hook` names the
+// GameHost handler.
 const BOARD_SITES = [
-  { hook: 'setup', va: 0x10028f20, bytes: '83ec08568bf1e8c592fd' },     // FUN_10028f20: lays out the battle view and its corners
-  { hook: 'draw', va: 0x1002c1a0, bytes: '53568bf18b869c020000' },      // FUN_1002c1a0: the battlefield is drawn
-  { hook: 'phoneOnly', va: 0x100f94a0, bytes: '568bf1e8488df0ff8b48' }, // FUN_100f94a0: a menu screen takes the screen size
-  { hook: 'phoneOnly', va: 0x100d5d90, bytes: '568bf1e858c4f2ff8b40' }, // FUN_100d5d90: the battle menu and its dialogs
-  { hook: 'phoneOnly', va: 0x100b8570, bytes: '558bec83e4f86aff6848' }, // FUN_100b8570: a story dialog in a battle
-  { hook: 'curtain', va: 0x10028ae0, bytes: '83ec1853568bf18a8628' },   // FUN_10028ae0: draws the curtain at a level (0 to 255)
-  { hook: 'margin', va: 0x10028360, bytes: '8b41088b10568b70102b' },    // FUN_10028360: the camera's bounds, with a margin around the map
-  { hook: 'focus', va: 0x10073e00, bytes: '83ec0c535533c056578b' },     // FUN_10073e00: the camera turns to a cell
-  { hook: 'ease', va: 0x100290e0, bytes: '83ec085355568bf18d9e' },      // FUN_100290e0: the camera glides 1/8 of the way to its target
-  { hook: 'eased', va: 0x1002be45, bytes: '8b8eac0200008b49' },         // FUN_1002be10, just after it called FUN_100290e0
+  { hook: 'setup', va: 0x10028f20, bytes: '83ec08568bf1e8c592fd', what: 'FUN_10028f20, which lays out the battle view and its corners' },
+  { hook: 'draw', va: 0x1002c1a0, bytes: '53568bf18b869c020000', what: 'FUN_1002c1a0, which draws the battlefield' },
+  { hook: 'phoneOnly', va: 0x100f94a0, bytes: '568bf1e8488df0ff8b48', what: 'FUN_100f94a0, where a menu screen takes the screen size' },
+  { hook: 'phoneOnly', va: 0x100d5d90, bytes: '568bf1e858c4f2ff8b40', what: 'FUN_100d5d90, the battle menu and its dialogs' },
+  { hook: 'phoneOnly', va: 0x100b8570, bytes: '558bec83e4f86aff6848', what: 'FUN_100b8570, a story dialog in a battle' },
+  { hook: 'curtain', va: 0x10028ae0, bytes: '83ec1853568bf18a8628', what: 'FUN_10028ae0, which draws the curtain at a level (0 to 255)' },
+  { hook: 'margin', va: 0x10028360, bytes: '8b41088b10568b70102b', what: "FUN_10028360, the camera's bounds, with a margin around the map" },
+  { hook: 'focus', va: 0x10073e00, bytes: '83ec0c535533c056578b', what: 'FUN_10073e00, where the camera turns to a cell' },
+  { hook: 'ease', va: 0x100290e0, bytes: '83ec085355568bf18d9e', what: 'FUN_100290e0, where the camera glides 1/8 of the way to its target' },
+  { hook: 'eased', va: 0x1002be45, bytes: '8b8eac0200008b49', what: 'FUN_1002be10, just after it called FUN_100290e0' },
 ];
 // A princess's rescue and a fight play over a backdrop, a picture of the whole screen taken as they start, which FUN_100831a0 and
 // FUN_100828a0 draw at (0, 0) of the context they are given. In the battle view's large-screen mode that context is the 240 x 320
@@ -57,10 +58,10 @@ const BOARD_SITES = [
 // context, the picture at [esp] and its position at [[esp+4]]. The hook draws the picture where the hole lies over it, on the Full
 // board and in the replay player; it is installed only if every site has these bytes.
 const BACKDROP_SITES = [
-  { va: 0x10083211, bytes: 'ff50148b561c8d6e' }, // a princess rescued
-  { va: 0x100832bc, bytes: 'ff52148b4e1c518b' }, // a princess not rescued
-  { va: 0x1008294a, bytes: 'ff50148d86940000' }, // a fight, the picture grayed under its two fighters
-  { va: 0x100828f8, bytes: 'ff5014896e345e32' }, // a fight's ending, the picture fading back to its colors alone
+  { va: 0x10083211, bytes: 'ff50148b561c8d6e', what: 'the backdrop of a princess rescued' },
+  { va: 0x100832bc, bytes: 'ff52148b4e1c518b', what: 'the backdrop of a princess not rescued' },
+  { va: 0x1008294a, bytes: 'ff50148d86940000', what: "a fight's backdrop, grayed under its two fighters" },
+  { va: 0x100828f8, bytes: 'ff5014896e345e32', what: "a fight's ending, its backdrop fading back to its colors alone" },
 ];
 const LARGE_SCREEN = 0x328, OFFSCREEN_CONTEXT = 0x338; // the battle view's large-screen flag and its offscreen's graphics context
 // Where FUN_10028a70 puts the offscreen on the 420 x 378 screen: (90, 29), the middle.
@@ -75,6 +76,10 @@ const CURTAIN_FADE_STEPS = 8;  // frames the curtain takes to fade in or out, ha
 
 // The n bytes at the engine's address va, as hex.
 const bytesAt = (m, va, n) => [...m.cpu.m8.subarray(m.addr(va), m.addr(va) + n)].map(b => b.toString(16).padStart(2, '0')).join('');
+// Code sites, as BOARD_SITES lists them ({ va, bytes, what }), checked before a feature relies on them: the first whose bytes in the
+// booted machine m differ, or undefined; and how a warning names one, so that the console says which check failed.
+export const changedSite = (m, sites) => sites.find(s => bytesAt(m, s.va, s.bytes.length / 2) !== s.bytes);
+export const siteName = s => `0x${s.va.toString(16)} (${s.what})`;
 
 export class GameHost {
   // files: { name: Uint8Array } for the DLL and everything in the ResetGeneration folder.
@@ -106,7 +111,8 @@ export class GameHost {
       if (bytesAt(m, p.va, p.from.length / 2) !== p.from) { this.warn(`engine patch skipped (${p.what}): unexpected bytes at ${p.va.toString(16)}`); continue; }
       m.cpu.m8.set(p.to.match(/../g).map(h => parseInt(h, 16)), m.addr(p.va));
     }
-    if (this.board && !BOARD_SITES.every(s => bytesAt(m, s.va, s.bytes.length / 2) === s.bytes)) return this.#bootStock('unexpected engine bytes');
+    const board = this.board && changedSite(m, BOARD_SITES);
+    if (board) return this.#bootStock(`unexpected bytes at ${siteName(board)}`);
     if (this.fast) installFastPaths(m.cpu, va => m.addr(va));
     const jni = this.jni = new JNI(m, { log: this.log }), env = jni.env;
     const ex = n => m.addr(n);
@@ -242,7 +248,8 @@ export class GameHost {
   // Classic there is no offscreen.
   #hookBackdrop() {
     const m = this.m, cpu = m.cpu, rd = a => cpu.rd32(a) >>> 0, picture = m.addr(DISPLAY_VTABLE);
-    if (!BACKDROP_SITES.every(s => bytesAt(m, s.va, s.bytes.length / 2) === s.bytes)) { this.warn('rescue and fight backdrops left in the corner: unexpected engine bytes'); return; }
+    const changed = changedSite(m, BACKDROP_SITES);
+    if (changed) { this.warn(`rescue and fight backdrops left in the corner: unexpected bytes at ${siteName(changed)}`); return; }
     const shift = c => {
       const app = rd(m.addr(APP)), bv = app && rd(app + 0x9c);
       if (!bv || !cpu.m8[bv + LARGE_SCREEN] || (c.r[1] >>> 0) !== rd(bv + OFFSCREEN_CONTEXT)) return;

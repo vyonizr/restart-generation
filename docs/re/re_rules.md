@@ -83,7 +83,7 @@ string to the hero id, for example HEDGEHOG 0 and PLUMBER 1; the full map is `HE
 
 Player type values (factory Mac `FUN_000bd6e2`, RTTI): 0 LocalPlayer, 1 LocalObserver, 2 AIPlayer,
 3 RemotePlayer, 4 RemoteObserver, and 5 (unnamed, 0xbc bytes). Category `FUN_10042ce0` / Mac `FUN_000bd60e`:
-0/2 -> 0 (controlled here), 3 -> 1 (remote player), 1/4/5 -> 2 (observer).
+0/2 -> 0 (controlled here), 3 -> 1 (remote player), 1/4/5 -> 2 (the observer kinds: LocalObserver, RemoteObserver and 5).
 Server remap of the received JoinInfo.type (`FUN_1000d8c0` case 2): 0 or 2 -> 3, 1 -> 4, else -1.
 So a person's client becomes type 3 on the server.
 
@@ -93,7 +93,7 @@ So a person's client becomes type 3 on the server.
 
 ```text
 s32 playerIndex   +0x44  server-allocated (FUN_10023f40)
-s32 team          +0x48  server-allocated seat (FUN_10024c60); 0 for observers
+s32 team          +0x48  server-allocated seat (FUN_10024c60); 0 for the observer kinds
 u8  hasInfo       (+0x4c != 0)
 [ PlayerInfo (write FUN_100421b0, read FUN_100423b0):
     String name     <- JoinInfo.name
@@ -107,7 +107,7 @@ Built in `FUN_1000d8c0` case 4 (`FUN_1000f1a0` index, `FUN_1000f1c0` seat, `FUN_
 The server ignores the fields JoinInfo.slot, fc, and f10.
 Client side (Mac `ClientBattleLogic_v23_06ec40`): type 3 with the client's own index becomes the client's own
 JoinInfo type (LocalPlayer); type 0/2 -> 3; type 1 -> 4. So send type 3 for every person, including the receiver.
-Validation (`FUN_100228d0`) rejects a non-observer with seat 0, and any index ≤ 0.
+Validation (`FUN_100228d0`) rejects a player of no observer kind with seat 0, and any index ≤ 0.
 
 Seat colors: with `(team-1) % 6`, seats 1 to 6 take the engine's six owner colors in the order its owner names list them:
 yellow, red, green, blue, pink, and purple. Observed in a replay: seat 1's castle, tiles, and corner panel are yellow, seat 2's
@@ -319,7 +319,7 @@ Desync or abort risks:
 - Forwarding EndTurnRequest: receivers send it back to the server.
 - Forwarding EndGame reason 3 unchanged: receivers show PLAYER_SYNC_ERROR. A nonzero wrong hash on MoveUnit:
   the receiver sends EndGame(3) and quits with CONNECTION_TO_GAME_LOST_CRC_ERROR_HEADER.
-- PlayerJoined with index 0 or seat 0 (non-observer): rejected, player missing. BattleBegin when the phase or
+- PlayerJoined with index 0 or seat 0 (no observer kind): rejected, player missing. BattleBegin when the phase or
   the sender isn't 0: rejected.
 - Starting with one person: immediate win for that player.
 
