@@ -21,6 +21,7 @@
   import BotsDialog from './lib/game/BotsDialog.svelte';
   import NoticesDialog from './lib/legal/NoticesDialog.svelte';
   import ReplaysDialog from './lib/replay/ReplaysDialog.svelte';
+  import ReplayOffer from './lib/replay/ReplayOffer.svelte';
   import GuideDialog from './lib/guide/GuideDialog.svelte';
 
   // The view the game screen is framed for (board.js): the frame's shape follows it.
@@ -69,6 +70,8 @@
     </div>
     <Keys />
   </main>
+  <!-- The replay offer: under the header's right end on a desktop, over the pad's tools on a touch device (Pad.svelte) -->
+  {#if !touch}<ReplayOffer />{/if}
   <Footer />
   {#if page.notices}<NoticesDialog />{/if}
   {#if page.replays}<ReplaysDialog />{/if}

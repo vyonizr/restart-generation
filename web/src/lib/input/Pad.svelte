@@ -1,7 +1,8 @@
 <!-- The touch pad (DESIGN.md "Touch pad", .scratch/touch-controls/spec.md): a round D-pad cut into four wedges with a dead centre where
      the thumb rests; a big round Select and a smaller round Back right of it; and under both, the rarely pressed tools as a labeled
      bar: Soft screen, Keyboard (outside a battle), Full board (during one, docs/adr/0044), Fullscreen, and the Guide when the copy
-     has one (docs/adr/0033). Shown on touch devices only. pad.js does the pointer handling: bindPad once the game runs, bindIdlePad
+     has one (docs/adr/0033). After an online battle the replay offer lies over the tools until it is dismissed or a battle begins.
+     Shown on touch devices only. pad.js does the pointer handling: bindPad once the game runs, bindIdlePad
      before it. The hidden typing field raises the system keyboard; the hidden video keeps the screen on (wake.js). -->
 <script>
   import { page, padSession } from '../page.svelte.js';
@@ -10,6 +11,7 @@
   import { toggleFinish } from '../game/finish.js';
   import { toggleBoard } from '../game/board.js';
   import { wakeVideo } from '../game/wake.js';
+  import ReplayOffer from '../replay/ReplayOffer.svelte';
 
   // Each wedge's arrow, drawn on a 12-unit square.
   const ARROWS = [
@@ -59,6 +61,7 @@
     <button id="fullscreen" hidden={!canFullscreen() || !padSession.current} onclick={toggleFullscreen}>{@render tool('M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5')}Fullscreen</button>
     <!-- The Guide: an open book. -->
     {#if page.guidable}<button id="guide-book" onclick={openGuide}>{@render tool('M3 5h6.5A2.5 2.5 0 0 1 12 7.5V20a2 2 0 0 0-2-2H3zM21 5h-6.5A2.5 2.5 0 0 0 12 7.5V20a2 2 0 0 1 2-2h7z')}Guide</button>{/if}
+    <ReplayOffer docked />
   </div>
 </div>
 <input id="typing" class="typing" aria-label="Type into the game" autocapitalize="off" autocomplete="off" spellcheck="false" value=" " bind:this={typing}>

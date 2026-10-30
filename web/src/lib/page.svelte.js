@@ -19,6 +19,7 @@ export const page = $state({
   online: null,     // players online, or null when there is no server to ask
   who: null,        // { name, member } once the account is open
   notice: null,     // { text, actions: [{ label, run, secondary }] }: the line under the screen
+  replayOffer: null, // the address of the replay of the online battle just played, while the page offers it (ReplayOffer.svelte)
   nameDialog: null, // { value, error }: the member's name, after Discord sends them back
   confirm: null,    // { title, text, yes, no }: a yes/no question over the game screen
   nameLogin: null,  // { value, rename }: the name dialog on a server without accounts, at an online login or, with rename, from Start

@@ -158,6 +158,52 @@ button:not(.secondary, .who-item):hover .discord-symbol .on-dark, .who-item.prim
 .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; max-width: 70ch; font: 15px/1.6 var(--body); color: var(--light-2); text-align: center; }
 .nudge-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .nudge button, .nudge a.button { font-size: 16px; padding: 8px 14px; }
+/* The replay offer (ReplayOffer.svelte): a card outside the page's flow, so it never moves the game screen; a small copy of the
+   replay page's title band. On a desktop it stands under the header's right end, beside the screen: the crimson REPLAY tag down its
+   left side, the line, then Watch replay and two quiet icons. It sits at z-index 0, so the header's menus open over it. */
+.replay-offer { position: fixed; z-index: 0; top: 88px; right: 48px; width: min(400px, calc(100vw - 96px)); display: grid;
+  grid-template: "tag text" auto "tag actions" auto / auto 1fr; background: var(--ink-2); box-shadow: 0 8px 24px rgb(0 0 0 / 50%);
+  animation: offer-in .4s cubic-bezier(.16, 1, .3, 1); }
+.offer-tag { grid-area: tag; display: grid; place-items: center; padding: 0 12px; background: var(--red); color: #fff;
+  font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; }
+.offer-text { grid-area: text; padding: 12px 14px 8px; font: 15px/1.5 var(--body); color: var(--light-2); }
+.offer-actions { grid-area: actions; display: flex; align-items: center; gap: 6px; padding: 0 14px 14px; }
+.replay-offer a.button { font-size: 15px; padding: 8px 14px; }
+.offer-icon { display: grid; place-items: center; min-width: 32px; height: 32px; padding: 0 6px; font: 500 13px/1 var(--body);
+  text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.replay-offer svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
+@keyframes offer-in { from { opacity: 0; translate: 0 -6px; } }
+@keyframes offer-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .replay-offer { animation-name: offer-fade; } }
+@media (max-width: 759px) { .replay-offer { top: 80px; right: 16px; width: min(400px, calc(100vw - 32px)); } }
+/* On a touch device it lies over the touch pad's tool bar, exactly as big and over its top rule, in one row: the tag holds a drawn
+   replay arrow, and Watch replay takes the rest beside the two icons, each at least 44px. The tools come back when it goes. In a
+   column too narrow for all four, a small phone's landscape one, the tag goes: Watch replay names it. */
+.tools { position: relative; container: tools / inline-size; }
+.replay-offer.docked { position: absolute; inset: -1px 0 0; z-index: 1; width: auto; grid-template: "tag actions" 1fr / auto 1fr;
+  border-top: 1px solid var(--ink-3); box-shadow: none; animation-name: offer-fade; }
+.docked .offer-tag { padding: 0 16px; }
+.docked .offer-tag svg { width: 28px; height: 28px; }
+.docked .offer-play { fill: currentColor; }
+.docked .offer-actions { padding: 0 12px; }
+.docked a.button { flex: 1; min-width: 0; padding: 13px 14px; }
+@container tools (max-width: 259px) {
+  .docked .offer-tag { padding: 0 10px; }
+  .docked .offer-tag svg { width: 24px; height: 24px; }
+  .docked .offer-actions { gap: 4px; padding: 0 8px; }
+  .docked a.button { padding: 13px 8px; }
+}
+@container tools (max-width: 214px) {
+  .docked .offer-tag { display: none; }
+  .docked .offer-actions { padding: 0 6px; }
+  .docked a.button { padding: 13px 6px; }
+}
+/* The pad styles its own buttons and its tools' icons (.pad button, .pad .tools button, .tools svg): the card's two icons keep the
+   page's secondary look. */
+.pad .tools .offer-icon, .pad .tools .offer-icon:hover { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0 8px;
+  font: 500 13px/1 var(--body); color: var(--light-2); background: transparent; border: 1px solid var(--light-3); }
+.pad .tools .offer-icon:active { color: #fff; border-color: #fff; }
+.pad .tools .offer-icon svg { width: 18px; height: 18px; }
 /* How many players are online (Online.svelte): two people, the number in white, "online" a step quieter. On a desktop it stands in
    the header's right end, ruled off from the who chip when there is one. */
 .online { display: flex; align-items: center; gap: 6px; font: 500 13px/1 var(--mono); color: var(--light-3); white-space: nowrap; }

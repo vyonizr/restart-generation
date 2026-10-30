@@ -18,7 +18,7 @@ import { watchGamepad, gamepadSound } from '../input/gamepad.js';
 import { createPresses } from '../input/presses.js';
 import { attachPointer } from '../input/pointer.js';
 import { battlePointer } from '../../../../shared/emu/pointer.js';
-import { replaySaved, battleJoined } from '../replay/replay-notice.js';
+import { replaySaved, battleJoined } from '../replay/replay-offer.js';
 import { startOnlineCount, serverStatus } from '../account/online.js';
 import { frameView, FRAMES } from './board.js';
 import { loadCurtain } from './curtain.js';
@@ -237,7 +237,9 @@ async function main(canvas) {
         if (game.unsaved('settings.cfg')) saveNow(); // the player left the settings: show their keys at once
         if (game.time < now - t0) { if (!away) dropped += now - t0 - game.time; t0 = now - game.time; } // drop the backlog
         away = false;
-        page.battle = game.inBattle ? (game.battleFull ? 'full' : 'classic') : null;
+        const battle = game.inBattle ? (game.battleFull ? 'full' : 'classic') : null;
+        if (battle && !page.battle) page.replayOffer = null; // a battle began: the last one's replay offer goes, off the pad's tools too
+        page.battle = battle;
         fitCanvas(canvas);
         screen.paint(game); // the framebuffer only changes inside a tick
         const took = performance.now() - start;
