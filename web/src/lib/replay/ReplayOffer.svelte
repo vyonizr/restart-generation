@@ -22,7 +22,7 @@
     </span>
     <p class="offer-text" class:vh={docked} role="status">Match replay saved.</p>
     <span class="offer-actions">
-      <a class="button" href={page.replayOffer} target="_blank" rel="noopener" title="Watch this replay in a new tab">{docked ? 'Watch replay' : 'Watch'}</a>
+      <a class="button" class:secondary={!docked} href={page.replayOffer} target="_blank" rel="noopener" title="Watch this replay in a new tab">{docked ? 'Watch replay' : 'Watch'}</a>
       <button type="button" class="secondary offer-icon" onclick={() => copy(page.replayOffer)} aria-label={copied || 'Copy link'} title="Copy this replay's link">
         {#if copied}{copied}{:else}<!-- Two overlapping sheets --><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11" /></svg>{/if}
       </button>
