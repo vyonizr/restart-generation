@@ -14,11 +14,9 @@
 {#if page.replayOffer}
   <aside class="replay-offer" class:docked aria-label="Replay saved">
     <span class="offer-tag">
-      {#if docked}
-        <!-- Replay: an arrow turning back round a play triangle -->
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.26 4.48A8 8 0 1 1 4.48 9.26M10.8 1.2 9.26 4.48l3.33 1.55" /><path class="offer-play" d="M10 8.8v6.4l5-3.2z" /></svg>
-        <span class="vh">Replay</span>
-      {:else}Replay{/if}
+      <!-- Replay: an arrow turning back round a play triangle -->
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.26 4.48A8 8 0 1 1 4.48 9.26M10.8 1.2 9.26 4.48l3.33 1.55" /><path class="offer-play" d="M10 8.8v6.4l5-3.2z" /></svg>
+      <span class="vh">Replay</span>
     </span>
     <p class="offer-text" class:vh={docked} role="status">Match replay saved.</p>
     <span class="offer-actions">

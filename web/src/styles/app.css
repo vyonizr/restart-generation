@@ -159,19 +159,20 @@ button:not(.secondary, .who-item):hover .discord-symbol .on-dark, .who-item.prim
 .nudge-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .nudge button, .nudge a.button { font-size: 16px; padding: 8px 14px; }
 /* The replay offer (ReplayOffer.svelte): a card outside the page's flow, so it never moves the game screen; a small copy of the
-   replay page's title band. On a desktop it stands under the header's right end, beside the screen: the crimson REPLAY tag down its
-   left side, the line, then Watch replay and two quiet icons. It sits at z-index 0, so the header's menus open over it. */
+   replay page's title band. On a desktop it stands under the header's right end, beside the screen: a crimson tag with a drawn replay
+   arrow down its left side, the line, then Watch and two quiet icons. It sits at z-index 0, so the header's menus open over it. */
 .replay-offer { position: fixed; z-index: 0; top: 88px; right: 48px; width: min(400px, calc(100vw - 96px)); display: grid;
   grid-template: "tag text" auto "tag actions" auto / auto 1fr; background: var(--ink-2); box-shadow: 0 8px 24px rgb(0 0 0 / 50%);
   animation: offer-in .4s cubic-bezier(.16, 1, .3, 1); }
-.offer-tag { grid-area: tag; display: grid; place-items: center; padding: 0 12px; background: var(--red); color: #fff;
-  font: 400 15px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; }
+.offer-tag { grid-area: tag; display: grid; place-items: center; padding: 0 16px; background: var(--red); color: #fff; }
 .offer-text { grid-area: text; padding: 12px 14px 8px; font: 15px/1.5 var(--body); color: var(--light-2); }
 .offer-actions { grid-area: actions; display: flex; align-items: center; gap: 6px; padding: 0 14px 14px; }
 .replay-offer a.button { font-size: 15px; padding: 8px 14px; }
 .offer-icon { display: grid; place-items: center; min-width: 32px; height: 32px; padding: 0 6px; font: 500 13px/1 var(--body);
   text-transform: none; letter-spacing: 0; white-space: nowrap; }
 .replay-offer svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
+.replay-offer .offer-tag svg { width: 28px; height: 28px; }
+.offer-play { fill: currentColor; }
 @keyframes offer-in { from { opacity: 0; translate: 0 -6px; } }
 @keyframes offer-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .replay-offer { animation-name: offer-fade; } }
@@ -182,9 +183,6 @@ button:not(.secondary, .who-item):hover .discord-symbol .on-dark, .who-item.prim
 .tools { position: relative; container: tools / inline-size; }
 .replay-offer.docked { position: absolute; inset: -1px 0 0; z-index: 1; width: auto; grid-template: "tag actions" 1fr / auto 1fr;
   border-top: 1px solid var(--ink-3); box-shadow: none; animation-name: offer-fade; }
-.docked .offer-tag { padding: 0 16px; }
-.docked .offer-tag svg { width: 28px; height: 28px; }
-.docked .offer-play { fill: currentColor; }
 .docked .offer-actions { padding: 0 12px; }
 .docked a.button { flex: 1; min-width: 0; padding: 13px 14px; }
 @container tools (max-width: 259px) {
